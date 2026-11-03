@@ -217,6 +217,23 @@ Se corrigiÃ³ `.env.local` y `.env.local.example`. La aplicaciÃ³n debe reinic
 
 **A-03 en diseño incremental.** El repositorio se encuentra en `feature/a03-autorizacion-empresa`. El siguiente cambio será únicamente A-03.1: dependencias y configuración JWT del microservicio de productos.
 
+### Resultado A-03.4
+
+- Se protegieron en el filtro HTTP las operaciones `POST /api/productos`, `PUT /api/productos/{id}` y `DELETE /api/productos/{id}` para exigir autenticaciÃ³n.
+- Se agregÃ³ el manejo explÃ­cito de denegaciones de acceso en el microservicio de productos.
+- Una solicitud de escritura sin token responde **401 Unauthorized**.
+- Una solicitud de un emprendedor sobre una empresa diferente responde **403 Forbidden** con cÃ³digo `FORBIDDEN`.
+- Las consultas de productos, categorÃ­as y empresas continÃºan respondiendo **200 OK**.
+- ValidaciÃ³n de autenticaciÃ³n: administrador **200**, `ROLE_ADMIN`; emprendedor **200**, `ROLE_EMP`, `userId=3`, `empresaId=2`.
+- RegresiÃ³n funcional: productos **39**, categorÃ­as **6** y empresas **4** registros consultados correctamente.
+- Prueba unitaria ejecutada: `mvnw.cmd -Dtest=ProductoAuthorizationServiceTest test`.
+- Resultado: **5 pruebas ejecutadas, 0 fallos, 0 errores; BUILD SUCCESS**.
+- Durante la primera comprobaciÃ³n se detectÃ³ que las denegaciones eran clasificadas como **500** por el manejador genÃ©rico; se corrigiÃ³ la clasificaciÃ³n y se repitiÃ³ la validaciÃ³n con **401/403**.
+- Las solicitudes negativas fueron rechazadas antes de persistir; no se crearon, editaron ni eliminaron registros.
+- Se reiniciÃ³ manualmente Ãºnicamente `msvc-producto`; no se ejecutaron migraciones ni se modificÃ³ MySQL, Redis, Gateway o contraseÃ±as.
+
+**Estado A-03:** completado en la rama `feature/a03-autorizacion-empresa`, pendiente de revisiÃ³n remota del commit de A-03.4.
+
 ### Estado de la matriz
 
 **Estado:** línea base preparada para revisión de A-03 y A-06.
