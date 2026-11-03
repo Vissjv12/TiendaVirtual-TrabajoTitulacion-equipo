@@ -12,6 +12,7 @@ import com.example.msvc_producto.domain.model.Producto;
 import com.example.msvc_producto.domain.service.CategoriaService;
 import com.example.msvc_producto.domain.service.EmpresaService;
 import com.example.msvc_producto.domain.service.ProductoService;
+import com.example.msvc_producto.application.service.ProductoAuthorizationService;
 import feign.FeignException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +21,9 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -39,23 +43,31 @@ public class ProductoController {
     private final CategoriaService categoriaService;
     private final ProductoMapper productoMapper;
     private final InventarioClient inventarioClient;
+    private final ProductoAuthorizationService productoAuthorizationService;
 
     public ProductoController(
             ProductoService productoService,
             EmpresaService empresaService,
             CategoriaService categoriaService,
             ProductoMapper productoMapper,
-            @Qualifier("com.example.msvc_producto.application.client.InventarioClient") InventarioClient inventarioClient) {
+            @Qualifier("com.example.msvc_producto.application.client.InventarioClient") InventarioClient inventarioClient,
+            ProductoAuthorizationService productoAuthorizationService) {
         this.productoService = productoService;
         this.empresaService = empresaService;
         this.categoriaService = categoriaService;
         this.productoMapper = productoMapper;
         this.inventarioClient = inventarioClient;
+        this.productoAuthorizationService = productoAuthorizationService;
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
     @Operation(summary = "Crear un nuevo producto")
-    public ResponseEntity<ProductoResponseDto> crearProducto(@Valid @RequestBody ProductoRequestDto requestDto) {
+    public ResponseEntity<ProductoResponseDto> crearProducto(
+            @Valid @RequestBody ProductoRequestDto requestDto,
+            Authentication authentication) {
+        assertCompanyAccess(authentication, requestDto.getEmpresaId());
+        applyAuthenticatedEntrepreneurId(authentication, requestDto);
         // Obtener empresa y categoría
         Empresa empresa = empresaService.obtenerEmpresaPorId(requestDto.getEmpresaId());
         Categoria categoria = categoriaService.obtenerCategoriaPorId(requestDto.getCategoriaId());
@@ -82,10 +94,14 @@ public class ProductoController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
     @Operation(summary = "Actualizar un producto existente")
     public ResponseEntity<ProductoResponseDto> actualizarProducto(
             @PathVariable Long id,
-            @Valid @RequestBody ProductoRequestDto requestDto) {
+            @Valid @RequestBody ProductoRequestDto requestDto,
+            Authentication authentication) {
+        assertProductAccess(authentication, id);
+        applyAuthenticatedEntrepreneurId(authentication, requestDto);
         // Obtener empresa y categoría
         Empresa empresa = empresaService.obtenerEmpresaPorId(requestDto.getEmpresaId());
         Categoria categoria = categoriaService.obtenerCategoriaPorId(requestDto.getCategoriaId());
@@ -198,8 +214,12 @@ public class ProductoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
     @Operation(summary = "Eliminar un producto")
-    public ResponseEntity<Void> eliminarProducto(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminarProducto(
+            @PathVariable Long id,
+            Authentication authentication) {
+        assertProductAccess(authentication, id);
         productoService.eliminarProducto(id);
         return ResponseEntity.noContent().build();
     }
@@ -219,6 +239,36 @@ public class ProductoController {
         System.out.println("Stock sincronizado para producto " + id + ": " + stock);
 
         return ResponseEntity.ok().build();
+    }
+
+    private void assertCompanyAccess(Authentication authentication, Long empresaId) {
+        if (!productoAuthorizationService.canManageCompany(authentication, empresaId)) {
+            throw new AccessDeniedException("El usuario no puede operar sobre esta empresa");
+        }
+    }
+
+    private void assertProductAccess(Authentication authentication, Long productoId) {
+        if (!productoAuthorizationService.canManageProduct(authentication, productoId)) {
+            throw new AccessDeniedException("El usuario no puede operar sobre este producto");
+        }
+    }
+
+    private void applyAuthenticatedEntrepreneurId(
+            Authentication authentication,
+            ProductoRequestDto requestDto) {
+        if (!hasAuthority(authentication, "ROLE_EMP")) {
+            return;
+        }
+
+        Long userId = productoAuthorizationService.getAuthenticatedUserId(authentication)
+                .orElseThrow(() -> new AccessDeniedException(
+                        "El token del emprendedor no contiene userId"));
+        requestDto.setEmprendedorId(userId);
+    }
+
+    private boolean hasAuthority(Authentication authentication, String authority) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> authority.equals(grantedAuthority.getAuthority()));
     }
 
 }

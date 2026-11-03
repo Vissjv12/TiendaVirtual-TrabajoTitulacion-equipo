@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_PRODUCTOS_API_URL || 'http://localhost:8081';
+const API_BASE_URL = process.env.NEXT_PUBLIC_PRODUCTOS_API_URL || 'http://localhost:8081/api';
 
 // =====================================
 // INTERFACES PARA CATEGORÍAS
