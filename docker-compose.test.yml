@@ -1,0 +1,90 @@
+# ============================================================================
+# Docker Compose - Ambiente de Pruebas Aislado (Actividad A-02)
+# Proyecto: Feria Digital Sigchos
+# Propósito: Proveer un entorno de base de datos y caché completamente aislado
+#            del contenedor principal (usa volumen y red propios, puertos 3307/6380)
+#            para validar respaldos, migraciones y pruebas de rollback sin riesgo.
+# Uso:
+#   docker compose -f docker-compose.test.yml up -d
+# ============================================================================
+
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: mysql-feria-digital-test
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-admin}
+      MYSQL_USER: ${MYSQL_USER:-admin}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      TZ: America/Guayaquil
+    ports:
+      - "${TEST_MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./db-01-create-databases.sql:/docker-entrypoint-initdb.d/01-create-databases.sql:ro
+      - ./db-02-schema-auth-service.sql:/docker-entrypoint-initdb.d/02-schema-auth-service.sql:ro
+      - ./db-03-schema-productos.sql:/docker-entrypoint-initdb.d/03-schema-productos.sql:ro
+      - ./db-04-schema-inventario.sql:/docker-entrypoint-initdb.d/04-schema-inventario.sql:ro
+      - ./db-05-schema-ventas.sql:/docker-entrypoint-initdb.d/05-schema-ventas.sql:ro
+      - ./db-06-seed-auth-service.sql:/docker-entrypoint-initdb.d/06-seed-auth-service.sql:ro
+      - ./db-07-seed-productos.sql:/docker-entrypoint-initdb.d/07-seed-productos.sql:ro
+      - ./db-08-seed-inventario.sql:/docker-entrypoint-initdb.d/08-seed-inventario.sql:ro
+      - ./db-09-seed-ventas.sql:/docker-entrypoint-initdb.d/09-seed-ventas.sql:ro
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --max_connections=200
+      - --innodb_buffer_pool_size=256M
+    networks:
+      - feria-test-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD:-admin}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: redis-feria-digital-test
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly no
+    ports:
+      - "${TEST_REDIS_PORT:-6380}:6379"
+    networks:
+      - feria-test-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_test_data:
+    driver: local
+
+networks:
+  feria-test-network:
+    driver: bridge

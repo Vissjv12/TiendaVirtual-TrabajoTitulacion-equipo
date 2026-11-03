@@ -1,2 +1,17 @@
 # Ignore all documentation files and screenshots
 docs/
+
+# Ignore local work documents
+documentos-trabajo/
+documentos-trabajo/*
+
+# Ignore runtime environment files and generated dynamic backups
+.env
+.env.local
+.env.test
+backups/*.sql
+backups/*.dump
+backups/*.gz
+backups/*.zip
+!backups/.gitkeep
+!backups/backup_pre_migracion.sql
