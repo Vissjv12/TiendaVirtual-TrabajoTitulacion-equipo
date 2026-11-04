@@ -50,6 +50,24 @@ class ProductoAuthorizationServiceTest {
     }
 
     @Test
+    void emprendedoresDeEmpresasDiferentesNoCompartenAlcance() {
+        JwtAuthenticationToken emprendedorEmpresaA = authentication("ROLE_EMP", 10L);
+        JwtAuthenticationToken emprendedorEmpresaB = authentication("ROLE_EMP", 20L);
+
+        assertTrue(authorizationService.canManageCompany(emprendedorEmpresaA, 10L));
+        assertFalse(authorizationService.canManageCompany(emprendedorEmpresaA, 20L));
+        assertTrue(authorizationService.canManageCompany(emprendedorEmpresaB, 20L));
+        assertFalse(authorizationService.canManageCompany(emprendedorEmpresaB, 10L));
+    }
+
+    @Test
+    void emprendedorSinEmpresaNoPuedeGestionarRecursos() {
+        JwtAuthenticationToken authentication = authentication("ROLE_EMP", null);
+
+        assertFalse(authorizationService.canManageCompany(authentication, 10L));
+    }
+
+    @Test
     void emprendedorSoloPuedeGestionarProductosDeSuEmpresa() {
         Producto producto = new Producto();
         Empresa empresa = new Empresa();
