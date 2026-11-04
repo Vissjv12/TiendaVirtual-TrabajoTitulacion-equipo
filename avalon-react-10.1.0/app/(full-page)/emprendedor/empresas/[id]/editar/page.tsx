@@ -12,6 +12,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
 import { Skeleton } from 'primereact/skeleton';
 import categoriasEmpresasService, { EmpresaRequest, Empresa } from '../../../../../../services/categoriasEmpresasService';
+import authService from '../../../../../../services/authService';
 
 const EditarEmpresaPage: React.FC = () => {
     const router = useRouter();
@@ -37,6 +38,16 @@ const EditarEmpresaPage: React.FC = () => {
     // Cargar datos de la empresa
     useEffect(() => {
         if (empresaId) {
+            if (!authService.canManageEmpresa(empresaId)) {
+                toast.current?.show({
+                    severity: 'warn',
+                    summary: 'Acceso denegado (403)',
+                    detail: 'No tienes permisos para editar los datos de otra empresa.',
+                    life: 3500
+                });
+                setTimeout(() => router.push('/emprendedor/empresas'), 1500);
+                return;
+            }
             cargarEmpresa();
         }
     }, [empresaId]);

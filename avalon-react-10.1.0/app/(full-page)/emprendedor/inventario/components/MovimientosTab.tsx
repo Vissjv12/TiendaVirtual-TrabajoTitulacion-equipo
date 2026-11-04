@@ -15,6 +15,8 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputTextarea } from 'primereact/inputtextarea';
 import inventarioService, { MovimientoInventario, MovimientoRequest } from '../../../../../services/inventarioService';
+import emprendedorService from '../../../../../services/emprendedorService';
+import authService from '../../../../../services/authService';
 
 interface MovimientosTabProps {
     toast: RefObject<Toast>;
@@ -37,12 +39,13 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
     const [nuevoMovimientoVisible, setNuevoMovimientoVisible] = useState(false);
 
     // Estados para nuevo movimiento
+    const [inventariosPermitidosIds, setInventariosPermitidosIds] = useState<number[]>([]);
     const [nuevoMovimiento, setNuevoMovimiento] = useState<MovimientoRequest>({
         inventarioId: 0,
         tipoMovimiento: 'ENTRADA',
         cantidad: 0,
         motivo: '',
-        usuarioId: 1 // Por defecto, se debería obtener del contexto de usuario
+        usuarioId: authService.getUserInfo()?.id || 0
     });
 
     // Opciones para tipos de movimiento
@@ -71,11 +74,30 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
         setLoading(true);
         try {
             console.log('🔄 Cargando movimientos...');
-            const response = await inventarioService.obtenerMovimientos();
+            const [response, inventariosRes, productosRes] = await Promise.all([
+                inventarioService.obtenerMovimientos(),
+                inventarioService.obtenerInventarios(),
+                emprendedorService.obtenerProductosEmprendedor()
+            ]);
 
             if (response.success && response.data) {
-                setMovimientos(response.data);
-                console.log('✅ Movimientos cargados:', response.data.length);
+                const productosIdsPermitidos = new Set(
+                    (productosRes.data || []).map(p => Number(p.id))
+                );
+
+                const inventariosIdsAutorizados = (inventariosRes.data || [])
+                    .filter(inv => productosIdsPermitidos.has(Number(inv.producto?.id)))
+                    .map(inv => Number(inv.id));
+
+                setInventariosPermitidosIds(inventariosIdsAutorizados);
+                const setInvIds = new Set(inventariosIdsAutorizados);
+
+                const movimientosAutorizados = authService.isAdmin()
+                    ? response.data
+                    : response.data.filter(mov => setInvIds.has(Number(mov.inventarioId)));
+
+                setMovimientos(movimientosAutorizados);
+                console.log('✅ Movimientos autorizados cargados:', movimientosAutorizados.length);
             } else {
                 toast.current?.show({
                     severity: 'error',
@@ -144,11 +166,11 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
     // Abrir modal para nuevo movimiento
     const abrirNuevoMovimiento = () => {
         setNuevoMovimiento({
-            inventarioId: 0,
+            inventarioId: inventariosPermitidosIds[0] || 0,
             tipoMovimiento: 'ENTRADA',
             cantidad: 0,
             motivo: '',
-            usuarioId: 1
+            usuarioId: authService.getUserInfo()?.id || 0
         });
         setNuevoMovimientoVisible(true);
     };
@@ -162,6 +184,16 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
                     summary: 'Advertencia',
                     detail: 'Selecciona un inventario válido',
                     life: 3000
+                });
+                return;
+            }
+
+            if (!authService.isAdmin() && !inventariosPermitidosIds.includes(Number(nuevoMovimiento.inventarioId))) {
+                toast.current?.show({
+                    severity: 'warn',
+                    summary: 'Acceso denegado (403)',
+                    detail: 'No tienes permisos para registrar movimientos sobre el inventario de otra empresa.',
+                    life: 4000
                 });
                 return;
             }

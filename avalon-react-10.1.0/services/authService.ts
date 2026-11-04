@@ -289,15 +289,20 @@ class AuthService {
     getUserInfo(): UsuarioInfo | null {
         if (typeof window !== 'undefined') {
             const userInfo = localStorage.getItem(this.USER_KEY);
-            const parsed = userInfo ? JSON.parse(userInfo) : null;
+            const parsed: UsuarioInfo | null = userInfo ? JSON.parse(userInfo) : null;
 
-            if (parsed && !parsed.empresaId) {
+            if (parsed && (!parsed.empresaId || !parsed.id)) {
                 const token = this.getToken();
                 const payload = token ? this.decodeJwtPayload(token) : null;
-                const empresaId = payload?.empresaId;
+                const empresaId = parsed.empresaId ?? payload?.empresaId;
+                const id = parsed.id ?? payload?.userId;
 
-                if (empresaId) {
-                    const updated = { ...parsed, empresaId };
+                if (empresaId !== parsed.empresaId || id !== parsed.id) {
+                    const updated = {
+                        ...parsed,
+                        ...(id !== undefined && { id: Number(id) }),
+                        ...(empresaId !== undefined && { empresaId: Number(empresaId) })
+                    };
                     this.setUserInfo(updated);
                     return updated;
                 }
@@ -374,6 +379,78 @@ class AuthService {
 
     isAdmin(): boolean {
         return this.hasRole('ROLE_ADMIN');
+    }
+
+    /**
+     * Obtiene el ID de la empresa asociada al usuario autenticado (extraído de user_info o del JWT).
+     */
+    getEmpresaId(): number | null {
+        const userInfo = this.getUserInfo();
+        if (userInfo?.empresaId !== undefined && userInfo?.empresaId !== null) {
+            const parsedId = Number(userInfo.empresaId);
+            return Number.isNaN(parsedId) ? null : parsedId;
+        }
+        const token = this.getToken();
+        const payload = token ? this.decodeJwtPayload(token) : null;
+        if (payload?.empresaId !== undefined && payload?.empresaId !== null) {
+            const parsedId = Number(payload.empresaId);
+            return Number.isNaN(parsedId) ? null : parsedId;
+        }
+        return null;
+    }
+
+    /**
+     * Verifica si el usuario autenticado tiene alcance autorizado para gestionar recursos de una empresa.
+     * - ROLE_ADMIN: puede gestionar cualquier empresa.
+     * - ROLE_EMP: solo puede gestionar recursos donde empresaId coincida con su empresa asignada.
+     */
+    canManageEmpresa(targetEmpresaId?: number | null): boolean {
+        if (this.isAdmin()) {
+            return true;
+        }
+        if (!this.hasRole('ROLE_EMP')) {
+            return false;
+        }
+        const userEmpresaId = this.getEmpresaId();
+        if (!userEmpresaId || !targetEmpresaId) {
+            return false;
+        }
+        return Number(userEmpresaId) === Number(targetEmpresaId);
+    }
+
+    /**
+     * Extrae un mensaje claro desde respuestas HTTP de error (especialmente 401 y 403 del backend).
+     */
+    async extractErrorMessage(response: Response, fallbackMessage: string): Promise<string> {
+        try {
+            const text = await response.text();
+            if (text) {
+                try {
+                    const parsed = JSON.parse(text);
+                    if (parsed.message) {
+                        return parsed.message;
+                    }
+                    if (parsed.error && typeof parsed.error === 'string') {
+                        return parsed.error;
+                    }
+                } catch {
+                    // Si no es JSON, usar texto plano si es corto
+                    if (text.length < 200) {
+                        return text;
+                    }
+                }
+            }
+        } catch {
+            // Ignorar error leyendo body
+        }
+
+        if (response.status === 401) {
+            return 'Sesión expirada o no autenticada (401). Por favor inicia sesión nuevamente.';
+        }
+        if (response.status === 403) {
+            return 'Acceso denegado (403): No tienes permisos para operar sobre recursos de otra empresa.';
+        }
+        return fallbackMessage;
     }
 
     canViewPrices(): boolean {

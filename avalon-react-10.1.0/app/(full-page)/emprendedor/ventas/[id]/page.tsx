@@ -12,6 +12,7 @@ import { Badge } from 'primereact/badge';
 import { Divider } from 'primereact/divider';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import ventasService, { VentaResponse } from '../../../../../services/ventasService';
+import authService from '../../../../../services/authService';
 
 interface DetalleVentaPageProps {
     params: { id: string };
@@ -34,6 +35,35 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
         setLoading(true);
         try {
             console.log('🔄 Cargando detalle de venta:', ventaId);
+
+            // 🔒 Validar que la venta pertenezca al alcance del emprendedor si no es admin
+            if (!authService.isAdmin()) {
+                const empresaId = authService.getEmpresaId();
+                if (!empresaId) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'Acceso denegado (403)',
+                        detail: 'Tu cuenta no tiene una empresa asociada para consultar ventas.',
+                        life: 3500
+                    });
+                    setTimeout(() => router.push('/emprendedor/ventas'), 1500);
+                    return;
+                }
+
+                const ventasEmpRes = await ventasService.listarVentasPorEmprendedor(empresaId);
+                const idsPermitidos = new Set((ventasEmpRes.data || []).map((v) => Number(v.id)));
+                if (ventasEmpRes.success && !idsPermitidos.has(Number(ventaId))) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'Acceso denegado (403)',
+                        detail: 'No tienes permisos para ver ni operar sobre una venta de otra empresa.',
+                        life: 4000
+                    });
+                    setTimeout(() => router.push('/emprendedor/ventas'), 1500);
+                    return;
+                }
+            }
+
             const response = await ventasService.obtenerVentaPorId(ventaId);
 
             if (response.success && response.data) {

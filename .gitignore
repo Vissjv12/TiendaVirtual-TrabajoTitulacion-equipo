@@ -1,2 +1,4 @@
 # Ignore all documentation files and screenshots
 docs/
+documentos-trabajo/
+documentos-trabajo/**

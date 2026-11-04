@@ -75,6 +75,7 @@ export interface ApiResponse<T> {
     success: boolean;
     data?: T;
     message: string;
+    status?: number;
 }
 
 // ================ SERVICIO PRINCIPAL ================
@@ -310,15 +311,23 @@ class EmprendedorService {
 
             if (response.ok) {
                 const empresas = await response.json();
+                const isAdmin = authService.isAdmin();
+                const userEmpresaId = authService.getEmpresaId();
+                const empresasFiltradas = !isAdmin && userEmpresaId
+                    ? empresas.filter((e: Empresa) => Number(e.id) === Number(userEmpresaId))
+                    : empresas;
                 return {
                     success: true,
-                    data: empresas,
+                    status: response.status,
+                    data: empresasFiltradas,
                     message: 'Empresas obtenidas exitosamente'
                 };
             } else {
+                const errorMsg = await authService.extractErrorMessage(response, `Error ${response.status}: ${response.statusText}`);
                 return {
                     success: false,
-                    message: `Error ${response.status}: ${response.statusText}`
+                    status: response.status,
+                    message: errorMsg
                 };
             }
         } catch (error: any) {
@@ -462,79 +471,113 @@ class EmprendedorService {
     }
 
     // ================ PRODUCTOS ================
+    private mapProductoDtoToEmprendedor(producto: any): ProductoEmprendedor {
+        return {
+            id: producto.id,
+            nombre: producto.nombre,
+            descripcion: producto.descripcion,
+            precio: producto.precio,
+            imagen: producto.imagen || '/demo/images/product/product-placeholder.svg',
+            activo: producto.activo !== undefined ? producto.activo : true,
+            categoria: {
+                id: producto.categoria?.id || 0,
+                nombre: producto.categoria?.nombre || producto.categoriaNombre || 'Sin categoría',
+                descripcion: producto.categoria?.descripcion || '',
+                activo: producto.categoria?.activo !== undefined ? producto.categoria.activo : true,
+                fechaCreacion: producto.categoria?.fechaCreacion || '',
+                fechaActualizacion: producto.categoria?.fechaActualizacion || ''
+            },
+            empresa: {
+                id: producto.empresa?.id || producto.empresaId || 0,
+                nombre: producto.empresa?.nombre || producto.empresaNombre || 'Sin empresa',
+                ruc: producto.empresa?.ruc || '',
+                direccion: producto.empresa?.direccion || '',
+                telefono: producto.empresa?.telefono || '',
+                email: producto.empresa?.email || '',
+                activo: producto.empresa?.activo !== undefined ? producto.empresa.activo : true,
+                fechaCreacion: producto.empresa?.fechaCreacion || '',
+                fechaActualizacion: producto.empresa?.fechaActualizacion || ''
+            },
+            inventario: producto.inventario
+                ? {
+                      id: producto.inventario.id || 0,
+                      cantidad: producto.inventario.cantidad || 0,
+                      ubicacion: producto.inventario.ubicacion || 'Sin ubicación'
+                  }
+                : {
+                      id: 0,
+                      cantidad: producto.inventarioCantidad || 0,
+                      ubicacion: (producto.inventarioCantidad || 0) > 0 ? 'Disponible' : 'Sin stock'
+                  },
+            fechaCreacion: producto.fechaCreacion || '',
+            fechaActualizacion: producto.fechaActualizacion || ''
+        };
+    }
+
     async obtenerProductosEmprendedor(): Promise<ApiResponse<ProductoEmprendedor[]>> {
         try {
             console.log('🚀 Obteniendo productos para emprendedor...');
 
-            // ✅ USAR EL ENDPOINT OPTIMIZADO PRIMERO
-            try {
-                const response = await fetch(`${this.PRODUCTOS_URL}/productos/listado`, {
+            const isAdmin = authService.isAdmin();
+            const userEmpresaId = authService.getEmpresaId();
+
+            // 🔒 Si es ROLE_EMP, solo tiene permiso sobre su propia empresa
+            if (!isAdmin) {
+                if (!userEmpresaId) {
+                    return {
+                        success: false,
+                        status: 403,
+                        data: [],
+                        message: 'Tu cuenta de emprendedor no tiene una empresa asociada en la sesión. Inicia sesión nuevamente.'
+                    };
+                }
+
+                const responseEmpresa = await fetch(`${this.PRODUCTOS_URL}/productos/empresa/${userEmpresaId}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         ...authService.getAuthHeaders()
                     },
-                    signal: AbortSignal.timeout(3000)
+                    signal: AbortSignal.timeout(5000)
                 });
 
-                if (response.ok) {
-                    const productosDto = await response.json();
-                    console.log(`✅ Endpoint optimizado funcionó: ${productosDto.length} productos`);
+                if (responseEmpresa.ok) {
+                    const productos = await responseEmpresa.json();
+                    const productosEmprendedor: ProductoEmprendedor[] = productos
+                        .map((p: any) => this.mapProductoDtoToEmprendedor(p))
+                        .filter((p: ProductoEmprendedor) => !p.empresa?.id || Number(p.empresa.id) === Number(userEmpresaId));
 
-                    // ✅ CONVERTIR A FORMATO EMPRENDEDOR
-                    const productosEmprendedor: ProductoEmprendedor[] = productosDto.map((dto: any) => ({
-                        id: dto.id,
-                        nombre: dto.nombre,
-                        descripcion: dto.descripcion,
-                        precio: dto.precio,
-                        imagen: dto.imagen || '/demo/images/product/product-placeholder.svg',
-                        activo: true, // Por defecto activo
-                        categoria: {
-                            id: 0,
-                            nombre: dto.categoriaNombre || 'Sin categoría',
-                            descripcion: '',
-                            activo: true,
-                            fechaCreacion: '',
-                            fechaActualizacion: ''
-                        },
-                        empresa: {
-                            id: 0,
-                            nombre: dto.empresaNombre || 'Sin empresa',
-                            ruc: '',
-                            direccion: '',
-                            telefono: '',
-                            email: '',
-                            activo: true,
-                            fechaCreacion: '',
-                            fechaActualizacion: ''
-                        },
-                        inventario: {
-                            id: 0,
-                            cantidad: dto.inventarioCantidad || 0,
-                            ubicacion: (dto.inventarioCantidad || 0) > 0 ? 'Disponible' : 'Sin stock'
-                        },
-                        fechaCreacion: '',
-                        fechaActualizacion: ''
-                    }));
+                    // Asegurar que empresa.id tenga el valor correcto
+                    productosEmprendedor.forEach((p) => {
+                        if (!p.empresa.id) {
+                            p.empresa.id = userEmpresaId;
+                        }
+                    });
 
-                    // ✅ ACTUALIZAR STOCK EN SEGUNDO PLANO CON BATCH
                     if (productosEmprendedor.length > 0) {
-                        console.log(`🔄 Iniciando actualización batch de stock...`);
-                        // No usar await para que sea en segundo plano
                         this.actualizarStockEnSegundoPlano(productosEmprendedor);
                     }
 
                     return {
                         success: true,
+                        status: responseEmpresa.status,
                         data: productosEmprendedor,
-                        message: 'Productos obtenidos exitosamente (optimizado)'
+                        message: 'Productos de tu empresa obtenidos exitosamente'
+                    };
+                } else {
+                    const errorMsg = await authService.extractErrorMessage(
+                        responseEmpresa,
+                        `Error ${responseEmpresa.status}: ${responseEmpresa.statusText}`
+                    );
+                    return {
+                        success: false,
+                        status: responseEmpresa.status,
+                        message: errorMsg
                     };
                 }
-            } catch (error) {
-                console.log('⚠️ Endpoint optimizado falló, intentando endpoint básico...');
             }
 
-            // ✅ FALLBACK: ENDPOINT BÁSICO
+            // ✅ Si es ROLE_ADMIN: cargar todos los productos con información completa de empresa
             const response = await fetch(`${this.PRODUCTOS_URL}/productos`, {
                 method: 'GET',
                 headers: {
@@ -548,63 +591,30 @@ class EmprendedorService {
                 const productos = await response.json();
                 console.log(`✅ Endpoint básico funcionó: ${productos.length} productos`);
 
-                // ✅ CONVERTIR FORMATO BÁSICO A EMPRENDEDOR
-                const productosEmprendedor: ProductoEmprendedor[] = productos.map((producto: any) => ({
-                    id: producto.id,
-                    nombre: producto.nombre,
-                    descripcion: producto.descripcion,
-                    precio: producto.precio,
-                    imagen: producto.imagen,
-                    activo: producto.activo !== undefined ? producto.activo : true,
-                    categoria: {
-                        id: producto.categoria?.id || 0,
-                        nombre: producto.categoria?.nombre || 'Sin categoría',
-                        descripcion: producto.categoria?.descripcion || '',
-                        activo: producto.categoria?.activo !== undefined ? producto.categoria.activo : true,
-                        fechaCreacion: producto.categoria?.fechaCreacion || '',
-                        fechaActualizacion: producto.categoria?.fechaActualizacion || ''
-                    },
-                    empresa: {
-                        id: producto.empresa?.id || 0,
-                        nombre: producto.empresa?.nombre || 'Sin empresa',
-                        ruc: producto.empresa?.ruc || '',
-                        direccion: producto.empresa?.direccion || '',
-                        telefono: producto.empresa?.telefono || '',
-                        email: producto.empresa?.email || '',
-                        activo: producto.empresa?.activo !== undefined ? producto.empresa.activo : true,
-                        fechaCreacion: producto.empresa?.fechaCreacion || '',
-                        fechaActualizacion: producto.empresa?.fechaActualizacion || ''
-                    },
-                    inventario: producto.inventario
-                        ? {
-                              id: producto.inventario.id,
-                              cantidad: producto.inventario.cantidad || 0,
-                              ubicacion: producto.inventario.ubicacion || 'Sin ubicación'
-                          }
-                        : {
-                              id: 0,
-                              cantidad: 0,
-                              ubicacion: 'Sin stock'
-                          },
-                    fechaCreacion: producto.fechaCreacion || '',
-                    fechaActualizacion: producto.fechaActualizacion || ''
-                }));
+                const productosEmprendedor: ProductoEmprendedor[] = productos.map((producto: any) =>
+                    this.mapProductoDtoToEmprendedor(producto)
+                );
 
-                // ✅ ACTUALIZAR STOCK EN SEGUNDO PLANO CON BATCH TAMBIÉN PARA EL FALLBACK
                 if (productosEmprendedor.length > 0) {
-                    console.log(`🔄 Iniciando actualización batch de stock (fallback)...`);
+                    console.log(`🔄 Iniciando actualización batch de stock (admin)...`);
                     this.actualizarStockEnSegundoPlano(productosEmprendedor);
                 }
 
                 return {
                     success: true,
+                    status: response.status,
                     data: productosEmprendedor,
                     message: 'Productos obtenidos exitosamente'
                 };
             } else {
+                const errorMsg = await authService.extractErrorMessage(
+                    response,
+                    `Error ${response.status}: ${response.statusText}`
+                );
                 return {
                     success: false,
-                    message: `Error ${response.status}: ${response.statusText}`
+                    status: response.status,
+                    message: errorMsg
                 };
             }
         } catch (error: any) {
@@ -627,15 +637,32 @@ class EmprendedorService {
 
             if (response.ok) {
                 const producto = await response.json();
+                const productoMapeado = this.mapProductoDtoToEmprendedor(producto);
+
+                // 🔒 Validar alcance autorizado en frontend para ROLE_EMP
+                if (!authService.isAdmin() && productoMapeado.empresa?.id && !authService.canManageEmpresa(productoMapeado.empresa.id)) {
+                    return {
+                        success: false,
+                        status: 403,
+                        message: 'Acceso denegado (403): El usuario no puede operar sobre este producto porque pertenece a otra empresa.'
+                    };
+                }
+
                 return {
                     success: true,
-                    data: producto,
+                    status: response.status,
+                    data: productoMapeado,
                     message: 'Producto obtenido exitosamente'
                 };
             } else {
+                const errorMsg = await authService.extractErrorMessage(
+                    response,
+                    `Error ${response.status}: ${response.statusText}`
+                );
                 return {
                     success: false,
-                    message: `Error ${response.status}: ${response.statusText}`
+                    status: response.status,
+                    message: errorMsg
                 };
             }
         } catch (error: any) {
@@ -648,8 +675,29 @@ class EmprendedorService {
 
     async crearProducto(producto: ProductoRequest): Promise<ApiResponse<ProductoEmprendedor>> {
         try {
+            if (!authService.isAuthenticated()) {
+                return {
+                    success: false,
+                    status: 401,
+                    message: 'No autenticado (401). Por favor inicia sesión.'
+                };
+            }
+
             const userInfo = authService.getUserInfo();
-            const emprendedorId = producto.emprendedorId ?? userInfo?.empresaId ?? producto.empresaId;
+            const userEmpresaId = authService.getEmpresaId();
+
+            // 🔒 Para ROLE_EMP, validar alcance de empresa antes de enviar
+            if (!authService.isAdmin()) {
+                if (!userEmpresaId || Number(producto.empresaId) !== Number(userEmpresaId)) {
+                    return {
+                        success: false,
+                        status: 403,
+                        message: 'Acceso denegado (403): El usuario no puede operar sobre esta empresa.'
+                    };
+                }
+            }
+
+            const emprendedorId = producto.emprendedorId ?? userInfo?.id ?? userEmpresaId ?? producto.empresaId;
             const payload = { ...producto, emprendedorId };
 
             const response = await fetch(`${this.PRODUCTOS_URL}/productos`, {
@@ -665,14 +713,16 @@ class EmprendedorService {
                 const nuevoProducto = await response.json();
                 return {
                     success: true,
+                    status: response.status,
                     data: nuevoProducto,
                     message: 'Producto creado exitosamente'
                 };
             } else {
-                const errorText = await response.text();
+                const errorMsg = await authService.extractErrorMessage(response, 'Error creando producto');
                 return {
                     success: false,
-                    message: `Error creando producto: ${errorText}`
+                    status: response.status,
+                    message: errorMsg
                 };
             }
         } catch (error: any) {
@@ -685,8 +735,29 @@ class EmprendedorService {
 
     async actualizarProducto(id: number, producto: ProductoRequest): Promise<ApiResponse<ProductoEmprendedor>> {
         try {
+            if (!authService.isAuthenticated()) {
+                return {
+                    success: false,
+                    status: 401,
+                    message: 'No autenticado (401). Por favor inicia sesión.'
+                };
+            }
+
             const userInfo = authService.getUserInfo();
-            const emprendedorId = producto.emprendedorId ?? userInfo?.empresaId ?? producto.empresaId;
+            const userEmpresaId = authService.getEmpresaId();
+
+            // 🔒 Para ROLE_EMP, validar alcance de empresa antes de enviar
+            if (!authService.isAdmin()) {
+                if (!userEmpresaId || Number(producto.empresaId) !== Number(userEmpresaId)) {
+                    return {
+                        success: false,
+                        status: 403,
+                        message: 'Acceso denegado (403): El usuario no puede operar sobre esta empresa.'
+                    };
+                }
+            }
+
+            const emprendedorId = producto.emprendedorId ?? userInfo?.id ?? userEmpresaId ?? producto.empresaId;
             const payload = { ...producto, emprendedorId };
 
             const response = await fetch(`${this.PRODUCTOS_URL}/productos/${id}`, {
@@ -702,14 +773,16 @@ class EmprendedorService {
                 const productoActualizado = await response.json();
                 return {
                     success: true,
+                    status: response.status,
                     data: productoActualizado,
                     message: 'Producto actualizado exitosamente'
                 };
             } else {
-                const errorText = await response.text();
+                const errorMsg = await authService.extractErrorMessage(response, 'Error actualizando producto');
                 return {
                     success: false,
-                    message: `Error actualizando producto: ${errorText}`
+                    status: response.status,
+                    message: errorMsg
                 };
             }
         } catch (error: any) {
@@ -722,6 +795,14 @@ class EmprendedorService {
 
     async eliminarProducto(id: number): Promise<ApiResponse<boolean>> {
         try {
+            if (!authService.isAuthenticated()) {
+                return {
+                    success: false,
+                    status: 401,
+                    message: 'No autenticado (401). Por favor inicia sesión.'
+                };
+            }
+
             const response = await fetch(`${this.PRODUCTOS_URL}/productos/${id}`, {
                 method: 'DELETE',
                 headers: {
@@ -733,14 +814,16 @@ class EmprendedorService {
             if (response.ok) {
                 return {
                     success: true,
+                    status: response.status,
                     data: true,
                     message: 'Producto eliminado exitosamente'
                 };
             } else {
-                const errorText = await response.text();
+                const errorMsg = await authService.extractErrorMessage(response, 'Error eliminando producto');
                 return {
                     success: false,
-                    message: `Error eliminando producto: ${errorText}`
+                    status: response.status,
+                    message: errorMsg
                 };
             }
         } catch (error: any) {

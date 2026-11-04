@@ -71,13 +71,18 @@ export default function LogisticaEmprendedor() {
         setLoading(true);
         try {
             // Obtener empresaId del usuario autenticado
-            const userInfo = authService.getUserInfo();
-            let emprendedorId = userInfo?.empresaId;
+            const emprendedorId = authService.getEmpresaId();
 
-            // FALLBACK: Si no hay empresaId (por compatibilidad), usar empresa ID 1
             if (!emprendedorId) {
-                console.warn('⚠️ No se encontró empresaId en el usuario, usando ID 1 por defecto');
-                emprendedorId = 1;
+                console.warn('⚠️ No se encontró empresaId en el usuario autenticado');
+                setPedidos([]);
+                toast?.current?.show({
+                    severity: 'warn',
+                    summary: 'Acceso restringido',
+                    detail: 'No se encontró una empresa asociada a tu usuario para mostrar pedidos.',
+                    life: 4000
+                });
+                return;
             }
 
             console.log('📦 Cargando pedidos para empresa ID:', emprendedorId);
