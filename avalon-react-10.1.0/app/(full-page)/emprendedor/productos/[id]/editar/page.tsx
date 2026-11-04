@@ -14,6 +14,7 @@ import { Image } from 'primereact/image';
 import { ProgressBar } from 'primereact/progressbar';
 import { Skeleton } from 'primereact/skeleton';
 import emprendedorService, { ProductoRequest, ProductoEmprendedor, Categoria, Empresa } from '../../../../../../services/emprendedorService';
+import authService from '../../../../../../services/authService';
 
 const EditarProductoPage: React.FC = () => {
     const router = useRouter();
@@ -40,6 +41,8 @@ const EditarProductoPage: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const isAdmin = authService.isAdmin();
+
     // Cargar datos iniciales
     useEffect(() => {
         if (productoId) {
@@ -60,6 +63,19 @@ const EditarProductoPage: React.FC = () => {
 
             if (productoRes.success && productoRes.data) {
                 const producto = productoRes.data;
+
+                // 🔒 Validar que el emprendedor tenga permisos sobre la empresa del producto
+                if (!isAdmin && !authService.canManageEmpresa(producto.empresa?.id)) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'Acceso denegado (403)',
+                        detail: 'El usuario no puede operar sobre este producto porque pertenece a otra empresa.',
+                        life: 4000
+                    });
+                    setTimeout(() => router.push('/emprendedor/productos'), 1500);
+                    return;
+                }
+
                 setProductoOriginal(producto);
                 
                 // Llenar el formulario con los datos del producto
@@ -73,13 +89,23 @@ const EditarProductoPage: React.FC = () => {
                     empresaId: producto.empresa.id
                 });
             } else {
+                if (productoRes.status === 401) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'No autenticado (401)',
+                        detail: productoRes.message || 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+                        life: 3500
+                    });
+                    setTimeout(() => router.push('/auth/login2'), 1500);
+                    return;
+                }
                 toast.current?.show({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Producto no encontrado',
-                    life: 3000
+                    severity: productoRes.status === 403 ? 'warn' : 'error',
+                    summary: productoRes.status === 403 ? 'Acceso denegado (403)' : 'Error',
+                    detail: productoRes.message || 'Producto no encontrado',
+                    life: 3500
                 });
-                router.push('/emprendedor/productos');
+                setTimeout(() => router.push('/emprendedor/productos'), 1500);
                 return;
             }
 
@@ -179,11 +205,21 @@ const EditarProductoPage: React.FC = () => {
                     router.push('/emprendedor/productos');
                 }, 1500);
             } else {
+                if (response.status === 401) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'No autenticado (401)',
+                        detail: response.message || 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+                        life: 3500
+                    });
+                    setTimeout(() => router.push('/auth/login2'), 1500);
+                    return;
+                }
                 toast.current?.show({
-                    severity: 'error',
-                    summary: 'Error',
+                    severity: response.status === 403 ? 'warn' : 'error',
+                    summary: response.status === 403 ? 'Acceso denegado (403)' : 'Error',
                     detail: response.message,
-                    life: 3000
+                    life: 4000
                 });
             }
         } catch (error) {
@@ -393,7 +429,13 @@ const EditarProductoPage: React.FC = () => {
                                     options={empresaOptions}
                                     placeholder="Seleccionar empresa"
                                     className={`w-full ${errors.empresaId ? 'p-invalid' : ''}`}
+                                    disabled={!isAdmin}
                                 />
+                                {!isAdmin && (
+                                    <small className="text-600 block mt-1">
+                                        Vinculado a tu empresa autorizada
+                                    </small>
+                                )}
                                 {errors.empresaId && (
                                     <small className="p-error block mt-1">{errors.empresaId}</small>
                                 )}

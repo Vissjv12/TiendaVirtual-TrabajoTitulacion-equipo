@@ -14,10 +14,12 @@ import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import categoriasEmpresasService, { Categoria } from '../../../../services/categoriasEmpresasService';
+import authService from '../../../../services/authService';
 
 const CategoriasPage: React.FC = () => {
     const router = useRouter();
     const toast = useRef<Toast>(null);
+    const isAdmin = authService.isAdmin();
 
     // Estados principales
     const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -154,18 +156,22 @@ const CategoriasPage: React.FC = () => {
                     onClick={() => verDetalles(rowData)}
                     tooltip="Ver detalles"
                 />
-                <Button 
-                    icon="pi pi-pencil" 
-                    className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/categorias/${rowData.id}/editar`)}
-                    tooltip="Editar"
-                />
-                <Button 
-                    icon="pi pi-trash" 
-                    className="p-button-rounded p-button-danger p-button-sm" 
-                    onClick={() => confirmarEliminacion(rowData)}
-                    tooltip="Eliminar"
-                />
+                {isAdmin && (
+                    <>
+                        <Button 
+                            icon="pi pi-pencil" 
+                            className="p-button-rounded p-button-success p-button-sm" 
+                            onClick={() => router.push(`/emprendedor/categorias/${rowData.id}/editar`)}
+                            tooltip="Editar"
+                        />
+                        <Button 
+                            icon="pi pi-trash" 
+                            className="p-button-rounded p-button-danger p-button-sm" 
+                            onClick={() => confirmarEliminacion(rowData)}
+                            tooltip="Eliminar"
+                        />
+                    </>
+                )}
             </div>
         );
     };

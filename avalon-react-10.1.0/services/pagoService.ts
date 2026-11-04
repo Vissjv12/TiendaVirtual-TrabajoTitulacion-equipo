@@ -1,4 +1,6 @@
 // services/pagoService.ts
+import authService from './authService';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8083/api';
 
 export interface PagoRequest {
@@ -33,23 +35,29 @@ export const crearPago = async (pago: PagoRequest): Promise<PagoResponse> => {
     const response = await fetch(`${API_BASE_URL}/pagos`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(pago),
     });
 
     if (!response.ok) {
-        throw new Error('Error al crear el pago');
+        const msg = await authService.extractErrorMessage(response, 'Error al crear el pago');
+        throw new Error(msg);
     }
 
     return response.json();
 };
 
 export const obtenerPagoPorVenta = async (ventaId: number): Promise<PagoResponse> => {
-    const response = await fetch(`${API_BASE_URL}/pagos/venta/${ventaId}`);
+    const response = await fetch(`${API_BASE_URL}/pagos/venta/${ventaId}`, {
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
     
     if (!response.ok) {
-        throw new Error('Error al obtener el pago');
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener el pago');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -59,13 +67,14 @@ export const aprobarPago = async (pagoId: number, request: AprobarPagoRequest): 
     const response = await fetch(`${API_BASE_URL}/pagos/${pagoId}/aprobar`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-        throw new Error('Error al aprobar el pago');
+        const msg = await authService.extractErrorMessage(response, 'Error al aprobar el pago');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -75,13 +84,14 @@ export const rechazarPago = async (pagoId: number, request: AprobarPagoRequest):
     const response = await fetch(`${API_BASE_URL}/pagos/${pagoId}/rechazar`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-        throw new Error('Error al rechazar el pago');
+        const msg = await authService.extractErrorMessage(response, 'Error al rechazar el pago');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -91,33 +101,44 @@ export const subirComprobante = async (pagoId: number, comprobanteUrl: string): 
     const response = await fetch(`${API_BASE_URL}/pagos/${pagoId}/comprobante`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify({ comprobanteUrl }),
     });
 
     if (!response.ok) {
-        throw new Error('Error al subir el comprobante');
+        const msg = await authService.extractErrorMessage(response, 'Error al subir el comprobante');
+        throw new Error(msg);
     }
 
     return response.json();
 };
 
 export const listarPagosPendientes = async (emprendedorId: number): Promise<PagoResponse[]> => {
-    const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}/pendientes`);
+    const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}/pendientes`, {
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
     
     if (!response.ok) {
-        throw new Error('Error al listar pagos pendientes');
+        const msg = await authService.extractErrorMessage(response, 'Error al listar pagos pendientes');
+        throw new Error(msg);
     }
 
     return response.json();
 };
 
 export const listarPagosPorEmprendedor = async (emprendedorId: number): Promise<PagoResponse[]> => {
-    const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}`);
+    const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}`, {
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
     
     if (!response.ok) {
-        throw new Error('Error al listar pagos del emprendedor');
+        const msg = await authService.extractErrorMessage(response, 'Error al listar pagos del emprendedor');
+        throw new Error(msg);
     }
 
     return response.json();

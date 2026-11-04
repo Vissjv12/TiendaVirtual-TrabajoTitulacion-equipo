@@ -4,6 +4,7 @@ docs/
 # Ignore local work documents
 documentos-trabajo/
 documentos-trabajo/*
+documentos-trabajo/**
 
 # Ignore runtime environment files and generated dynamic backups
 .env

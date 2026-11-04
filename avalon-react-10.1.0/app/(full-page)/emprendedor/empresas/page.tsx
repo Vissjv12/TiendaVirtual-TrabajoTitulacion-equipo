@@ -14,10 +14,12 @@ import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import categoriasEmpresasService, { Empresa } from '../../../../services/categoriasEmpresasService';
+import authService from '../../../../services/authService';
 
 const EmpresasPage: React.FC = () => {
     const router = useRouter();
     const toast = useRef<Toast>(null);
+    const isAdmin = authService.isAdmin();
 
     // Estados principales
     const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -168,6 +170,7 @@ const EmpresasPage: React.FC = () => {
     };
 
     const actionBodyTemplate = (rowData: Empresa) => {
+        const canEdit = authService.canManageEmpresa(rowData.id);
         return (
             <div className="flex gap-2">
                 <Button 
@@ -176,18 +179,22 @@ const EmpresasPage: React.FC = () => {
                     onClick={() => verDetalles(rowData)}
                     tooltip="Ver detalles"
                 />
-                <Button 
-                    icon="pi pi-pencil" 
-                    className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/empresas/${rowData.id}/editar`)}
-                    tooltip="Editar"
-                />
-                <Button 
-                    icon="pi pi-trash" 
-                    className="p-button-rounded p-button-danger p-button-sm" 
-                    onClick={() => confirmarEliminacion(rowData)}
-                    tooltip="Eliminar"
-                />
+                {canEdit && (
+                    <Button 
+                        icon="pi pi-pencil" 
+                        className="p-button-rounded p-button-success p-button-sm" 
+                        onClick={() => router.push(`/emprendedor/empresas/${rowData.id}/editar`)}
+                        tooltip="Editar"
+                    />
+                )}
+                {isAdmin && (
+                    <Button 
+                        icon="pi pi-trash" 
+                        className="p-button-rounded p-button-danger p-button-sm" 
+                        onClick={() => confirmarEliminacion(rowData)}
+                        tooltip="Eliminar"
+                    />
+                )}
             </div>
         );
     };
@@ -196,12 +203,14 @@ const EmpresasPage: React.FC = () => {
     const leftToolbarTemplate = () => {
         return (
             <div className="flex align-items-center gap-2">
-                <Button 
-                    label="Nueva Empresa" 
-                    icon="pi pi-plus" 
-                    className="p-button-success"
-                    onClick={() => router.push('/emprendedor/empresas/crear')}
-                />
+                {isAdmin && (
+                    <Button 
+                        label="Nueva Empresa" 
+                        icon="pi pi-plus" 
+                        className="p-button-success"
+                        onClick={() => router.push('/emprendedor/empresas/crear')}
+                    />
+                )}
                 <Button 
                     label="Actualizar" 
                     icon="pi pi-refresh" 
@@ -248,10 +257,10 @@ const EmpresasPage: React.FC = () => {
             <div className="mb-4">
                 <h1 className="text-3xl font-bold text-900 mb-2">
                     <i className="pi pi-building text-primary mr-3"></i>
-                    Gestión de Empresas
+                    {isAdmin ? 'Gestión de Empresas' : 'Mi Empresa'}
                 </h1>
                 <p className="text-600 text-lg">
-                    Administra las empresas proveedoras de productos
+                    {isAdmin ? 'Administra las empresas proveedoras de productos' : 'Información y datos de tu empresa asociada'}
                 </p>
             </div>
 

@@ -5,25 +5,26 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Button } from 'primereact/button';
 import { Badge } from 'primereact/badge';
 import { listarPagosPendientes } from '@/services/pagoService';
+import authService from '@/services/authService';
 
 export default function EmprendedorSidebar() {
     const router = useRouter();
     const pathname = usePathname();
     const [mounted, setMounted] = useState(true);
     const [pagosPendientes, setPagosPendientes] = useState(0);
+    const isAdmin = authService.isAdmin();
 
-    // Obtener el emprendedorId del usuario logueado
+    // Obtener el emprendedorId (empresaId) del usuario autenticado desde authService
     useEffect(() => {
         const cargarPagosPendientes = async () => {
             try {
-                const userData = localStorage.getItem('user');
-                if (userData) {
-                    const user = JSON.parse(userData);
-                    const emprendedorId = user.emprendedorId || 1; // Default para testing
-                    
-                    const pagos = await listarPagosPendientes(emprendedorId);
-                    setPagosPendientes(pagos.length);
+                const emprendedorId = authService.getEmpresaId();
+                if (!emprendedorId) {
+                    setPagosPendientes(0);
+                    return;
                 }
+                const pagos = await listarPagosPendientes(emprendedorId);
+                setPagosPendientes(pagos.length);
             } catch (error) {
                 console.error('Error al cargar pagos pendientes:', error);
             }
@@ -57,7 +58,7 @@ export default function EmprendedorSidebar() {
             badge: null
         },
         {
-            label: 'Empresas',
+            label: isAdmin ? 'Empresas' : 'Mi Empresa',
             icon: 'pi pi-building',
             url: '/emprendedor/empresas',
             badge: null

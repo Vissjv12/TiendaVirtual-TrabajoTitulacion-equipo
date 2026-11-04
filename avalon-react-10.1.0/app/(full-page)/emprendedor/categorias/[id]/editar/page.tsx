@@ -12,6 +12,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
 import { Skeleton } from 'primereact/skeleton';
 import categoriasEmpresasService, { CategoriaRequest, Categoria } from '../../../../../../services/categoriasEmpresasService';
+import authService from '../../../../../../services/authService';
 
 const EditarCategoriaPage: React.FC = () => {
     const router = useRouter();
@@ -33,6 +34,10 @@ const EditarCategoriaPage: React.FC = () => {
 
     // Cargar datos de la categoría
     useEffect(() => {
+        if (!authService.isAdmin()) {
+            router.push('/emprendedor/categorias');
+            return;
+        }
         if (categoriaId) {
             cargarCategoria();
         }

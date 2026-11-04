@@ -15,6 +15,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import emprendedorService, { ProductoEmprendedor, Categoria, Empresa } from '../../../../services/emprendedorService';
+import authService from '../../../../services/authService';
 
 const ProductosPage: React.FC = () => {
     const router = useRouter();
@@ -115,11 +116,21 @@ const ProductosPage: React.FC = () => {
                 setProductosFiltrados(productosNormalizados);
                 console.log('✅ Productos cargados:', productosNormalizados.length);
             } else {
+                if (productosRes.status === 401) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'Sesión expirada (401)',
+                        detail: productosRes.message || 'Por favor inicia sesión nuevamente.',
+                        life: 3000
+                    });
+                    setTimeout(() => router.push('/auth/login2'), 1500);
+                    return;
+                }
                 toast.current?.show({
-                    severity: 'error',
-                    summary: 'Error',
+                    severity: productosRes.status === 403 ? 'warn' : 'error',
+                    summary: productosRes.status === 403 ? 'Acceso restringido (403)' : 'Error',
                     detail: productosRes.message || 'Error cargando productos',
-                    life: 3000
+                    life: 4000
                 });
             }
 
@@ -189,11 +200,21 @@ const ProductosPage: React.FC = () => {
                     life: 3000
                 });
             } else {
+                if (response.status === 401) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'No autenticado (401)',
+                        detail: response.message || 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+                        life: 3500
+                    });
+                    setTimeout(() => router.push('/auth/login2'), 1500);
+                    return;
+                }
                 toast.current?.show({
-                    severity: 'error',
-                    summary: 'Error',
+                    severity: response.status === 403 ? 'warn' : 'error',
+                    summary: response.status === 403 ? 'Acceso denegado (403)' : 'Error',
                     detail: response.message,
-                    life: 3000
+                    life: 4000
                 });
             }
         } catch (error) {
@@ -245,20 +266,28 @@ const ProductosPage: React.FC = () => {
     };
 
     const actionBodyTemplate = (rowData: ProductoEmprendedor) => {
+        const canManage = authService.canManageEmpresa(rowData.empresa?.id);
         return (
             <div className="flex gap-2">
                 <Button icon="pi pi-eye" className="p-button-rounded p-button-info p-button-sm" onClick={() => verDetalles(rowData)} tooltip="Ver detalles" />
-                <Button icon="pi pi-pencil" className="p-button-rounded p-button-success p-button-sm" onClick={() => router.push(`/emprendedor/productos/${rowData.id}/editar`)} tooltip="Editar" />
-                <Button icon="pi pi-trash" className="p-button-rounded p-button-danger p-button-sm" onClick={() => confirmarEliminacion(rowData)} tooltip="Eliminar" />
+                {canManage && (
+                    <>
+                        <Button icon="pi pi-pencil" className="p-button-rounded p-button-success p-button-sm" onClick={() => router.push(`/emprendedor/productos/${rowData.id}/editar`)} tooltip="Editar" />
+                        <Button icon="pi pi-trash" className="p-button-rounded p-button-danger p-button-sm" onClick={() => confirmarEliminacion(rowData)} tooltip="Eliminar" />
+                    </>
+                )}
             </div>
         );
     };
 
     // Toolbar del listado
     const leftToolbarTemplate = () => {
+        const canCreate = authService.isAdmin() || !!authService.getEmpresaId();
         return (
             <div className="flex align-items-center gap-2">
-                <Button label="Nuevo Producto" icon="pi pi-plus" className="p-button-success" onClick={() => router.push('/emprendedor/productos/crear')} />
+                {canCreate && (
+                    <Button label="Nuevo Producto" icon="pi pi-plus" className="p-button-success" onClick={() => router.push('/emprendedor/productos/crear')} />
+                )}
                 <Button label="Actualizar" icon="pi pi-refresh" className="p-button-outlined" onClick={cargarDatos} />
             </div>
         );

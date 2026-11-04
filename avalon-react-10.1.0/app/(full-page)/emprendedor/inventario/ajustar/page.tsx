@@ -19,6 +19,7 @@ import { Divider } from 'primereact/divider';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import inventarioService, { Inventario, SalidaInventarioLote } from '../../../../../services/inventarioService';
+import emprendedorService from '../../../../../services/emprendedorService';
 
 interface AjusteItem extends Inventario {
     nuevaCantidad: number;
@@ -65,17 +66,28 @@ const AjustarInventarioPage: React.FC = () => {
         setLoading(true);
         try {
             console.log('🔄 Cargando inventarios para ajuste...');
-            const response = await inventarioService.obtenerInventarios();
+            const [response, productosRes] = await Promise.all([
+                inventarioService.obtenerInventarios(),
+                emprendedorService.obtenerProductosEmprendedor()
+            ]);
 
             if (response.success && response.data) {
-                const inventariosConAjuste: AjusteItem[] = response.data.map(inv => ({
+                const idsPermitidos = new Set(
+                    (productosRes.data || []).map(p => Number(p.id))
+                );
+
+                const inventariosAutorizados = response.data.filter(inv =>
+                    idsPermitidos.has(Number(inv.producto?.id))
+                );
+
+                const inventariosConAjuste: AjusteItem[] = inventariosAutorizados.map(inv => ({
                     ...inv,
                     nuevaCantidad: inv.cantidad,
                     seleccionado: false
                 }));
                 
                 setInventarios(inventariosConAjuste);
-                console.log('✅ Inventarios cargados:', inventariosConAjuste.length);
+                console.log('✅ Inventarios autorizados cargados:', inventariosConAjuste.length);
             } else {
                 toast.current?.show({
                     severity: 'error',
