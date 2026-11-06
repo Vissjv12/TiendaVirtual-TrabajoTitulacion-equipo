@@ -1,12 +1,35 @@
-# Registro de seguridad y configuración — A-08, A-09 y A-10
+# Registro de seguridad y configuración — A-07, A-08, A-09 y A-10
 
 ## 1. Alcance
 
-Este registro consolida el trabajo preparatorio para retirar secretos versionados, permitir una rotación controlada de credenciales y revisar el tratamiento de contraseñas antes de incorporar nuevas dependencias de infraestructura.
+Este registro consolida la validación directa de autorización contra la API y el trabajo preparatorio para retirar secretos versionados, permitir una rotación controlada de credenciales y revisar el tratamiento de contraseñas antes de incorporar nuevas dependencias de infraestructura.
 
-Rama de trabajo: `feature/a08-a10-seguridad-configuracion`.
+Rama de trabajo: `feature/a07-validacion-api`, derivada de `etapa/seguridad-a07-a10`.
 
-La rama parte de `integration/validacion-a01-a06`, que contiene la integración validada de A-01 a A-06.
+La rama base incorpora la integración validada de A-01 a A-06 y la preparación previa de A-08 a A-10.
+
+## 1.1. A-07 — Validación directa contra API (subpaso 1)
+
+Se agregaron pruebas HTTP con MockMvc sobre el controlador real de productos y la cadena de seguridad configurada. Las pruebas no utilizan la interfaz web ni modifican la base de datos.
+
+### Casos cubiertos
+
+- Una solicitud `POST /api/productos` sin token es rechazada con `401 Unauthorized`.
+- Una solicitud de escritura con un rol sin permisos de gestión es rechazada con `403 Forbidden`.
+- Un emprendedor autenticado que intenta operar sobre una empresa ajena es rechazado con `403 Forbidden`.
+- La consulta pública `GET /api/productos` continúa disponible y responde `200 OK`.
+
+### Resultado automatizado
+
+- Prueba: `ProductoControllerApiAuthorizationTest`.
+- Casos ejecutados: 4.
+- Fallos: 0.
+- Errores: 0.
+- Resultado: `BUILD SUCCESS`.
+
+### Hallazgo pendiente
+
+El microservicio de inventario no cuenta todavía con una configuración equivalente de Resource Server y expone operaciones de escritura sin autenticación propia. No se aplicó una protección parcial porque productos y ventas lo invocan mediante Feign; primero debe definirse la propagación del Bearer token o una identidad de servicio controlada. Esta revisión queda como el siguiente subpaso de A-07 para evitar romper la creación de inventario y el descuento de stock durante una compra.
 
 ## 2. Cambios implementados — A-08
 
