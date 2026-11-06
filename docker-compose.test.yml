@@ -14,9 +14,9 @@ services:
     container_name: mysql-feria-digital-test
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-admin}
-      MYSQL_USER: ${MYSQL_USER:-admin}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      MYSQL_ROOT_PASSWORD: ${TEST_MYSQL_ROOT_PASSWORD:?TEST_MYSQL_ROOT_PASSWORD debe definirse en .env}
+      MYSQL_USER: ${TEST_MYSQL_USER:?TEST_MYSQL_USER debe definirse en .env}
+      MYSQL_PASSWORD: ${TEST_MYSQL_PASSWORD:?TEST_MYSQL_PASSWORD debe definirse en .env}
       TZ: America/Guayaquil
     ports:
       - "${TEST_MYSQL_PORT:-3307}:3306"
@@ -51,7 +51,7 @@ services:
           "localhost",
           "-u",
           "root",
-          "-p${MYSQL_ROOT_PASSWORD:-admin}"
+          "-p${TEST_MYSQL_ROOT_PASSWORD:?TEST_MYSQL_ROOT_PASSWORD debe definirse en .env}"
         ]
       interval: 10s
       timeout: 5s

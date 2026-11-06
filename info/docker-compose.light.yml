@@ -10,9 +10,9 @@ services:
     container_name: mysql-ecommerce-siachos
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-admin}
-      MYSQL_USER: ${MYSQL_USER:-admin}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD debe definirse en .env}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
     ports:
       - "3306:3306"
     volumes:
@@ -34,7 +34,7 @@ services:
           cpus: '0.25'
           memory: 256M
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-admin}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD debe definirse en .env}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,8 +49,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/productos?createDatabaseIfNotExist=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-admin}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       EUREKA_CLIENT_ENABLED: false
       SERVER_PORT: 8081
       JAVA_OPTS: "-Xms256m -Xmx384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
@@ -85,8 +85,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventario?createDatabaseIfNotExist=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-admin}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       EUREKA_CLIENT_ENABLED: false
       APP_MSVC_PRODUCTO_URL: http://msvc-producto:8081
       SERVER_PORT: 8082
@@ -124,15 +124,15 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ventas?createDatabaseIfNotExist=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-admin}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       EUREKA_CLIENT_ENABLED: false
       APP_MSVC_PRODUCTO_URL: http://msvc-producto:8081
       APP_MSVC_INVENTARIO_URL: http://msvc-inventario:8082
       STRIPE_API_KEY: ${STRIPE_API_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      CAMUNDA_BPM_ADMIN_USER_ID: admin
-      CAMUNDA_BPM_ADMIN_USER_PASSWORD: admin
+      CAMUNDA_BPM_ADMIN_USER_ID: ${CAMUNDA_BPM_ADMIN_USER_ID:-admin}
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: ${CAMUNDA_BPM_ADMIN_USER_PASSWORD:?CAMUNDA_BPM_ADMIN_USER_PASSWORD debe definirse en .env}
       SERVER_PORT: 8083
       JAVA_OPTS: "-Xms384m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
     ports:

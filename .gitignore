@@ -10,6 +10,11 @@ documentos-trabajo/**
 .env
 .env.local
 .env.test
+.env.*.local
+secrets/
+.secrets/
+config/application-secrets.properties
+*.secret
 backups/*.sql
 backups/*.dump
 backups/*.gz

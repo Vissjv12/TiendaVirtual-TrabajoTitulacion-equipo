@@ -7,9 +7,9 @@ services:
     container_name: mysql-ecommerce-sigchos
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: admin
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD debe definirse en .env}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       TZ: America/Guayaquil
     ports:
       - "3306:3306"
@@ -20,7 +20,7 @@ services:
     networks:
       - feria-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "admin", "-padmin"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER:?MYSQL_USER debe definirse en .env}", "-p${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,8 +57,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8081
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/productos?useSSL=false&serverTimezone=America/Guayaquil&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=admin
-      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
       - EUREKA_INSTANCE_HOSTNAME=msvc-producto
@@ -89,8 +89,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8082
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/inventario?useSSL=false&serverTimezone=America/Guayaquil&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=admin
-      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=false
       - EUREKA_INSTANCE_HOSTNAME=msvc-inventario
@@ -124,18 +124,18 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8083
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ventas?useSSL=false&serverTimezone=America/Guayaquil&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=admin
-      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       - EUREKA_CLIENT_ENABLED=false
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
       - APP_MSVC_PRODUCTO_URL=http://msvc-producto:8081
       - APP_MSVC_INVENTARIO_URL=http://msvc-inventario:8082
-      - STRIPE_API_KEY=${STRIPE_API_KEY:-sk_test_default}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_default}
+      - STRIPE_API_KEY=${STRIPE_API_KEY:?STRIPE_API_KEY debe definirse en .env}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET debe definirse en .env}
       - FACTURA_DIRECTORIO=/app/facturas
-      - CAMUNDA_BPM_ADMIN_USER_ID=admin
-      - CAMUNDA_BPM_ADMIN_USER_PASSWORD=admin
+      - CAMUNDA_BPM_ADMIN_USER_ID=${CAMUNDA_BPM_ADMIN_USER_ID:-admin}
+      - CAMUNDA_BPM_ADMIN_USER_PASSWORD=${CAMUNDA_BPM_ADMIN_USER_PASSWORD:?CAMUNDA_BPM_ADMIN_USER_PASSWORD debe definirse en .env}
     ports:
       - "8083:8083"
     volumes:
