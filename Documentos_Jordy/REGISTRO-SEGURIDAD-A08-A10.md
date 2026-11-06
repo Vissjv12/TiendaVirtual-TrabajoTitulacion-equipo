@@ -69,6 +69,30 @@ Las consultas de inventario y cantidad se mantienen públicas porque son consumi
 
 No se añadió una autenticación parcial al microservicio de inventario. Hacerlo sin propagar el token o definir una identidad de servicio provocaría fallos en la creación de productos y en el flujo de ventas. El siguiente subpaso deberá definir y probar esa comunicación interna antes de cerrar la protección directa de inventario.
 
+## 1.3. A-07 — Protección coordinada de inventario (subpaso 3)
+
+### Cambios implementados
+
+- Se agregó validación JWT al microservicio de inventario utilizando `JWT_SECRET`, sin crear una segunda clave de firma.
+- Las operaciones de escritura administrativa de inventario y movimientos requieren `ROLE_ADMIN` o `ROLE_EMP`.
+- La salida de inventario y el ajuste de stock requieren autenticación para evitar llamadas anónimas directas.
+- Las consultas de inventario y cantidad permanecen públicas para conservar el funcionamiento del catálogo y el checkout.
+- Se agregó un interceptor Feign en productos, ventas e inventario para propagar el encabezado `Authorization` cuando existe una solicitud HTTP autenticada.
+- Se añadió un perfil de pruebas con H2 para que las pruebas de contexto no dependan de credenciales ni de un contenedor MySQL local.
+
+### Validación automatizada
+
+- `InventarioControllerApiAuthorizationTest`: 4 casos, 0 fallos y 0 errores.
+- Suite completa de inventario: 5 casos, 0 fallos y 0 errores.
+- `ProductoControllerApiAuthorizationTest` y `ProductoAuthorizationServiceTest`: 11 casos, 0 fallos y 0 errores.
+- Compilación de ventas después del interceptor Feign: correcta.
+
+### Límites y seguimiento
+
+- `POST /api/inventarios/salida-lote` y `PUT /api/inventarios/producto/{productoId}/stock` validan autenticación, pero su autorización de negocio debe endurecerse con A-24 para impedir que un usuario autenticado manipule productos ajenos.
+- La sincronización asíncrona de stock no conserva automáticamente el contexto HTTP; por eso el endpoint receptor de sincronización requiere una revisión posterior con identidad de servicio o mecanismo equivalente.
+- La validación manual con los cuatro microservicios levantados queda como evidencia final de integración. No se requiere cambiar Docker ni eliminar el volumen MySQL para ejecutar las pruebas automatizadas.
+
 ## 2. Cambios implementados — A-08
 
 - Se sustituyeron credenciales de base de datos codificadas en archivos de configuración por variables de entorno.
