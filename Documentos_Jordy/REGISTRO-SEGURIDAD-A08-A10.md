@@ -31,6 +31,44 @@ Se agregaron pruebas HTTP con MockMvc sobre el controlador real de productos y l
 
 El microservicio de inventario no cuenta todavía con una configuración equivalente de Resource Server y expone operaciones de escritura sin autenticación propia. No se aplicó una protección parcial porque productos y ventas lo invocan mediante Feign; primero debe definirse la propagación del Bearer token o una identidad de servicio controlada. Esta revisión queda como el siguiente subpaso de A-07 para evitar romper la creación de inventario y el descuento de stock durante una compra.
 
+## 1.2. A-07 — Comparación y revisión de inventario (subpaso 2)
+
+### Comparación de rama
+
+Se comparó `feature/a07-validacion-api` contra `etapa/seguridad-a07-a10`. La diferencia contiene únicamente:
+
+- Las pruebas HTTP de autorización de productos.
+- La dependencia de pruebas de Spring Security.
+- La actualización de este registro documental.
+
+No se modificaron archivos de Docker, semillas SQL, credenciales locales, controladores de ventas ni configuraciones de producción.
+
+### Rutas revisadas
+
+En inventario se identificaron las siguientes operaciones de escritura que actualmente no tienen autenticación propia:
+
+- `POST /api/inventarios`.
+- `POST /api/inventarios/producto/{productoId}`.
+- `PUT /api/inventarios/{id}`.
+- `PUT /api/inventarios/producto/{productoId}/stock`.
+- `DELETE /api/inventarios/{id}`.
+- `POST /api/inventarios/salida-lote`.
+- `POST /api/movimientos`.
+
+Las consultas de inventario y cantidad se mantienen públicas porque son consumidas por catálogo y checkout; su exposición deberá validarse junto con A-23, A-24 y A-25.
+
+### Dependencias internas identificadas
+
+- Productos crea el inventario inicial mediante Feign.
+- Ventas descuenta stock mediante `salida-lote` y actualización de stock.
+- Inventario consulta productos y sincroniza stock mediante Feign.
+- No se encontró un interceptor común que propague el encabezado `Authorization` entre esos clientes.
+- El cliente Feign de productos utiliza `/api/inventarios/productos/batch`, mientras el controlador expone `/api/inventarios/cantidad/batch`; esta diferencia queda registrada para revisión independiente y no se modifica dentro de este subpaso.
+
+### Decisión de seguridad
+
+No se añadió una autenticación parcial al microservicio de inventario. Hacerlo sin propagar el token o definir una identidad de servicio provocaría fallos en la creación de productos y en el flujo de ventas. El siguiente subpaso deberá definir y probar esa comunicación interna antes de cerrar la protección directa de inventario.
+
 ## 2. Cambios implementados — A-08
 
 - Se sustituyeron credenciales de base de datos codificadas en archivos de configuración por variables de entorno.
