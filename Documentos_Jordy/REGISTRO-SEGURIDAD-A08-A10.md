@@ -67,3 +67,14 @@ No se debe ejecutar `docker compose down -v` para aplicar este cambio sobre la b
 ## 7. Resultado esperado
 
 El sistema conserva sus datos y su modelo actual, pero deja de depender de secretos escritos directamente en los archivos versionados. La siguiente validación debe comprobar el arranque local con `.env`, autenticación, conexión de los cuatro microservicios y ejecución de las pruebas existentes.
+
+## 8. Verificación realizada
+
+- Compilación del servicio de autenticación: correcta.
+- Compilación del servicio de inventario: correcta.
+- Compilación del servicio de ventas: correcta.
+- Prueba `ProductoAuthorizationServiceTest`: 7 pruebas ejecutadas, 0 fallos y 0 errores.
+- `git diff --check`: sin errores de formato.
+- No se reinició Docker ni se modificó el volumen MySQL durante esta validación.
+
+La validación de Docker queda como paso manual porque el entorno del agente no dispone del comando `docker`. Debe ejecutarse con un `.env` local configurado y sin utilizar `down -v` sobre la instalación que contiene datos.
