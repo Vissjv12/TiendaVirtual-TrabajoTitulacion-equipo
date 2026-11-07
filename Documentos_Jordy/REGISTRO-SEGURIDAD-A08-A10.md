@@ -151,7 +151,50 @@ El frontend consumía primero el endpoint optimizado, por lo que mostraba inicia
 - `ProductoAuthorizationServiceTest`: 7 casos, 0 fallos y 0 errores.
 - `ProductoControllerApiAuthorizationTest`: 4 casos, 0 fallos y 0 errores.
 - Resultado: `BUILD SUCCESS`.
-- La validación HTTP posterior al reinicio de Productos debe confirmar que `/api/productos/listado` ya devuelve cantidades reales.
+- La validación HTTP posterior al reinicio de Productos debe confirmar que `/api/productos/listado` ya devuelve cantidades reales. Quedó confirmada en la sección 1.6.
+
+## 1.6. A-07 — Verificación integrada de disponibilidad, cantidades y autorización (2026-11-07)
+
+Pruebas HTTP ejecutadas contra los servicios locales en ejecución. Para que fueran no destructivas, las escrituras usaron IDs inexistentes (`999999`) o `categoriaId=999999`: si la autorización hubiera fallado, el resultado habría sido 404 y nada se habría guardado. No se modificaron datos, credenciales ni el volumen MySQL. El procedimiento quedó automatizado en `Documentos_Jordy/pruebas-seguridad-a07.ps1`, que pide las contraseñas de forma oculta y no imprime tokens.
+
+### Disponibilidad
+
+| Servicio | URL | Resultado |
+|---|---|---|
+| Eureka | `http://localhost:8761` | 200 |
+| Productos | `/api-docs` (8081) | 200 |
+| Inventario | `/api/inventarios` (8082) | 200 |
+| Ventas | `/api-docs` (8083) | 200 |
+| Auth | `/api-docs` (8084) | 200 |
+| Frontend | `http://localhost:3000` | 200 |
+
+### Cantidades
+
+- `/api/productos/listado`: 39 productos, ninguno con `inventarioCantidad` nulo ni en cero.
+- Comparación de los 39 productos contra `/api/inventarios` (registros activos por `producto.id`): 0 diferencias.
+- Muestra: producto 1 → listado 500 / inventario 500; producto 39 → listado 300 / inventario 300.
+- Observación sin corrección: los nombres con tildes o ñ llegan con doble codificación (`MortiÃÂ±o` en lugar de `Mortiño`). Afecta los datos semilla o la codificación de la conexión y no depende de A-07.
+
+### Autorización
+
+| Caso | Esperado | Resultado |
+|---|---|---|
+| Lectura pública de productos e inventario sin sesión | 200 | 200 |
+| POST/PUT/DELETE de productos sin token | 401 | 401 |
+| POST/PUT/DELETE de inventario, `stock` y `salida-lote` sin token | 401 | 401 |
+| PUT de producto con token falso | 401 | 401 |
+| `cliente1` (`ROLE_USER`): POST/PUT/DELETE de productos | 403 | 403 |
+| `cliente1`: PUT/DELETE de inventario | 403 | 403 |
+| `sigcholac` (empresa 2): POST/PUT/DELETE sobre la empresa 1 o el producto 1 | 403 | 403 |
+| `admin`: `GET /api/usuarios/estadisticas` | 200 | 200 |
+| `admin`: PUT sobre un producto inexistente | supera la seguridad | 404 (autorizado y rechazado por datos inexistentes) |
+| `cliente1`: `GET /api/usuarios` en Auth (solo ADMIN) | 403 | **500** |
+
+### Hallazgos
+
+- **Auth devuelve 500 en lugar de 403 cuando el rol no alcanza.** El acceso se niega correctamente y no se devuelven datos. Sin embargo, `GlobalExceptionHandler` (`demo`) tiene un `@ExceptionHandler(Exception.class)` que captura la `AccessDeniedException` lanzada por `@PreAuthorize` y la transforma en 500 con el mensaje de la excepción. Corrección sugerida: agregar un manejador específico de `AccessDeniedException` que responda 403. No se corrigió en este subpaso.
+- **Contraseña de prueba de `cliente1` desactualizada en la guía.** El inicio de sesión con `cliente123` devuelve 401. El seed activo (`scripts/mysql-init/06-seed-auth-service.sql`) asigna a `cliente1` el mismo hash BCrypt que a `admin`, y el inicio de sesión con esa contraseña funciona. El valor `cliente123` proviene de `scripts/nuevo-seed-auth-service.sql`, que no es el seed en uso. Se corrigió la guía.
+- La revisión visual del catálogo y del panel administrativo en el navegador queda a cargo del equipo. Hay que revisar en la pestaña Network de DevTools que no aparezcan respuestas 401, 403, 404 o 500.
 
 ## 2. Cambios implementados — A-08
 

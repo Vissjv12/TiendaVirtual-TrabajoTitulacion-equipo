@@ -100,7 +100,9 @@ class EmprendedorService {
 
             // Actualizar cada producto con su stock
             productos.forEach((producto) => {
-                const stock = stockBatch[producto.id.toString()] || 0;
+                // Si el batch no trajo este producto, conservar la cantidad actual.
+                const stock = stockBatch[producto.id.toString()];
+                if (typeof stock !== 'number') return;
 
                 if (producto.inventario) {
                     const stockAnterior = producto.inventario.cantidad;

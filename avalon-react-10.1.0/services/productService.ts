@@ -332,7 +332,10 @@ class ProductService {
             const stockMap = await this.obtenerStockBatch(ids);
 
             productos.forEach((producto) => {
-                const stock = stockMap.get(producto.id) ?? 0;
+                // Si el batch no trajo este producto (fallo de red/CORS/HTTP), conservar
+                // la cantidad que ya entregó el backend en lugar de forzarla a 0.
+                if (!stockMap.has(producto.id)) return;
+                const stock = stockMap.get(producto.id) as number;
                 if (producto.inventario) {
                     const stockAnterior = producto.inventario.cantidad;
                     producto.inventario.cantidad = stock;

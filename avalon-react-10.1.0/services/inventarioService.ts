@@ -255,12 +255,9 @@ class InventarioService {
             }
         } catch (error) {
             console.error('❌ Error obteniendo stock batch:', error);
-            // Devolver un objeto con todos los productos en 0
-            const errorResult: Record<string, number> = {};
-            productosIds.forEach((id) => {
-                errorResult[id.toString()] = 0;
-            });
-            return errorResult;
+            // Devolver vacío: un fallo de consulta no significa stock 0.
+            // Los consumidores conservan la cantidad que ya tenían.
+            return {};
         }
     }
 

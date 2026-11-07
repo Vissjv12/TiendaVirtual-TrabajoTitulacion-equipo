@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -21,7 +22,10 @@ import java.util.List;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = com.example.msvc_inventario.presentation.controller.InventarioController.class,
@@ -88,6 +92,47 @@ class InventarioControllerApiAuthorizationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SALIDA_VALIDA))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void modificarInventarioSinTokenEsRechazado() throws Exception {
+        mockMvc.perform(put("/api/inventarios/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(INVENTARIO_VALIDO))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void preflightCorsDelBatchDeCantidadesEsPermitido() throws Exception {
+        mockMvc.perform(options("/api/inventarios/cantidad/batch")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().exists(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    void preflightCorsDeEscrituraNoAbreLaOperacionReal() throws Exception {
+        mockMvc.perform(options("/api/inventarios")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/inventarios")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(INVENTARIO_VALIDO))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void batchDeCantidadesPermanecePublico() throws Exception {
+        mockMvc.perform(post("/api/inventarios/cantidad/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[1, 2]"))
+                .andExpect(status().isOk());
     }
 
     @Test
