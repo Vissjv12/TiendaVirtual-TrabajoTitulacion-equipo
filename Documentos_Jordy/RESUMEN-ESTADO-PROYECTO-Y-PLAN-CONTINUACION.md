@@ -1,8 +1,11 @@
 # Resumen de estado del proyecto y plan de continuación
 
-Fecha de revisión: 2026-11-07  
-Rama revisada: `feature/a07-validacion-api`  
-Base funcional: `integration/validacion-a01-a06`
+- Fecha de revisión: 2026-11-07
+- Rama revisada: `feature/a07-validacion-api` (derivada de `etapa/seguridad-a07-a10`)
+- Base funcional: `integration/validacion-a01-a06`
+- Último commit funcional de A-07: `bdfdf1e fix(a07): completar preflight y conservar stock`
+
+> **Documento vigente.** Este resumen prevalece sobre `Cronograma_mejoras_sistema.xlsx`, `PLAN-IMPLEMENTACION-SISTEMA-V2 (1).docx` y `Plan_de_trabajo_etapas_y_ramas.docx`, que son anteriores a lo implementado. El cronograma se usa como guía de alcance y orden, no como calendario obligatorio; las desviaciones aceptadas se registran en la sección 8.
 
 ## 1. Propósito
 
@@ -15,8 +18,8 @@ El alcance actual mantiene MySQL como fuente transaccional principal. Redis, el 
 | Área | Estado | Observación |
 |---|---|---|
 | Preparación y línea base | Integrada | A-01 y A-02 forman la base de trabajo y respaldo. |
-| Aislamiento entre emprendedores | Integrado con validación automatizada | A-03, A-04 y A-05 tienen cambios y pruebas; la validación HTTP con dos emprendedores reales aún requiere credenciales/datos de prueba. |
-| Rutas administrativas y API | Implementada en código | A-06 y A-07 cuentan con protección y pruebas automatizadas. Falta cerrar la evidencia manual de integración. |
+| Aislamiento entre emprendedores | Integrado con validación automatizada | A-03, A-04 y A-05 tienen cambios y pruebas. Falta la validación HTTP de A-05; el seed activo ya contiene emprendedores de empresas distintas, por lo que no requiere modificar la base (ver 3.3). |
+| Rutas administrativas y API | Implementada y validada por HTTP | A-06 y A-07 cuentan con protección, pruebas automatizadas y matriz HTTP ejecutada. Falta la comprobación visual en navegador tras la corrección del preflight y corregir el `500` de Auth (ver 7). |
 | Secretos de configuración | Implementada | A-08 externalizó la configuración sensible. El `.env` continúa siendo local y no debe versionarse. |
 | Rotación de credenciales | Pendiente controlado | A-09 tiene procedimiento, pero aún no se ejecutó una rotación real. |
 | Actualización de hashes | Pendiente controlado | A-10 no debe modificar usuarios hasta confirmar la política y el mecanismo de recuperación. |
@@ -49,7 +52,17 @@ Resultado automatizado registrado:
 - 0 fallos.
 - 0 errores.
 
-Pendiente: ejecutar la misma matriz mediante HTTP usando usuarios de prueba realmente asociados a empresas distintas y confirmar que una operación rechazada no modifique datos.
+Pendiente: ejecutar la misma matriz mediante HTTP y confirmar que una operación rechazada no modifique datos.
+
+No es necesario crear ni modificar usuarios para esta prueba. `scripts/mysql-init/06-seed-auth-service.sql` ya define emprendedores `ROLE_EMP` asociados a empresas distintas, todos con la misma contraseña de prueba que `admin`:
+
+| Usuario | Empresa |
+|---|---|
+| `ultimo_inca` | 1 |
+| `sigcholac` | 2 |
+| `perla_andina` | 3 |
+
+Antes de ejecutar la prueba se debe confirmar, con una consulta de solo lectura a `auth_service.emprendedores`, que la base activa conserva esas asociaciones.
 
 ### 3.4 A-06
 
@@ -80,6 +93,22 @@ Validación automatizada posterior:
 - Prueba de contexto de Productos: 1 caso.
 - Total: 13 casos, 0 fallos y 0 errores.
 
+Se ejecutó además la matriz HTTP contra los servicios levantados (`Documentos_Jordy/pruebas-seguridad-a07.ps1`): disponibilidad de los 5 servicios y del frontend, 39 productos con cantidades iguales a Inventario y respuestas `200`, `401` y `403` según lo esperado. El detalle está en la sección 1.6 de `REGISTRO-SEGURIDAD-A08-A10.md`.
+
+#### Corrección posterior: preflight CORS y conservación de cantidades
+
+La revisión del HAR detectó una regresión de integración: `GET /api/productos/listado` devolvía cantidades correctas, pero el preflight `OPTIONS /api/inventarios/cantidad/batch` respondía `401`. El navegador no enviaba el `POST` batch y el frontend convertía el resultado vacío en cantidad `0` para todos los productos.
+
+La protección JWT era correcta; faltaba una prueba de integración frontend–Inventario. Una modificación de seguridad en un servicio debe probarse contra todos sus consumidores: frontend directo, preflight CORS, clientes Feign, consultas públicas y operaciones protegidas.
+
+- Inventario permite `OPTIONS /**` (el preflight no lleva token ni ejecuta lógica de negocio).
+- `productService.ts`, `emprendedorService.ts` e `inventarioService.ts` conservan la cantidad ya recibida cuando el batch falla o no incluye un producto; ya no la reemplazan por `0`.
+- Las escrituras siguen protegidas: crear o modificar inventario sin token `401`, rol insuficiente `403`.
+- `InventarioControllerApiAuthorizationTest`: 8 casos, 0 fallos. Comprobación TypeScript del frontend sin errores.
+- Commits: `bdfdf1e fix(a07): completar preflight y conservar stock` y `691c53f docs(a07): registrar correccion de preflight y stock`.
+
+Pendiente manual: reiniciar Inventario y frontend, comprobar en la pestaña Network que `OPTIONS` y `POST /api/inventarios/cantidad/batch` respondan `200`, y confirmar visualmente que el catálogo no vuelva a mostrar cero.
+
 ### 3.6 A-08
 
 Se externalizaron credenciales de base de datos, JWT, Stripe y Camunda mediante variables de entorno. Se actualizaron las configuraciones para exigir variables sensibles en lugar de utilizar valores predeterminados silenciosos.
@@ -99,7 +128,7 @@ A-09 y A-10 quedaron preparados documentalmente, pero no se ejecutó una modific
 
 ## 4. Comprobación inmediata recomendada
 
-La comprobación debe realizarse después de reiniciar únicamente `msvc-producto`, porque el cambio de cantidades está en ese microservicio. No es necesario recrear MySQL, borrar volúmenes ni reiniciar todo el sistema.
+La comprobación debe realizarse después de reiniciar `msvc-producto`, `msvc-inventario` y el frontend, porque los últimos cambios de A-07 afectan a esos tres componentes. No es necesario recrear MySQL, borrar volúmenes ni reiniciar Eureka, Auth o Ventas.
 
 ### 4.1 Comprobación de disponibilidad
 
@@ -123,7 +152,12 @@ Confirmar que los siguientes servicios respondan:
 6. Recargar la pantalla y confirmar que la cantidad mostrada coincida con la API.
 7. Revisar la consola del navegador para confirmar que no existan errores `401`, `403`, `404` o `500` provocados por esta integración.
 
-Resultado esperado: la cantidad se obtiene mediante la consulta batch y no mediante una llamada individual por cada producto. Si Inventario no estuviera disponible, el fallback conserva cero como valor seguro, pero eso debe registrarse como indisponibilidad y no como dato real.
+Resultado esperado: la cantidad se obtiene mediante la consulta batch y no mediante una llamada individual por cada producto. En la pestaña Network, `OPTIONS` y `POST /api/inventarios/cantidad/batch` deben responder `200`.
+
+Comportamiento ante fallos:
+
+- **Backend (`/api/productos/listado`):** si Inventario no está disponible, Productos devuelve `0` como valor seguro. Ese cero significa indisponibilidad, no un dato real, y debe registrarse así.
+- **Frontend (actualización batch en segundo plano):** si el batch falla o no incluye un producto, el frontend conserva la cantidad que ya entregó el backend y no la sobrescribe con `0`.
 
 ### 4.3 Comprobación de autorización
 
@@ -211,28 +245,21 @@ Después de A-10, los usuarios afectados deben autenticarse mediante hashes BCry
 
 ### Etapa 0 a 3
 
-- Cerrar la evidencia manual de A-05 con usuarios y empresas de prueba.
-- Completar la evidencia manual de A-07 después del reinicio de Productos.
-- Revisar la exposición pública de `GET /api/ventas`.
+- Cerrar la evidencia HTTP de A-05 con `ultimo_inca`, `sigcholac` y `perla_andina` (ver 3.3).
+- Completar la comprobación visual de A-07 en navegador después de reiniciar Productos, Inventario y frontend.
+- Corregir en Auth (`demo`) el `500` que se devuelve en lugar de `403` cuando el rol no alcanza: `GlobalExceptionHandler` captura `AccessDeniedException` con el manejador genérico de `Exception`. Se resuelve agregando un manejador específico que responda `403`.
+- Registrar como riesgo abierto que `msvc-ventas` no tiene Spring Security: todos sus endpoints, incluidos creación de ventas, pagos y configuración de pagos, responden sin token. La corrección corresponde a A-24, pero debe priorizarse (ver 8).
 - Corregir posteriormente la codificación de caracteres españoles, como tarea separada.
 - Ejecutar A-09 únicamente con autorización de cuentas y ventana de cambio.
 - Ejecutar A-10 únicamente si la revisión de hashes demuestra una necesidad real.
 
 ### Etapa 4 Gateway
 
-### Actualizacion posterior de A-07
-
-La revision del HAR detecto una regresion de integracion: `GET /api/productos/listado` devolvia cantidades correctas, pero el preflight `OPTIONS /api/inventarios/cantidad/batch` respondia `401`. El batch no se ejecutaba y el frontend convertia el resultado vacio en cantidades cero.
-
-Se corrigio el preflight en Inventario y se ajustaron `productService.ts`, `emprendedorService.ts` e `inventarioService.ts` para conservar cantidades validas cuando el batch falle. Las operaciones de escritura permanecen protegidas.
-
-La prueba `InventarioControllerApiAuthorizationTest` quedo con 8 casos exitosos y la comprobacion TypeScript del frontend termino sin errores. El commit publicado es `bdfdf1e fix(a07): completar preflight y conservar stock`.
-
-La validacion manual pendiente consiste en reiniciar Inventario y frontend, comprobar `OPTIONS` y `POST /api/inventarios/cantidad/batch` en Network y confirmar visualmente que el catalogo no vuelva a mostrar cero.
-
 Integrante 1 debe diseñar e implementar las rutas del Gateway, CORS, errores y comunicación interna en A-11 y A-12. Integrante 2 debe migrar el frontend en A-13. Integrante 3 debe validar puertos, salud, disponibilidad y fallos en A-14.
 
 No se debe migrar el frontend a rutas del Gateway antes de tener una tabla de rutas estable y pruebas de seguridad.
+
+El plan de implementación V2 recomienda NGINX como gateway de producción por la restricción de memoria del servidor (unos 1.4 GB libres); Spring Cloud Gateway queda como componente académico con memoria acotada. Al centralizar CORS en el gateway se deben retirar o alinear las anotaciones `@CrossOrigin` locales, y la regla `OPTIONS` de Inventario debe mantenerse hasta que el frontend deje de llamar directamente a los puertos internos.
 
 ### Etapa 5 Redis
 
@@ -248,9 +275,27 @@ A-19 debe publicar el contrato común antes de que se modifique el frontend. A-2
 
 A-23 debe permitir consultar precios públicos sin iniciar sesión, filtrando costos y datos privados. A-24 debe exigir JWT para checkout y creación de ventas. A-25 debe probar la separación entre lectura pública y operaciones privadas.
 
+A-24 parte de cero en `msvc-ventas`: el servicio no tiene dependencia ni configuración de Spring Security. Debe incorporar el mismo esquema de Resource Server de Productos e Inventario, y endurecer la autorización de negocio de `salida-lote` y del ajuste de stock en Inventario, que hoy solo exigen autenticación.
+
 Este trabajo no depende de Redis para comenzar, aunque debe coordinarse posteriormente con Gateway y paginación para evitar retrabajo.
 
-## 8. Reglas para continuar con los compañeros
+## 8. Desviaciones aceptadas respecto a la planificación original
+
+La planificación (`Cronograma_mejoras_sistema.xlsx` y `Plan_de_trabajo_etapas_y_ramas.docx`) se elaboró antes de la implementación. Se registran aquí las diferencias para que no se interpreten como errores:
+
+| Tema | Planificación original | Situación real | Decisión |
+|---|---|---|---|
+| Calendario | 7 semanas; A-07 y A-10 en semana 3 | Las etapas 0 a 3 se extendieron por los ajustes de integración | El cronograma es una guía de orden y dependencias; las fechas se replanifican por etapa |
+| Rama de etapas 2 y 3 | `etapa/2-rutas-administrativas` y `etapa/3-secretos-credenciales` | A-07 a A-10 se trabajan en `etapa/seguridad-a07-a10` | Se acepta una rama conjunta porque A-07 y A-08 comparten configuración JWT y variables de entorno |
+| Rama de A-07 | `feature/a07-pruebas-roles-api` | `feature/a07-validacion-api` | Se conserva el nombre publicado |
+| Integración en `develop` | `feature → etapa → develop → release/corte-1-seguridad` | `develop` sigue igual que `main`; el trabajo está en `integration/validacion-a01-a06` y `etapa/seguridad-a07-a10` | Integrar ambas en `develop` al cerrar la revisión actual y abrir `release/corte-1-seguridad` |
+| A-09 y A-10 | Ejecutadas en las semanas 2 y 3 | Preparadas documentalmente, sin ejecución irreversible | Pendientes aceptados hasta tener autorización y política aprobada |
+| Seguridad de Ventas | Incluida implícitamente en A-24 | `msvc-ventas` no tiene ninguna seguridad | Priorizar dentro de A-24 o como tarea adicional antes del corte 3 |
+| Ventas en Eureka (O-12) | Reintegrar el cliente Eureka | `eureka.client.enabled=false` | Sin tarea A-XX asignada; registrar como tarea adicional |
+
+Observaciones del plan V2 que no tienen una actividad A-XX en el cronograma y deben asignarse como tareas adicionales: O-03 (cifrado de credenciales de pago), O-05 (tokens en logs de Payphone), O-06 (ruta de Deuna QR), O-07 (pago simulado en producción), O-08 (dashboards con datos estáticos), O-09 (claves de sesión), O-10 (`npm run build`), O-12 (Ventas en Eureka), O-14 (rutas duplicadas en Next.js), O-17 (`console.log` en producción) y O-18 (inicialización múltiple del SDK de Google).
+
+## 9. Reglas para continuar con los compañeros
 
 - Cada integrante trabaja en una rama `feature/aXX-*` creada desde la rama de etapa correspondiente.
 - Nadie debe crear su rama a partir de la rama feature de otro integrante.
@@ -262,15 +307,16 @@ Este trabajo no depende de Redis para comenzar, aunque debe coordinarse posterio
 - Antes de iniciar una tarea que modifique Docker, semillas o base de datos debe existir respaldo y rollback probado.
 - Los contratos compartidos, como rutas del Gateway y paginación, deben publicarse antes de que otro integrante los consuma.
 
-## 9. Próximo entregable
+## 10. Próximo entregable
 
 El próximo entregable debe ser el cierre verificable de la etapa actual:
 
-1. Evidencia de disponibilidad de servicios.
-2. Evidencia de cantidades de inventario corregidas.
-3. Evidencia de respuestas `200`, `401` y `403`.
+1. Evidencia de disponibilidad de servicios (registrada en 1.6 del registro de seguridad).
+2. Evidencia de cantidades de inventario corregidas, incluida la captura de Network con `OPTIONS` y `POST` batch en `200`.
+3. Evidencia de respuestas `200`, `401` y `403` (registrada en 1.6; falta repetir el caso de Auth después de corregir el `500`).
 4. Registro de pruebas y resultado.
-5. Confirmación de que el commit `125e081` está publicado.
-6. Lista de pendientes aceptados, especialmente A-05 manual, A-09 y A-10.
+5. Confirmación de que `feature/a07-validacion-api` está publicada con `bdfdf1e` y la documentación actualizada.
+6. Lista de pendientes aceptados: A-05 por HTTP, A-09, A-10 y seguridad de Ventas.
+7. Integración de `integration/validacion-a01-a06` y `etapa/seguridad-a07-a10` en `develop`.
 
 Después de ese cierre, el equipo puede organizar el trabajo de Gateway y paginación sin depender de Redis ni mezclar cambios con la corrección de inventario.

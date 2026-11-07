@@ -21,3 +21,6 @@ backups/*.gz
 backups/*.zip
 !backups/.gitkeep
 !backups/backup_pre_migracion.sql
+
+# Logs locales de arranque
+*.log

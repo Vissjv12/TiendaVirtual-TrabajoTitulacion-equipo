@@ -4,12 +4,14 @@
 
 Línea base técnica y de seguridad elaborada a partir de `docs/ManualUsuario.md`, la configuración del repositorio, los microservicios, el frontend y la validación funcional del panel. No modifica datos, contratos de API ni esquemas.
 
+> **Documento de línea base.** Las columnas "situación actual" y los riesgos iniciales describen el sistema **antes** de A-03. El estado vigente de cada tarea se mantiene en `RESUMEN-ESTADO-PROYECTO-Y-PLAN-CONTINUACION.md`; las notas "Estado posterior" de este documento solo indican qué tarea atendió cada punto.
+
 ## Componentes
 
 | Componente | Tecnología | Puerto | Responsabilidad |
 |---|---|---:|---|
 | Frontend | Next.js, React, TypeScript | 3000 | Sitio público y panel administrativo |
-| Autenticación | Spring Boot | 8080 | Usuarios, roles, sesión y tokens |
+| Autenticación (`demo`) | Spring Boot | 8084 | Usuarios, roles, sesión y tokens |
 | Eureka | Spring Cloud Netflix | 8761 | Registro y descubrimiento |
 | Productos | Spring Boot | 8081 | Productos, categorías y empresas |
 | Inventario | Spring Boot | 8082 | Stock, movimientos y ajustes |
@@ -30,7 +32,9 @@ La documentación funcional identifica Dashboard, Usuarios, Productos, Categorí
 | Inventario | `/api/inventarios` | Consulta, movimientos y ajustes |
 | Ventas | Rutas del servicio de ventas | Ventas, clientes, pagos y logística |
 
-El frontend usa `NEXT_PUBLIC_PRODUCTOS_API_URL=http://localhost:8081/api`, necesario para que categorías y empresas conserven el prefijo `/api` del backend.
+El frontend usa `NEXT_PUBLIC_PRODUCTOS_API_URL=http://localhost:8081/api`, necesario para que categorías y empresas conserven el prefijo `/api` del backend, y `NEXT_PUBLIC_AUTH_API_URL=http://localhost:8084` sin `/api`, porque `authService.ts` agrega `/api/auth` internamente.
+
+El puerto `8080` no pertenece al sistema en el entorno local (lo ocupa VMware). El plan V2 lo reserva para el futuro API Gateway (A-11 a A-14).
 
 ## CIA
 
@@ -46,13 +50,13 @@ Controles base: no versionar secretos, no registrar tokens, validar autenticaci�
 
 ## Riesgos iniciales
 
-| Riesgo | Impacto | Control o tarea |
-|---|---|---|
-| Endpoints administrativos sin autorización suficiente | Cambios o exposición no autorizada | A-03 y A-06 |
-| Rutas frontend/API inconsistentes | Fallos funcionales | Corrección de configuración realizada |
-| Credenciales en configuración | Compromiso de servicios | Etapa posterior |
-| Cambios directos sobre producción | Pérdida o indisponibilidad | Ramas, revisión y pruebas |
-| Codificación inconsistente | Caracteres españoles ilegibles | Incidencia separada |
+| Riesgo | Impacto | Control o tarea | Estado posterior |
+|---|---|---|---|
+| Endpoints administrativos sin autorización suficiente | Cambios o exposición no autorizada | A-03 y A-06 | Atendido en Productos (A-03) e Inventario (A-07). **`msvc-ventas` sigue sin seguridad** (A-24). |
+| Rutas frontend/API inconsistentes | Fallos funcionales | Corrección de configuración realizada | Atendido |
+| Credenciales en configuración | Compromiso de servicios | A-08 | Externalizadas en A-08; la rotación (A-09) está pendiente |
+| Cambios directos sobre producción | Pérdida o indisponibilidad | Ramas, revisión y pruebas | Vigente |
+| Codificación inconsistente | Caracteres españoles ilegibles | Incidencia separada | Abierto: los nombres con tildes llegan con doble codificación desde la base |
 
 ## Convenciones
 
@@ -89,6 +93,13 @@ La columna **situación actual** refleja la línea base observada en la revisió
 | `/api/productos` | POST/PUT/DELETE | Catálogo | Administrador / rol de gestión definido por negocio | Alta | Gestionado desde panel | Autorización backend, validación de relaciones y trazabilidad |
 | `/api/inventarios` | POST/PUT | Stock y ajustes | Administrador / responsable autorizado | Muy alta | Módulo operativo | Control de rol, validación de cantidades y auditoría de movimientos |
 | Ventas, pagos y logística | Varios | Operación comercial | Administrador / cliente según operación | Muy alta | Módulo operativo | Separar permisos de consulta, operación y administración |
+
+**Estado posterior de la matriz (2026-11-07):**
+
+- Productos: escrituras protegidas con JWT y aislamiento por empresa (A-03, validado en A-07).
+- Inventario: escrituras protegidas con JWT y roles `ROLE_ADMIN`/`ROLE_EMP`; consultas, `cantidad/batch` y preflight `OPTIONS` públicos (A-07).
+- Categorías y empresas: siguen sin autorización por método; revisar dentro de A-06/A-07 o como tarea adicional.
+- Ventas, pagos y logística: **sin Spring Security**; todos los endpoints responden sin token. Se atiende en A-24.
 
 ### Roles considerados
 
@@ -163,79 +174,73 @@ Evitar que un usuario con rol de emprendedor pueda crear, modificar o eliminar p
 
 No se requiere acción manual para A-03. Después del primer incremento será necesario reiniciar el microservicio de productos para cargar la nueva configuración. Para las pruebas de autorización se solicitará posteriormente una cuenta de prueba con rol `ROLE_EMP`; la contraseña deberá ingresarse manualmente y no compartirse en el chat.
 
-### Estado
-
 ### Incidencia de configuración detectada durante A-03.3
 
 Después del reinicio se observó un error de conexión al autenticarse y respuestas 401 en módulos protegidos. La causa fue que el `.env.local` del frontend apuntaba a `http://localhost:8080/api`, mientras el servicio de autenticación del repositorio está configurado en `http://localhost:8084/api`.
 
 Se corrigió `NEXT_PUBLIC_AUTH_API_URL` en `.env.local` y `.env.local.example`. Es necesario reiniciar únicamente el frontend para que Next.js cargue la variable corregida y volver a iniciar sesión para obtener un token nuevo.
 
-### VerificaciÃ³n del servicio de autenticaciÃ³n
+### Verificación del servicio de autenticación
 
-Se probÃ³ directamente `POST /api/auth/login` en `http://localhost:8084` con las cuentas documentadas `admin/password123` y `sigcholac/password123`; ambas respondieron HTTP 200 y devolvieron los roles esperados. Esto confirma que las cuentas y contraseÃ±as permanecen en la base actual.
+Se probó directamente `POST /api/auth/login` en `http://localhost:8084` con las cuentas documentadas `admin/password123` y `sigcholac/password123`; ambas respondieron HTTP 200 y devolvieron los roles esperados. Esto confirma que las cuentas y contraseñas permanecen en la base actual.
 
-La respuesta de `sigcholac` no incluyÃ³ `empresaId`, aunque la tabla `auth_service.emprendedores` sÃ­ contiene la relaciÃ³n usuario 3 con empresa 2. Esto indica que el proceso de autenticaciÃ³n activo debe reiniciarse desde el cÃ³digo actual antes de probar A-03, para que el JWT incluya el claim de empresa.
+La respuesta de `sigcholac` no incluyó `empresaId`, aunque la tabla `auth_service.emprendedores` sí contiene la relación usuario 3 con empresa 2. Esto indica que el proceso de autenticación activo debe reiniciarse desde el código actual antes de probar A-03, para que el JWT incluya el claim de empresa.
 
-### CorrecciÃ³n de URL duplicada en autenticaciÃ³n
+### Corrección de URL duplicada en autenticación
 
-La consola del frontend mostrÃ³ `http://localhost:8084/api/api/auth/login`. La causa fue que `authService.ts` agrega `/api/auth` internamente, por lo que `NEXT_PUBLIC_AUTH_API_URL` debe contener solo `http://localhost:8084`.
+La consola del frontend mostró `http://localhost:8084/api/api/auth/login`. La causa fue que `authService.ts` agrega `/api/auth` internamente, por lo que `NEXT_PUBLIC_AUTH_API_URL` debe contener solo `http://localhost:8084`.
 
-Se corrigiÃ³ `.env.local` y `.env.local.example`. La aplicaciÃ³n debe reiniciarse para que Next.js cargue la variable y la URL final sea `http://localhost:8084/api/auth/login`.
+Se corrigió `.env.local` y `.env.local.example`. La aplicación debe reiniciarse para que Next.js cargue la variable y la URL final sea `http://localhost:8084/api/auth/login`.
 
-### Resultado de la correcciÃ³n de autenticaciÃ³n
+### Resultado de la corrección de autenticación
 
-- Se confirmÃ³ que el frontend vuelve a solicitar `POST http://localhost:8084/api/auth/login` sin duplicar el prefijo `/api`.
-- El inicio de sesiÃ³n volviÃ³ a responder correctamente y los mÃ³dulos protegidos recuperaron el token esperado.
-- La advertencia de precarga del CSS se considerÃ³ informativa y no relacionada con el fallo de autenticaciÃ³n.
-- No fue necesario modificar contraseÃ±as, homologar hashes ni alterar la base de datos.
+- Se confirmó que el frontend vuelve a solicitar `POST http://localhost:8084/api/auth/login` sin duplicar el prefijo `/api`.
+- El inicio de sesión volvió a responder correctamente y los módulos protegidos recuperaron el token esperado.
+- La advertencia de precarga del CSS se consideró informativa y no relacionada con el fallo de autenticación.
+- No fue necesario modificar contraseñas, homologar hashes ni alterar la base de datos.
 
-### Resultado A-03.1
+### Resultado A-03.1 a A-03.3
 
 - Se agregaron las dependencias de Spring Security y OAuth2 Resource Server al microservicio de productos.
-- Se agregÃ³ la configuraciÃ³n JWT compatible con el claim `scope` y las autoridades `ROLE_*` del servicio de autenticaciÃ³n.
-- La clave se puede proporcionar mediante `JWT_SECRET`; se conserva un valor local de compatibilidad para no romper el entorno actual.
+- Se agregó la configuración JWT compatible con el claim `scope` y las autoridades `ROLE_*` del servicio de autenticación.
+- La clave se puede proporcionar mediante `JWT_SECRET`; se conserva un valor local de compatibilidad para no romper el entorno actual. *(Estado posterior: A-08 eliminó ese valor por defecto; hoy `JWT_SECRET` es obligatorio y se carga desde `.env`.)*
 - Las reglas siguen temporalmente en `permitAll` para no alterar el comportamiento antes de implementar A-03.2 y A-03.3.
-- CompilaciÃ³n ejecutada: `mvnw.cmd -DskipTests compile`.
+- Compilación ejecutada: `mvnw.cmd -DskipTests compile`.
 - Resultado: **BUILD SUCCESS**.
-- Se implementÃ³ `ProductoAuthorizationService` para validar `empresaId` desde el JWT y consultar la empresa del producto.
-- Se agregaron 5 pruebas unitarias para administrador, emprendedor de la empresa correcta, empresa distinta, rol sin permisos y autenticaciÃ³n no JWT.
+- Se implementó `ProductoAuthorizationService` para validar `empresaId` desde el JWT y consultar la empresa del producto.
+- Se agregaron 5 pruebas unitarias para administrador, emprendedor de la empresa correcta, empresa distinta, rol sin permisos y autenticación no JWT.
 - Prueba ejecutada: `mvnw.cmd -Dtest=ProductoAuthorizationServiceTest test`.
 - Resultado A-03.2: **5 pruebas ejecutadas, 0 fallos, 0 errores**.
-- A-03.3 conectÃ³ la autorizaciÃ³n con crear, actualizar y eliminar productos.
+- A-03.3 conectó la autorización con crear, actualizar y eliminar productos.
 - Los administradores conservan alcance global; `ROLE_EMP` queda limitado a la empresa del JWT.
 - En operaciones de emprendedor, `emprendedorId` se toma del claim `userId` y no del valor enviado por el cliente.
 - Se exige `userId` en el JWT para evitar continuar con una identidad incompleta.
-- CategorÃ­as, empresas, consultas pÃºblicas y sincronizaciÃ³n interna de stock no fueron modificadas en este incremento.
-- Prueba de regresiÃ³n ejecutada: `mvnw.cmd -Dtest=ProductoAuthorizationServiceTest test`.
+- Categorías, empresas, consultas públicas y sincronización interna de stock no fueron modificadas en este incremento.
+- Prueba de regresión ejecutada: `mvnw.cmd -Dtest=ProductoAuthorizationServiceTest test`.
 - Resultado A-03.3: **5 pruebas ejecutadas, 0 fallos, 0 errores; BUILD SUCCESS**.
-- Se retirÃ³ la capacidad de emitir JWT del microservicio de productos; conserva Ãºnicamente la validaciÃ³n de tokens, aplicando mÃ­nimo privilegio.
-- Se repitiÃ³ la compilaciÃ³n despuÃ©s del ajuste: **BUILD SUCCESS**.
-- No se ejecutaron migraciones, operaciones sobre datos ni reinicios automÃ¡ticos de servicios.
-
-**Siguiente paso:** A-03.2, crear el componente de autorizaciÃ³n que lea `userId` y `empresaId` del JWT y compare la empresa solicitada con la empresa del recurso.
-
-**A-03 en diseño incremental.** El repositorio se encuentra en `feature/a03-autorizacion-empresa`. El siguiente cambio será únicamente A-03.1: dependencias y configuración JWT del microservicio de productos.
+- Se retiró la capacidad de emitir JWT del microservicio de productos; conserva únicamente la validación de tokens, aplicando mínimo privilegio.
+- Se repitió la compilación después del ajuste: **BUILD SUCCESS**.
+- No se ejecutaron migraciones, operaciones sobre datos ni reinicios automáticos de servicios.
 
 ### Resultado A-03.4
 
-- Se protegieron en el filtro HTTP las operaciones `POST /api/productos`, `PUT /api/productos/{id}` y `DELETE /api/productos/{id}` para exigir autenticaciÃ³n.
-- Se agregÃ³ el manejo explÃ­cito de denegaciones de acceso en el microservicio de productos.
+- Se protegieron en el filtro HTTP las operaciones `POST /api/productos`, `PUT /api/productos/{id}` y `DELETE /api/productos/{id}` para exigir autenticación.
+- Se agregó el manejo explícito de denegaciones de acceso en el microservicio de productos.
 - Una solicitud de escritura sin token responde **401 Unauthorized**.
-- Una solicitud de un emprendedor sobre una empresa diferente responde **403 Forbidden** con cÃ³digo `FORBIDDEN`.
-- Las consultas de productos, categorÃ­as y empresas continÃºan respondiendo **200 OK**.
-- ValidaciÃ³n de autenticaciÃ³n: administrador **200**, `ROLE_ADMIN`; emprendedor **200**, `ROLE_EMP`, `userId=3`, `empresaId=2`.
-- RegresiÃ³n funcional: productos **39**, categorÃ­as **6** y empresas **4** registros consultados correctamente.
+- Una solicitud de un emprendedor sobre una empresa diferente responde **403 Forbidden** con código `FORBIDDEN`.
+- Las consultas de productos, categorías y empresas continúan respondiendo **200 OK**.
+- Validación de autenticación: administrador **200**, `ROLE_ADMIN`; emprendedor **200**, `ROLE_EMP`, `userId=3`, `empresaId=2`.
+- Regresión funcional: productos **39**, categorías **6** y empresas **4** registros consultados correctamente.
 - Prueba unitaria ejecutada: `mvnw.cmd -Dtest=ProductoAuthorizationServiceTest test`.
 - Resultado: **5 pruebas ejecutadas, 0 fallos, 0 errores; BUILD SUCCESS**.
-- Durante la primera comprobaciÃ³n se detectÃ³ que las denegaciones eran clasificadas como **500** por el manejador genÃ©rico; se corrigiÃ³ la clasificaciÃ³n y se repitiÃ³ la validaciÃ³n con **401/403**.
+- Durante la primera comprobación se detectó que las denegaciones eran clasificadas como **500** por el manejador genérico; se corrigió la clasificación y se repitió la validación con **401/403**.
 - Las solicitudes negativas fueron rechazadas antes de persistir; no se crearon, editaron ni eliminaron registros.
-- Se reiniciÃ³ manualmente Ãºnicamente `msvc-producto`; no se ejecutaron migraciones ni se modificÃ³ MySQL, Redis, Gateway o contraseÃ±as.
+- Se reinició manualmente únicamente `msvc-producto`; no se ejecutaron migraciones ni se modificó MySQL, Redis, Gateway o contraseñas.
 
-**Estado A-03:** completado en la rama `feature/a03-autorizacion-empresa`, pendiente de revisiÃ³n remota del commit de A-03.4.
+**Estado A-03:** completado en `feature/a03-autorizacion-empresa` e integrado en `integration/validacion-a01-a06` (merge `93cd9a4`).
 
 ### Estado de la matriz
 
-**Estado:** línea base preparada para revisión de A-03 y A-06.
+**Estado:** línea base utilizada para A-03, A-06 y A-07.
 
-**Pendiente:** validar con una cuenta no administradora las respuestas de acceso a rutas administrativas. Esa prueba deberá realizarse sin compartir credenciales en el chat y sin ejecutar operaciones de escritura.
+**Validación con cuentas no administradoras:** realizada en A-07 (sección 1.6 de `REGISTRO-SEGURIDAD-A08-A10.md`). `cliente1` recibe `403` en escrituras de productos e inventario, y `sigcholac` recibe `403` al operar sobre la empresa 1. Queda una excepción abierta: Auth devuelve `500` en lugar de `403` cuando el rol no alcanza. Es el mismo defecto de clasificación que se corrigió en Productos durante A-03.4.

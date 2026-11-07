@@ -8,6 +8,8 @@ Rama de trabajo: `feature/a07-validacion-api`, derivada de `etapa/seguridad-a07-
 
 La rama base incorpora la integración validada de A-01 a A-06 y la preparación previa de A-08 a A-10.
 
+> Este registro es cronológico: los hallazgos de una sección pueden estar resueltos en secciones posteriores. Por ejemplo, el "Hallazgo pendiente" de 1.1 se resolvió en 1.3. El estado vigente está en `RESUMEN-ESTADO-PROYECTO-Y-PLAN-CONTINUACION.md`.
+
 ## 1.1. A-07 — Validación directa contra API (subpaso 1)
 
 Se agregaron pruebas HTTP con MockMvc sobre el controlador real de productos y la cadena de seguridad configurada. Las pruebas no utilizan la interfaz web ni modifican la base de datos.
@@ -192,21 +194,22 @@ Pruebas HTTP ejecutadas contra los servicios locales en ejecución. Para que fue
 
 ### Hallazgos
 
-## 9. A-07 - Correccion de preflight CORS y conservacion de cantidades
-
-La revision del HAR del frontend mostro que `GET /api/productos/listado` devolvia cantidades reales, pero la actualizacion batch fallaba antes de ejecutar el `POST`. El navegador enviaba `OPTIONS /api/inventarios/cantidad/batch` y Inventario respondia `401 Unauthorized`.
-
-Se permitio `OPTIONS /**` en `SecurityConfig` de Inventario y se mantuvo publico `POST /api/inventarios/cantidad/batch`. Las operaciones de escritura continuan protegidas.
-
-El frontend ya no reemplaza cantidades existentes por cero cuando el batch falla o no devuelve un producto. Esta regla se aplico en `productService.ts`, `emprendedorService.ts` e `inventarioService.ts`.
-
-Validacion: `InventarioControllerApiAuthorizationTest` quedo con 8 casos exitosos y la comprobacion TypeScript del frontend termino sin errores. El commit publicado es `bdfdf1e fix(a07): completar preflight y conservar stock`.
-
-Pendiente manual: reiniciar Inventario y frontend, comprobar `OPTIONS` y `POST /api/inventarios/cantidad/batch` en Network, confirmar cantidades reales en el catalogo y verificar que las operaciones protegidas sigan respondiendo `401` o `403`.
-
 - **Auth devuelve 500 en lugar de 403 cuando el rol no alcanza.** El acceso se niega correctamente y no se devuelven datos. Sin embargo, `GlobalExceptionHandler` (`demo`) tiene un `@ExceptionHandler(Exception.class)` que captura la `AccessDeniedException` lanzada por `@PreAuthorize` y la transforma en 500 con el mensaje de la excepción. Corrección sugerida: agregar un manejador específico de `AccessDeniedException` que responda 403. No se corrigió en este subpaso.
 - **Contraseña de prueba de `cliente1` desactualizada en la guía.** El inicio de sesión con `cliente123` devuelve 401. El seed activo (`scripts/mysql-init/06-seed-auth-service.sql`) asigna a `cliente1` el mismo hash BCrypt que a `admin`, y el inicio de sesión con esa contraseña funciona. El valor `cliente123` proviene de `scripts/nuevo-seed-auth-service.sql`, que no es el seed en uso. Se corrigió la guía.
 - La revisión visual del catálogo y del panel administrativo en el navegador queda a cargo del equipo. Hay que revisar en la pestaña Network de DevTools que no aparezcan respuestas 401, 403, 404 o 500.
+- **`msvc-ventas` no tiene Spring Security.** No incluye la dependencia ni una `SecurityFilterChain`, por lo que todos sus endpoints responden sin token, no solo `GET /api/ventas`. Se registra como riesgo abierto para A-24.
+
+## 1.7. A-07 — Corrección de preflight CORS y conservación de cantidades (2026-11-07)
+
+La revisión del HAR del frontend mostró que `GET /api/productos/listado` devolvía cantidades reales, pero la actualización batch fallaba antes de ejecutar el `POST`. El navegador enviaba `OPTIONS /api/inventarios/cantidad/batch` y Inventario respondía `401 Unauthorized`. Antes de proteger Inventario esas solicitudes no se rechazaban; la regresión apareció al agregar la seguridad JWT sin incluir una prueba de integración frontend–Inventario.
+
+Se permitió `OPTIONS /**` en `SecurityConfig` de Inventario y se mantuvo público `POST /api/inventarios/cantidad/batch`. Las operaciones de escritura continúan protegidas.
+
+El frontend ya no reemplaza cantidades existentes por cero cuando el batch falla o no devuelve un producto. Esta regla se aplicó en `productService.ts`, `emprendedorService.ts` e `inventarioService.ts`.
+
+Validación: `InventarioControllerApiAuthorizationTest` quedó con 8 casos exitosos (preflight del batch permitido, preflight de escritura sin abrir la operación real, `PUT` sin token `401`, batch público `200`, además de los 4 casos previos). La comprobación TypeScript del frontend terminó sin errores. Commit: `bdfdf1e fix(a07): completar preflight y conservar stock`.
+
+Pendiente manual: reiniciar Inventario y frontend, comprobar `OPTIONS` y `POST /api/inventarios/cantidad/batch` en Network, confirmar cantidades reales en el catálogo y verificar que las operaciones protegidas sigan respondiendo `401` o `403`.
 
 ## 2. Cambios implementados — A-08
 

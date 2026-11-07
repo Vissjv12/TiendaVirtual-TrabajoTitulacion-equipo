@@ -46,6 +46,8 @@ La prueba de integración contra la base de datos queda pendiente porque el ento
 
 No se modificaron contraseñas, hashes, usuarios existentes ni volúmenes Docker.
 
+**Actualización (2026-11-07):** no es necesario asociar usuarios manualmente. El seed activo (`scripts/mysql-init/06-seed-auth-service.sql`) ya define `ultimo_inca` (empresa 1), `sigcholac` (empresa 2) y `perla_andina` (empresa 3) con rol `ROLE_EMP` y la misma contraseña de prueba que `admin`. Los pasos 2 y 3 de "Próximos pasos" se reemplazan por una consulta de solo lectura a `auth_service.emprendedores`, para confirmar que la base activa conserva esas asociaciones.
+
 ## Hallazgos y riesgos
 
 1. La interfaz y el API administrativo actuales no permiten asignar una empresa a un usuario emprendedor nuevo.
