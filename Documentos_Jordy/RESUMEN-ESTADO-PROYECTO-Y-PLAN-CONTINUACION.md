@@ -15,6 +15,111 @@ El alcance actual mantiene MySQL como fuente transaccional principal. Redis, el 
 
 ## 2. Estado general
 
+## 2.1 Estado de los paquetes de trabajo del equipo
+
+La integracion actual debe mantenerse como base comun antes de que los otros integrantes continÃºen. La rama que contiene las correcciones de A-07 es `feature/a07-validacion-api` y tiene publicados los commits `bdfdf1e` y `691c53f`. Los compañeros deben partir de la rama de etapa o de una rama de integracion aprobada, nunca de esta rama feature directamente.
+
+### Integrante 1 - Backend y seguridad
+
+Pendientes principales:
+
+- A-11: definir la estrategia del Gateway, tabla de rutas, puertos, CORS, manejo de errores y responsabilidades.
+- A-12: implementar el Gateway en pruebas, sin migrar todavia todo el frontend.
+- A-19: publicar el contrato comun de paginacion.
+- A-20: implementar paginacion backend con `page`, `size`, `sort`, limites y metadatos.
+- A-24: proteger checkout y creacion de ventas con JWT y validar el alcance de empresa.
+- Preparar la integracion de Redis solo despues de que exista un contrato aprobado para catalogo y stock.
+
+No debe modificar A-07, `SecurityConfig` de Inventario, los servicios frontend de cantidades ni las semillas SQL sin abrir una tarea de integracion relacionada y coordinar el cambio. Tampoco debe crear rutas del Gateway que contradigan el contrato publicado.
+
+### Integrante 2 - Frontend e integracion
+
+Pendientes principales:
+
+- A-13: migrar las URLs del frontend al Gateway cuando A-11 y A-12 tengan rutas estables.
+- A-21: conectar DataTable y Paginator con el contrato de A-19 y A-20.
+- A-23: mostrar catalogo, precios e informacion comercial publica sin iniciar sesion, sin exponer costos ni datos privados.
+- A-24: implementar carrito, checkout, login requerido y mensajes de autenticacion.
+
+No debe cambiar las rutas de API de forma unilateral ni eliminar la propagacion de `Authorization`. Debe conservar el comportamiento corregido del stock: una falla temporal del batch no puede convertirse en cero. Los cambios de Gateway deben hacerse despues de recibir la tabla de rutas del Integrante 1.
+
+### Integrante 3 - Infraestructura, datos y pruebas
+
+Trabajo actual y pendientes:
+
+- Mantener respaldos y procedimiento de rollback de A-02.
+- Coordinar A-09 y A-10 cuando exista autorizacion para credenciales y hashes.
+- Ejecutar pruebas de seguridad, regresion, disponibilidad y rendimiento.
+- Validar A-14 cuando exista Gateway.
+- Preparar la configuracion de Redis, limites de memoria, puertos, salud y recuperacion, sin activar aun la migracion funcional.
+- Ejecutar A-22 y A-25 cuando existan paginacion, catalogo publico y compra autenticada.
+
+La responsabilidad de infraestructura no implica cambiar contraseñas, destruir volumenes, modificar semillas o rotar claves reales sin respaldo, autorizacion y ventana controlada.
+
+### Orden de integracion entre paquetes
+
+1. Integrar y validar la correccion actual de A-07.
+2. Integrar A-11 y A-12 con una tabla de rutas estable.
+3. Publicar el contrato de A-19 antes de implementar A-20 y A-21.
+4. Validar A-14 y A-22 antes de iniciar el piloto funcional de Redis.
+5. Integrar A-13 despues de probar el Gateway.
+6. Implementar A-23 y A-24 sin hacer depender el catalogo publico de Redis.
+7. Ejecutar A-25 y la regresion integral.
+
+## 2.2 Redis antes del piloto completo
+
+Redis puede prepararse de forma independiente, pero no debe incorporarse todavia como dependencia obligatoria de los microservicios ni como fuente principal de datos.
+
+### Trabajo permitido antes de la implementacion funcional
+
+- A-15: documentar la evaluacion de Redis frente a MySQL y justificar el alcance.
+- Revisar el consumo disponible del servidor y establecer un limite de memoria para Redis.
+- Definir el nombre del servicio, puerto interno, puerto local de pruebas y healthcheck.
+- Definir variables de entorno como `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` y limites operativos, sin publicar valores reales.
+- Definir las claves, estructura, serializacion y TTL de un solo caso piloto.
+- Definir la politica de invalidacion cuando se cree, actualice o elimine un producto.
+- Definir metricas: cache hit, cache miss, latencia, memoria, errores y fallback.
+- Crear un plan de rollback que quite Redis sin borrar MySQL ni los datos transaccionales.
+- Preparar una rama propia de evaluacion, por ejemplo `feature/a15-evaluacion-redis`, sin mezclarla con Gateway o paginacion.
+
+### Trabajo que debe esperar
+
+- A-16 debe esperar la decision de A-15 y el formato final de respuesta del catalogo.
+- A-17 debe esperar el contrato del catalogo y una implementacion de fallback a MySQL.
+- A-18 debe esperar las mediciones del piloto.
+- La integracion de stock atomico en Redis debe esperar una definicion clara de consistencia, transacciones y reconciliacion con MySQL.
+- Los carritos en Redis deben esperar la definicion del flujo de compra y su expiracion.
+- La activacion en produccion debe esperar mediciones de memoria, pruebas de carga, respaldo y rollback.
+
+### Lo que no debe tocarse antes del piloto
+
+- No reemplazar MySQL como fuente de verdad.
+- No guardar ventas, pagos, facturas, usuarios o roles unicamente en Redis.
+- No modificar el esquema de MySQL solo para introducir Redis.
+- No convertir Redis en requisito de arranque para el catalogo antes de probar el fallback.
+- No agregar `FLUSHALL` a scripts normales de despliegue.
+- No almacenar tokens, contraseñas, claves de pago ni datos sensibles en claves de cache.
+- No cambiar el contrato REST del catalogo sin coordinar frontend y pruebas.
+- No aplicar decrementos de stock en Redis sin una estrategia de confirmacion o compensacion en MySQL.
+- No agregar `redis-feria-digital` al ambiente compartido hasta contar con variables, limites y procedimiento de apagado.
+
+### Condiciones para iniciar el piloto A-17
+
+El piloto puede iniciar cuando se cumpla todo lo siguiente:
+
+- A-11 y A-12 tienen rutas estables o se definio que el piloto funcionara temporalmente sobre el endpoint actual.
+- A-19 y A-20 tienen un contrato y respuesta paginada estable para el catalogo.
+- El endpoint de catalogo conserva respuesta correcta cuando Redis esta apagado.
+- Se conoce el limite de memoria del servidor de produccion.
+- Existe respaldo de MySQL y rollback probado.
+- Se definieron TTL, claves e invalidacion.
+- Existen mediciones de linea base sin Redis.
+- El equipo sabe quien puede modificar Docker y los archivos de entorno.
+
+### Resultado esperado de Redis
+
+Redis debe ser una capa Cache-Aside complementaria. Ante un cache hit, el catalogo puede responder mas rapido. Ante un cache miss, una clave expirada o una caida de Redis, el sistema debe consultar MySQL y continuar funcionando. La perdida de Redis no debe causar perdida de ventas, usuarios, inventario ni pagos.
+
 | Área | Estado | Observación |
 |---|---|---|
 | Preparación y línea base | Integrada | A-01 y A-02 forman la base de trabajo y respaldo. |
