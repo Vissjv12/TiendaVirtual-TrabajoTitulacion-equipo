@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -151,24 +152,16 @@ public class ProductoServiceImpl implements ProductoService {
             List<ProductoListadoDto> productos = productoRepository.findAllOptimized();
             System.out.println("Productos base obtenidos: " + productos.size());
 
-            // ✅ TEMPORAL: Comentar todo el inventario
-        /*
-        for (ProductoListadoDto producto : productos) {
-            try {
-                InventarioInfoDto inventario = inventarioClient.obtenerInventarioPorProductoId(producto.getId());
-                if (inventario != null && inventario.getCantidad() != null) {
-                    producto.setInventarioCantidad(inventario.getCantidad());
-                } else {
-                    producto.setInventarioCantidad(0);
-                }
-            } catch (Exception e) {
-                producto.setInventarioCantidad(0);
-            }
-        }
-        */
+            // Consultar las cantidades en una sola llamada para evitar N+1.
+            List<Long> productosIds = productos.stream()
+                    .map(ProductoListadoDto::getId)
+                    .toList();
+            Map<String, Integer> cantidades = inventarioClient.obtenerCantidadesPorProductos(productosIds);
 
-            // ✅ TEMPORAL: Asignar 0 a todos sin llamadas HTTP
-            productos.forEach(p -> p.setInventarioCantidad(0));
+            productos.forEach(producto -> {
+                Integer cantidad = cantidades.get(String.valueOf(producto.getId()));
+                producto.setInventarioCantidad(cantidad != null ? Math.max(cantidad, 0) : 0);
+            });
 
             System.out.println("Productos procesados: " + productos.size());
             return productos;

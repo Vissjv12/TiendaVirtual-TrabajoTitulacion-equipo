@@ -63,7 +63,7 @@ Las consultas de inventario y cantidad se mantienen públicas porque son consumi
 - Ventas descuenta stock mediante `salida-lote` y actualización de stock.
 - Inventario consulta productos y sincroniza stock mediante Feign.
 - No se encontró un interceptor común que propague el encabezado `Authorization` entre esos clientes.
-- El cliente Feign de productos utiliza `/api/inventarios/productos/batch`, mientras el controlador expone `/api/inventarios/cantidad/batch`; esta diferencia queda registrada para revisión independiente y no se modifica dentro de este subpaso.
+- El cliente Feign de productos utilizaba una ruta batch distinta a la expuesta por Inventario; el contrato se alineó posteriormente en el subpaso 1.5 con `/api/inventarios/cantidad/batch`.
 
 ### Decisión de seguridad
 
@@ -92,6 +92,66 @@ No se añadió una autenticación parcial al microservicio de inventario. Hacerl
 - `POST /api/inventarios/salida-lote` y `PUT /api/inventarios/producto/{productoId}/stock` validan autenticación, pero su autorización de negocio debe endurecerse con A-24 para impedir que un usuario autenticado manipule productos ajenos.
 - La sincronización asíncrona de stock no conserva automáticamente el contexto HTTP; por eso el endpoint receptor de sincronización requiere una revisión posterior con identidad de servicio o mecanismo equivalente.
 - La validación manual con los cuatro microservicios levantados queda como evidencia final de integración. No se requiere cambiar Docker ni eliminar el volumen MySQL para ejecutar las pruebas automatizadas.
+
+## 1.4. A-07/A-08 — Verificación de arranque de Ventas (2026-11-07)
+
+### Síntoma reportado
+
+Al ejecutar `.\mvnw.cmd spring-boot:run` en `msvc-ventas` con las variables del `.env` cargadas, Maven compilaba y Camunda comenzaba a iniciar, pero después de más de un minuto no aparecía el mensaje `Started ...` ni se confirmaba el puerto `8083`.
+
+### Diagnóstico
+
+- Antes de relanzar se comprobó que no quedaba ningún proceso Java de Ventas activo y que el puerto `8083` estaba libre. Solo seguían activos Eureka (`8761`) y MySQL (`3306`). El puerto `8080` lo ocupa `vmnat` (VMware) y no tiene relación con el sistema.
+- Causa de la falta de mensajes: `msvc-ventas/src/main/resources/application.properties` define `logging.level.root=WARN`. Con ese nivel se suprimen los mensajes INFO `Tomcat started on port 8083` y `Started MsvcVentasApplication`, aunque el servicio haya arrancado. No se identificó ningún bloqueo real.
+- Para tener evidencia, el servicio se relanzó sin modificar archivos, agregando solo un argumento de ejecución: `-Dspring-boot.run.arguments=--logging.level.root=INFO`.
+
+### Resultado
+
+- `Tomcat started on port 8083 (http)`.
+- `Started MsvcVentasApplication in 15.959 seconds`.
+- Hikari conectó con MySQL usando `MYSQL_USER`/`MYSQL_PASSWORD` del `.env`. Hibernate `ddl-auto=validate` no informó diferencias de esquema.
+- Camunda 7.20.0: el motor `default` se creó, el JobExecutor quedó activo y se omitió la creación del usuario administrador y del filtro `All tasks` porque ya existían en la base de datos.
+- `GET /api-docs` y `GET /api/ventas` respondieron `200`.
+- No se observó ningún bloque `Caused by`. Las advertencias registradas (`MySQL8Dialect`, `open-in-view`, caché de LoadBalancer y barra final añadida a recursos estáticos de Camunda) no impiden el arranque.
+- No se modificaron credenciales, `JWT_SECRET`, contenedores ni el volumen MySQL.
+
+### Observaciones pendientes, sin corrección en este subpaso
+
+- El `.env` local no define `CAMUNDA_BPM_ADMIN_USER_PASSWORD`, aunque `.env.example` sí la incluye. Hoy no afecta porque el usuario `admin` de Camunda ya existe. Sin embargo, sobre una base de datos limpia, Spring dejaría sin resolver el marcador `${CAMUNDA_BPM_ADMIN_USER_PASSWORD}` y lo usaría literalmente como contraseña inicial. Debe definirse antes de cualquier reinstalación desde cero (relacionado con A-09).
+- `GET /api/ventas` responde `200` sin token. Debe revisarse dentro de A-07 si el listado de ventas debe ser público, porque es una decisión de autorización que no se cambió en este subpaso.
+
+### Seguimiento — fallo de Productos e Inventario por terminal sin `.env`
+
+- Síntoma: `BUILD FAILURE` con una traza en `JdbcEnvironmentInitiator$ConnectionProviderJdbcConnectionAccess.obtainConnection`. Ocurrió al arrancar desde una terminal nueva con los bloques de la guía, que solo configuraban `JAVA_HOME`.
+- Causa: tras A-08, `spring.datasource.password=${MYSQL_PASSWORD}` no tiene valor por defecto. Si la terminal no carga el `.env`, el marcador queda sin resolver y MySQL rechaza la conexión. El `.env` se revisó (formato, comillas, espacios, valores de ejemplo) y es correcto.
+- Verificación: con el `.env` cargado, `msvc-inventario` arrancó en `8082` (`Started MsvcInventarioApplication in 10.564 seconds`) y `msvc-producto` en `8081` (`Started MsvcProductoApplication in 10.719 seconds`).
+- Corrección documental: cada bloque de terminal de backend de `GUIA-LEVANTAMIENTO-SISTEMA.md` incluye ahora la carga del `.env`, y la tabla de errores comunes registra este síntoma.
+- `.env` local (no versionado): se agregaron `CAMUNDA_BPM_ADMIN_USER_ID` y `CAMUNDA_BPM_ADMIN_USER_PASSWORD` con el valor original que tenía `application.properties` antes del commit `81d7163`. Coincide con el usuario `admin` de Camunda ya existente en la base. No se rotó ni se modificó ninguna otra credencial.
+
+## 1.5. A-07 — Integración de cantidades de inventario en Productos (2026-11-07)
+
+### Hallazgo
+
+La base de datos y el microservicio de Inventario contenían cantidades correctas. `GET /api/inventarios` devolvió 500 unidades para el producto 1 y 1000 para el producto 2. Sin embargo, `GET /api/productos` devolvía `inventario: null` y `GET /api/productos/listado` asignaba explícitamente `inventarioCantidad = 0`.
+
+El frontend consumía primero el endpoint optimizado, por lo que mostraba inicialmente todos los productos con cero unidades y dependía de una actualización posterior en segundo plano.
+
+### Cambio implementado
+
+- Se alineó el cliente Feign de Productos con `POST /api/inventarios/cantidad/batch`.
+- El listado optimizado obtiene las cantidades en una sola llamada para todos los productos.
+- Se eliminó la asignación incondicional de cero en el backend.
+- Se conserva cero como valor seguro para productos sin inventario o cuando Inventario no está disponible.
+- No se modificaron datos, semillas SQL, credenciales ni el volumen MySQL.
+- Se evitó realizar una llamada individual por producto para no introducir un problema N+1.
+
+### Validación
+
+- `ProductoServiceInventoryBatchTest`: 1 caso, 0 fallos y 0 errores.
+- `ProductoAuthorizationServiceTest`: 7 casos, 0 fallos y 0 errores.
+- `ProductoControllerApiAuthorizationTest`: 4 casos, 0 fallos y 0 errores.
+- Resultado: `BUILD SUCCESS`.
+- La validación HTTP posterior al reinicio de Productos debe confirmar que `/api/productos/listado` ya devuelve cantidades reales.
 
 ## 2. Cambios implementados — A-08
 

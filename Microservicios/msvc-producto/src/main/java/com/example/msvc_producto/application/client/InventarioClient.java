@@ -31,9 +31,9 @@ public interface InventarioClient {
             @PathVariable("productoId") Long productoId
     );
 
-    // ✅ NUEVO: Método batch para obtener múltiples inventarios
-    @PostMapping("/api/inventarios/productos/batch")
-    Map<Long, InventarioInfoDto> obtenerInventariosPorProductos(
+    // Consulta batch de cantidades; evita una llamada HTTP por producto.
+    @PostMapping("/api/inventarios/cantidad/batch")
+    Map<String, Integer> obtenerCantidadesPorProductos(
             @RequestBody List<Long> productosIds
     );
 }
