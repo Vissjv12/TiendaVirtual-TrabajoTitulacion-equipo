@@ -220,6 +220,16 @@ Después de A-10, los usuarios afectados deben autenticarse mediante hashes BCry
 
 ### Etapa 4 Gateway
 
+### Actualizacion posterior de A-07
+
+La revision del HAR detecto una regresion de integracion: `GET /api/productos/listado` devolvia cantidades correctas, pero el preflight `OPTIONS /api/inventarios/cantidad/batch` respondia `401`. El batch no se ejecutaba y el frontend convertia el resultado vacio en cantidades cero.
+
+Se corrigio el preflight en Inventario y se ajustaron `productService.ts`, `emprendedorService.ts` e `inventarioService.ts` para conservar cantidades validas cuando el batch falle. Las operaciones de escritura permanecen protegidas.
+
+La prueba `InventarioControllerApiAuthorizationTest` quedo con 8 casos exitosos y la comprobacion TypeScript del frontend termino sin errores. El commit publicado es `bdfdf1e fix(a07): completar preflight y conservar stock`.
+
+La validacion manual pendiente consiste en reiniciar Inventario y frontend, comprobar `OPTIONS` y `POST /api/inventarios/cantidad/batch` en Network y confirmar visualmente que el catalogo no vuelva a mostrar cero.
+
 Integrante 1 debe diseñar e implementar las rutas del Gateway, CORS, errores y comunicación interna en A-11 y A-12. Integrante 2 debe migrar el frontend en A-13. Integrante 3 debe validar puertos, salud, disponibilidad y fallos en A-14.
 
 No se debe migrar el frontend a rutas del Gateway antes de tener una tabla de rutas estable y pruebas de seguridad.
