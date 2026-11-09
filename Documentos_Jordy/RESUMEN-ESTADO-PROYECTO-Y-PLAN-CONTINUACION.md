@@ -360,6 +360,42 @@ Después de A-10, los usuarios afectados deben autenticarse mediante hashes BCry
 
 ### Etapa 4 Gateway
 
+### Evidencia de validacion A-12 en puerto local 8090
+
+La validacion manual del Gateway se ejecuto en `http://127.0.0.1:8090` porque el puerto 8080 estaba ocupado por VMware (`vmnat`) y `dllhost`. Se recreo unicamente el contenedor del Gateway con `GATEWAY_PORT=8090`; MySQL y los microservicios no fueron modificados.
+
+Resultados obtenidos:
+
+- `GET /health` y `GET /api/health`: `200`.
+- `GET /api/productos/listado`: `200`, con 39 productos y `inventarioCantidad`.
+- `GET /api/inventarios`, `/api/categorias`, `/api/empresas` y `/api/ventas`: `200`.
+- `POST /api/inventarios/cantidad/batch`: `200`, con cantidades coincidentes con el servicio directo.
+- Preflight `OPTIONS` en batch, inventarios, productos, usuarios y ventas: `204` con CORS correcto.
+- Origen no permitido: no fue reflejado en `Access-Control-Allow-Origin`.
+- Respuestas CORS: una sola cabecera `Access-Control-Allow-Origin`.
+- Rutas inexistentes: `404` con respuesta JSON.
+- `/actuator/**` y sincronizacion interna de stock: `403` desde el Gateway.
+- Escrituras sin token o con token falso: `401`.
+- Login de administrador, emprendedor y cliente a traves del Gateway: exitoso.
+- Propagacion de Bearer hacia Productos: confirmada mediante una respuesta de negocio en lugar de `401`.
+- Cliente sin permisos: `403` en Productos e Inventario.
+- Emprendedor sobre recursos ajenos: `403`.
+
+### Observaciones abiertas de A-12 para A-13 y A-14
+
+Estas observaciones quedan registradas, pero no se corrigen en A-12 porque pueden cambiar al integrar las ramas restantes:
+
+1. El Gateway y los microservicios utilizan formatos de error distintos. El Gateway usa `code`, `message` y `status`; algunos microservicios usan `codigo`, `mensaje` y `timestamp`. A-13 debe documentar o unificar el contrato que consumira el frontend.
+2. Los puertos 8081 a 8084 continÃºan abiertos. Es esperado mientras el frontend no migre al Gateway. A-14 debe confirmar el cierre o restriccion de esos puertos en el despliegue final.
+3. El frontend todavia consume directamente los microservicios. La validacion visual actual no demuestra que el frontend funcione a traves del Gateway. Esto queda para A-13.
+4. No se valido la propagacion Feign con una escritura real de producto que cree Inventario. Debe probarse antes de cerrar A-14, con respaldo y datos controlados.
+5. `GET /api/usuarios` con `cliente1` continua respondiendo `500` en lugar de `403`. La misma respuesta ocurre al llamar directamente Auth, por lo que el defecto pertenece a `GlobalExceptionHandler` de Auth y no al Gateway.
+6. Si se vuelve a levantar el Gateway sin `GATEWAY_PORT=8090`, Compose intentara usar 8080. Para este equipo debe mantenerse `GATEWAY_PORT=8090` en el `.env` local mientras VMware ocupe 8080.
+
+### Prompt de continuidad para revisar estas observaciones
+
+> Revisar las observaciones abiertas de A-12 despues de integrar A-13 y A-14. Comparar el contrato de errores del Gateway y de cada microservicio y decidir si se unifica o se documentan ambos formatos. Confirmar si los puertos 8081 a 8084 quedan accesibles externamente y cerrarlos o restringirlos solo cuando el frontend consuma el Gateway y exista una ruta de rollback. Validar mediante una escritura controlada la propagacion Feign Productos -> Inventario, sin eliminar volumenes ni alterar datos reales. Repetir la prueba `cliente1 -> GET /api/usuarios` y corregir el `500` a `403` solo en Auth, agregando un manejador especifico de `AccessDeniedException`. Verificar la variable `GATEWAY_PORT` y ejecutar pruebas desde el puerto local configurado y desde el puerto de produccion definido.
+
 Integrante 1 debe diseñar e implementar las rutas del Gateway, CORS, errores y comunicación interna en A-11 y A-12. Integrante 2 debe migrar el frontend en A-13. Integrante 3 debe validar puertos, salud, disponibilidad y fallos en A-14.
 
 No se debe migrar el frontend a rutas del Gateway antes de tener una tabla de rutas estable y pruebas de seguridad.
