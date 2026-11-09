@@ -1,4 +1,4 @@
-﻿# Script para levantar todos los microservicios
+# Script para levantar todos los microservicios
 # Asegúrate de tener Java 17 y Docker (MySQL) corriendo
 
 Write-Host "========================================" -ForegroundColor Cyan
