@@ -65,10 +65,10 @@ docker exec -it mysql-feria-digital sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSW
 ```
 
 ### 2.4 Contraseña del Administrador (`admin`)
-**No se requiere ninguna acción.** El seed activo (`scripts/mysql-init/06-seed-auth-service.sql`) ya asigna a `admin` el mismo hash BCrypt que a los demás usuarios de prueba, por lo que `admin` inicia sesión con la contraseña de la sección 5.
+**No se requiere ninguna acción.** El seed activo (`scripts/mysql-init/06-seed-auth-service.sql`) ya asigna a `admin` el mismo hash BCrypt que a los demás usuarios de prueba, por lo que `admin` inicia sesión con la contraseña de la sección 6.
 
 > [!WARNING]
-> Versiones anteriores de esta guía indicaban ejecutar un `UPDATE` sobre `auth_service.usuarios` para copiar el hash de `sigcholac` a `admin`. **No lo ejecutes.** Modificar hashes directamente en la base está fuera del procedimiento de A-10. Si un inicio de sesión falla, primero confirma qué base y qué seed están activos (ver la sección 7).
+> Versiones anteriores de esta guía indicaban ejecutar un `UPDATE` sobre `auth_service.usuarios` para copiar el hash de `sigcholac` a `admin`. **No lo ejecutes.** Modificar hashes directamente en la base está fuera del procedimiento de A-10. Si un inicio de sesión falla, primero confirma qué base y qué seed están activos (ver la sección 8).
 
 ---
 
@@ -174,7 +174,68 @@ cd d:\ESPE\Vinculacion\Trabajo_Vinculacion\TiendaVirtual-TrabajoTitulacion-equip
 
 ---
 
-## 💻 4. Paso 3: Levantar el Frontend (Next.js 13 / React)
+## 🚪 4. Paso 3: Levantar el API Gateway (NGINX en Docker)
+
+Desde A-13 el frontend **no** llama a los puertos `8081`–`8084`: todas sus solicitudes pasan por el gateway. Si el gateway no está levantado, el frontend muestra "No se pudo conectar con el servidor de productos".
+
+### 4.1 Elegir el puerto (una sola vez)
+En Windows el puerto `8080` suele estar ocupado por VMware (`vmnat`). Compruébalo:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue |
+  Select-Object LocalAddress, @{n='Proceso';e={(Get-Process -Id $_.OwningProcess).ProcessName}}
+```
+
+Si aparece cualquier proceso, usa `8090`. Agrega esta línea al `.env` de la **raíz del proyecto**:
+
+```text
+GATEWAY_PORT=8090
+```
+
+### 4.2 Levantar y verificar
+Desde la raíz del proyecto:
+
+```powershell
+docker compose -f .\docker-compose.gateway.yml config --quiet   # valida la configuración
+docker compose -f .\docker-compose.gateway.yml up -d
+docker compose -f .\docker-compose.gateway.yml ps               # debe mostrar (healthy) y 0.0.0.0:8090->8080
+Invoke-WebRequest http://127.0.0.1:8090/health -UseBasicParsing # debe responder 200 {"status":"UP",...}
+```
+
+> [!WARNING]
+> **Usa `127.0.0.1`, no `localhost`.** En algunos equipos Windows un relay IPv6 del sistema (`dllhost`, lanzado por `svchost`) escucha en `::1` en los puertos que publica Docker. Acepta la conexión, pero no la reenvía. Como `localhost` se resuelve primero a `::1`, las solicitudes quedan colgadas hasta el timeout, mientras que `127.0.0.1` responde de inmediato. Para comprobar si te afecta:
+> ```powershell
+> Get-NetTCPConnection -LocalPort 8090 -State Listen | Select-Object LocalAddress, @{n='Proceso';e={(Get-Process -Id $_.OwningProcess).ProcessName}}
+> ```
+> Si aparece `dllhost` en `::1` o `::`, usa siempre `127.0.0.1`. Reiniciar Docker Desktop o ejecutar `wsl --shutdown` suele eliminar el relay, pero afecta a todo el entorno.
+
+* El gateway enruta `/api/auth`, `/api/usuarios`, `/api/productos`, `/api/categorias`, `/api/empresas`, `/api/inventarios`, `/api/movimientos`, `/api/ventas`, `/api/pagos` y demás rutas hacia cada microservicio. La tabla completa está en `Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md`.
+* Resuelve el preflight CORS (`OPTIONS` → `204`), devuelve `404` en JSON para rutas inexistentes y bloquea `/actuator/**` y `/api/productos/{id}/sincronizar-stock` (`403`).
+* Los microservicios deben estar levantados (Paso 2). Si alguno falta, el gateway responde `502` en JSON.
+
+---
+
+## 💻 5. Paso 4: Levantar el Frontend (Next.js 13 / React)
+
+### 5.1 Configurar la URL del gateway (una sola vez)
+
+> [!IMPORTANT]
+> Next.js **solo** lee los archivos `.env*` de la carpeta `avalon-react-10.1.0`. Poner `NEXT_PUBLIC_GATEWAY_URL` en el `.env` de la raíz no tiene efecto, y el frontend usaría por defecto `http://localhost:8080`.
+
+| Variable | Archivo | Lo usa | Valor local recomendado |
+|---|---|---|---|
+| `GATEWAY_PORT` | `.env` (raíz del proyecto) | Docker Compose del gateway | `8090` si el `8080` está ocupado |
+| `NEXT_PUBLIC_GATEWAY_URL` | `avalon-react-10.1.0/.env.local` | Frontend (Next.js) | `http://127.0.0.1:8090` |
+
+Si no tienes `.env.local`, cópialo desde `.env.local.example` y define:
+
+```text
+NEXT_PUBLIC_GATEWAY_URL=http://127.0.0.1:8090
+```
+
+Las variables anteriores `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_PRODUCTOS_API_URL` y `NEXT_PUBLIC_AUTH_API_URL` quedaron **obsoletas** desde A-13 y pueden eliminarse o comentarse.
+
+### 5.2 Iniciar
 
 Abre una **6ta terminal** de PowerShell:
 
@@ -189,10 +250,12 @@ npm run dev
 ```
 
 * **Acceso web:** [http://localhost:3000](http://localhost:3000)
+* Las variables `NEXT_PUBLIC_*` se leen **solo al arrancar**. Después de cambiar `.env.local`, detén el frontend (`Ctrl + C`), vuelve a ejecutar `npm run dev` y recarga el navegador con `Ctrl + Shift + R`.
+* Verificación: en la pestaña Network de DevTools, las solicitudes deben ir a `127.0.0.1:8090` (no a `8080` ni a `8081`–`8084`) y responder `200`. Los `OPTIONS` deben responder `204`.
 
 ---
 
-## 👥 5. Credenciales de Prueba del Sistema
+## 👥 6. Credenciales de Prueba del Sistema
 
 > [!IMPORTANT]
 > Estas credenciales corresponden **únicamente** a los datos semilla del entorno local. No deben usarse en producción ni en el servidor municipal.
@@ -210,11 +273,16 @@ Con los servicios levantados, `Documentos_Jordy\pruebas-seguridad-a07.ps1` ejecu
 
 ---
 
-## 🛑 6. Comandos para Apagar el Sistema
+## 🛑 7. Comandos para Apagar el Sistema
 
 ### Apagar el Backend y Frontend:
 En cada ventana de PowerShell abierta presiona:
 `Ctrl + C` y confirma con `S` (o `Y`).
+
+### Apagar el API Gateway:
+```powershell
+docker compose -f .\docker-compose.gateway.yml down   # no tiene datos; se puede recrear sin riesgo
+```
 
 ### Apagar la Base de Datos Docker:
 ```powershell
@@ -239,7 +307,7 @@ docker compose -f .\docker-compose.db.yml up -d
 
 ---
 
-## 🔧 7. Solución Rápida a Errores Comunes
+## 🔧 8. Solución Rápida a Errores Comunes
 
 | Error | Causa | Solución |
 |---|---|---|
@@ -247,8 +315,12 @@ docker compose -f .\docker-compose.db.yml up -d
 | `BUILD FAILURE ... Process terminated with exit code: 1` con traza en `JdbcEnvironmentInitiator...obtainConnection` (`Access denied for user 'admin'`) | La terminal no cargó el `.env`: `MYSQL_PASSWORD` no existe y Spring envía `${MYSQL_PASSWORD}` como contraseña | Ejecutar en esa terminal el bloque "Cargar secretos del .env" y volver a lanzar `.\mvnw.cmd spring-boot:run`. |
 | `Could not resolve placeholder 'JWT_SECRET'` | Igual que el anterior (Auth y Productos necesitan `JWT_SECRET`) | Cargar el `.env` en esa terminal. |
 | `ERROR 2002: Can't connect to MySQL server` | MySQL recién está inicializando los 9 scripts SQL | Esperar 20 segundos y revisar con `docker logs mysql-feria-digital` hasta ver `ready for connections`. |
-| `401 Unauthorized` al iniciar sesión con un usuario de prueba | La contraseña usada no corresponde al seed activo, o la base no se creó con `06-seed-auth-service.sql` | Usar las credenciales de la sección 5. Si siguen fallando, confirmar qué seed se aplicó. **No** modificar hashes con SQL (ver 2.4). |
-| Login con `http://localhost:8084/api/api/auth/login` o error de conexión al autenticarse | `NEXT_PUBLIC_AUTH_API_URL` mal definida en `.env.local` | Debe ser exactamente `http://localhost:8084` (sin `/api`). Reiniciar el frontend tras cambiarla. |
-| `Blocked by CORS policy` o `401` en una solicitud `OPTIONS` | El preflight del navegador fue rechazado por la seguridad del microservicio | Inventario ya permite `OPTIONS`. Si aparece en otro servicio, revisar su `SecurityConfig` en lugar de desactivar la autenticación. Verificar también que `NEXT_PUBLIC_PRODUCTOS_API_URL` termine en `/api`. |
-| El catálogo muestra todos los productos con stock `0` | Inventario no está levantado o la consulta batch falla | Comprobar `http://localhost:8082/api/inventarios` y, en la pestaña Network, que `POST /api/inventarios/cantidad/batch` responda `200`. |
+| `401 Unauthorized` al iniciar sesión con un usuario de prueba | La contraseña usada no corresponde al seed activo, o la base no se creó con `06-seed-auth-service.sql` | Usar las credenciales de la sección 6. Si siguen fallando, confirmar qué seed se aplicó. **No** modificar hashes con SQL (ver 2.4). |
+| El frontend muestra "No se pudo conectar con el servidor de productos"; en Network las solicitudes aparecen `(canceled)` tras 8–10 s y el `Preflight` queda `(pending)` | El gateway no está levantado, o el frontend apunta a un puerto o host que no responde | 1) `docker compose -f .\docker-compose.gateway.yml ps` debe mostrar `(healthy)`. 2) `Invoke-WebRequest http://127.0.0.1:8090/health -UseBasicParsing` debe dar `200`. 3) `avalon-react-10.1.0/.env.local` debe tener `NEXT_PUBLIC_GATEWAY_URL=http://127.0.0.1:8090`. 4) Reiniciar `npm run dev` (sección 5). |
+| Las solicitudes van a `localhost:8080` aunque el gateway esté en `8090` | `NEXT_PUBLIC_GATEWAY_URL` no está en `avalon-react-10.1.0/.env.local` (estar en el `.env` de la raíz no sirve) o el frontend no se reinició | Definirla en `.env.local` y reiniciar el frontend. |
+| `127.0.0.1:8090` responde, pero `localhost:8090` se queda colgado | Un relay IPv6 de Windows (`dllhost`) escucha en `::1:8090` y no reenvía | Usar `127.0.0.1` en `NEXT_PUBLIC_GATEWAY_URL` (ver la advertencia de 4.2). |
+| `docker compose ... up` arranca el gateway en `8080` | Falta `GATEWAY_PORT=8090` en el `.env` de la raíz | Agregarla y repetir `up -d`; Compose recrea el contenedor con el puerto nuevo. |
+| `502` en JSON (`SERVICE_UNAVAILABLE`) desde el gateway | El microservicio de esa ruta no está levantado | Iniciar el microservicio correspondiente (Paso 2). |
+| `Blocked by CORS policy` o `401` en una solicitud `OPTIONS` | El preflight no llegó al gateway (URL incorrecta) o fue rechazado por un microservicio llamado directamente | El gateway responde los `OPTIONS` con `204`. Confirmar en Network que la URL usa el gateway y no un puerto `8081`–`8084`. |
+| El catálogo muestra todos los productos con stock `0` | Inventario no está levantado o la consulta batch falla | Comprobar `http://127.0.0.1:8090/api/inventarios` y, en la pestaña Network, que `POST /api/inventarios/cantidad/batch` responda `200`. |
 | Ventas no muestra `Started ...` | `logging.level.root=WARN` oculta los mensajes de arranque | Ver la nota de la Terminal 5. |
