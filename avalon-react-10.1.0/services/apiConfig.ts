@@ -46,3 +46,4 @@ export function resolveGatewayAssetUrl(assetUrl?: string | null): string {
     }
     return normalized;
 }
+
