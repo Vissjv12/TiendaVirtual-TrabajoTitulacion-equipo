@@ -1,4 +1,6 @@
 // services/authService.ts - CORREGIDO
+import { GATEWAY_BASE_URL } from './apiConfig';
+
 interface LoginRequest {
     username: string;
     password: string;
@@ -41,7 +43,7 @@ interface UsuarioInfo {
 class AuthService {
     private readonly TOKEN_KEY = 'auth_token';
     private readonly USER_KEY = 'user_info';
-    private readonly API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL ? `${process.env.NEXT_PUBLIC_AUTH_API_URL}/api/auth` : 'http://localhost:8084/api/auth';
+    private readonly API_URL = `${GATEWAY_BASE_URL}/api/auth`;
 
     async login(username: string, password: string): Promise<LoginResponse> {
         try {

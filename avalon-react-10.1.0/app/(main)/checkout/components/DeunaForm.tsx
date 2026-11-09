@@ -6,6 +6,8 @@ import { Message } from 'primereact/message';
 import { Image } from 'primereact/image';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
+import cartService from '../../../../services/cartService';
+import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
 
 export interface DeunaData {
     qrImageUrl: string;
@@ -41,8 +43,10 @@ const DeunaForm: React.FC<DeunaFormProps> = ({
         setError(null);
 
         try {
-            // Llamada al backend para obtener el QR del emprendedor
-            const response = await fetch('/api/emprendedor/deuna-qr');
+            // Llamada al API Gateway para obtener el QR del emprendedor (mitiga O-06)
+            const cartItems = cartService.getCart();
+            const emprendedorId = cartItems.length > 0 ? (cartItems[0].producto?.empresa?.id || 1) : 1;
+            const response = await fetch(`${GATEWAY_BASE_URL}/api/emprendedor/configuracion-pagos/deuna-qr/${emprendedorId}`);
             
             if (!response.ok) {
                 throw new Error('No se pudo cargar el código QR de Deuna');
@@ -51,7 +55,7 @@ const DeunaForm: React.FC<DeunaFormProps> = ({
             const data = await response.json();
             
             if (data.qrUrl) {
-                setQrImageUrl(data.qrUrl);
+                setQrImageUrl(resolveGatewayAssetUrl(data.qrUrl));
             } else {
                 setError('El emprendedor no ha configurado su código QR de Deuna');
             }

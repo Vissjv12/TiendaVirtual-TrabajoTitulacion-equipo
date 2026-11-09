@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import cartService from '../../../../services/cartService';
+import { GATEWAY_BASE_URL } from '../../../../services/apiConfig';
 
 // Para TypeScript, definimos globalmente el objeto payphone
 declare global {
@@ -45,7 +46,7 @@ const PayphoneForm: React.FC<PayphoneFormProps> = ({
                 const emprendedorId = cartItems.length > 0 ? cartItems[0].producto?.empresa?.id : null;
                 
                 if (emprendedorId) {
-                    const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+                    const apiBase = GATEWAY_BASE_URL;
                     const res = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/payphone/${emprendedorId}`);
                     if (res.ok) {
 
