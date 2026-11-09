@@ -421,6 +421,13 @@ Validación técnica realizada antes del merge:
 - La compilación Maven de Auth con Java 17 terminó correctamente usando dependencias habilitadas en Maven Central.
 - La ejecución de pruebas mediante el controlador de VS Code no fue posible porque no descubrió los tests del módulo; la evidencia `43/43 OK` corresponde al script documentado de la rama y debe repetirse en este equipo mediante `pruebas-gateway-a14.ps1`, usando `-Gateway http://127.0.0.1:8090`.
 
+Evidencia reproducida en el entorno local:
+
+- Primera ejecución parcial: `39` éxitos y `4` fallos. Las respuestas `502` se produjeron en las rutas de Auth mientras el microservicio todavía no estaba disponible; no representan un `401` de autorización ni un defecto del Gateway.
+- Ejecución final después de reiniciar Auth: `43` éxitos y `0` fallos usando `http://127.0.0.1:8090`.
+- La ejecución final confirmó `401` sin token, `403` para `cliente1`, aislamiento multiempresa para `sigcholac`, acceso administrativo para `admin`, CORS correcto, rutas internas bloqueadas y consistencia de stock `39/39` sin diferencias.
+- Esta ejecución final se adopta como evidencia de cierre funcional de A-14.
+
 Pendientes no bloqueantes que se conservan para la siguiente revisión:
 
 1. Repetir la matriz completa A-14 sobre el puerto local `8090` y adjuntar la salida real del equipo.

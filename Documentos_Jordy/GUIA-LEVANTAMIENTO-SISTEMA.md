@@ -299,9 +299,17 @@ npm run dev
    Con los servicios levantados, `Documentos_Jordy\pruebas-seguridad-a07.ps1` ejecuta la matriz de disponibilidad, cantidades y respuestas `200`/`401`/`403`.
 3. **Validar el API Gateway de extremo a extremo (`A-14`):**
    ```powershell
-   .\Documentos_Jordy\pruebas-gateway-a14.ps1
+   .\Documentos_Jordy\pruebas-gateway-a14.ps1 -Gateway http://127.0.0.1:8090
    ```
    Verifica salud (`/health`), preflight CORS (`OPTIONS` sin duplicación de cabeceras), bloqueo de rutas internas (`/sincronizar-stock` y `/actuator`), enrutamiento hacia los 4 microservicios y control de roles (`200`/`401`/`403`) a través del Gateway.
+
+   **Secuencia recomendada para registrar la prueba:**
+   1. Confirmar que MySQL, Eureka, Auth, Productos, Inventario, Ventas y el Gateway estén activos.
+   2. Ejecutar la matriz anterior y conservar la salida completa.
+   3. Si alguna ruta de Auth devuelve `502`, esperar a que Auth termine de iniciar o reiniciarlo de forma aislada; `502` indica indisponibilidad del servicio, no una autorización válida.
+   4. Repetir la matriz cuando Auth esté disponible. El resultado esperado es `RESUMEN A-14: Exitos=43 | Fallos=0`.
+   5. Desde el frontend comprobar login, catálogo, categorías, empresas, inventario y ventas. En Network, las solicitudes deben dirigirse a `127.0.0.1:8090`, y los preflight deben responder `204`.
+   6. Registrar por separado ejecuciones parciales y la ejecución final válida en `Documentos_Jordy/REGISTRO-ETAPA-4-GATEWAY-A11-A14.md`.
 
 ---
 

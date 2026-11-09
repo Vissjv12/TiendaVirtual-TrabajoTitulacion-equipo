@@ -42,6 +42,7 @@ Comando ejecutado:
 ```powershell
 .\Documentos_Jordy\pruebas-gateway-a14.ps1
 ```
+
 Resultado obtenido (`43` éxitos, `0` fallos):
 
 ```text
@@ -116,4 +117,30 @@ Resultado obtenido (`43` éxitos, `0` fallos):
  RESUMEN A-14: Exitos=43 | Fallos=0
 ============================================================================
 ```
+
+## 4. Evidencia reproducida en el entorno local del proyecto
+
+La matriz se ejecutó nuevamente usando el puerto configurado para este equipo:
+
+```powershell
+.\Documentos_Jordy\pruebas-gateway-a14.ps1 -Gateway http://127.0.0.1:8090
+```
+
+La primera ejecución fue parcial porque Auth todavía no estaba disponible y devolvió `502` en dos rutas que dependen de ese microservicio. Después de reiniciar únicamente Auth y repetir la matriz, el resultado fue:
+
+```text
+RESUMEN A-14: Exitos=43 | Fallos=0
+```
+
+La ejecución final confirmó:
+
+- Salud del Gateway y CORS centralizado correctos.
+- Enrutamiento hacia Auth, Productos, Inventario y Ventas correcto.
+- Respuestas `401` sin token y `403` para el rol `CLIENTE` correctas.
+- Corrección del caso `cliente1 -> GET /api/usuarios`: ahora responde `403`.
+- Aislamiento de `sigcholac` frente a productos de otra empresa.
+- Acceso administrativo válido para `admin`.
+- Stock consistente: `39` productos, `39` inventarios y `0` diferencias.
+
+La ejecución parcial se conserva como evidencia de disponibilidad incompleta; la ejecución `43/43` es la evidencia válida para el cierre funcional de A-14.
 
