@@ -404,6 +404,34 @@ El plan de implementación V2 recomienda NGINX como gateway de producción por l
 
 ### Etapa 5 Redis
 
+### Incidencias de configuracion local posteriores a A-13
+
+La prueba del frontend a traves del Gateway encontro tres problemas de entorno local. No se identifico un defecto en la migracion de A-13 ni quedaron llamadas directas del frontend hacia los puertos internos.
+
+| Problema | Efecto | Resolucion local |
+|---|---|---|
+| El contenedor del Gateway estaba apagado | El puerto 8090 no respondia | Se levanto solo `gateway-feria-digital` y quedo `healthy`. |
+| `NEXT_PUBLIC_GATEWAY_URL` estaba en el `.env` de la raiz | Next.js ignoraba la variable y usaba `localhost:8080` | Se dejo `GATEWAY_PORT=8090` en el `.env` raiz y `NEXT_PUBLIC_GATEWAY_URL=http://127.0.0.1:8090` en `avalon-react-10.1.0/.env.local`. |
+| Relay IPv6 de Windows en `::1:8090` | `localhost:8090` aceptaba la conexion, pero las solicitudes quedaban pendientes y expiraban | Se uso `127.0.0.1` para evitar el relay local. |
+
+Resultado de la correccion local:
+
+- Preflight con origen `http://localhost:3000`: `204` con `Access-Control-Allow-Origin` correcto.
+- `GET /api/productos/listado` a traves del Gateway: `200` en aproximadamente 0.5 segundos.
+- MySQL y microservicios no fueron modificados.
+- Los cambios fueron solo locales y no deben agregarse al repositorio si contienen valores propios del equipo.
+
+### Recomendaciones operativas que deben permanecer documentadas
+
+- `GATEWAY_PORT` pertenece al `.env` de la raiz y lo utiliza Docker Compose.
+- `NEXT_PUBLIC_GATEWAY_URL` pertenece a `avalon-react-10.1.0/.env.local` y lo utiliza Next.js.
+- Son archivos diferentes y ambos deben configurarse antes de probar A-13.
+- En este equipo se recomienda `http://127.0.0.1:8090` en lugar de `http://localhost:8090`.
+- `.env.local.example` debe recomendar `127.0.0.1` para este escenario local.
+- Si se requiere recuperar el uso de `localhost`, se puede reiniciar Docker Desktop o ejecutar `wsl --shutdown`, verificando despues que no reaparezca el relay IPv6.
+
+Estas observaciones deben revisarse nuevamente en A-14 y en la preparacion del despliegue. La solucion local no implica que produccion deba usar 8090; produccion debe utilizar el puerto y dominio definidos por su infraestructura.
+
 ### Estado de A-13 - Frontend integrado al Gateway
 
 A-13 fue integrado desde `origin/feature/a13-frontend-gateway` mediante el merge `c68b334 merge: integrar A-13 frontend con api gateway`.
