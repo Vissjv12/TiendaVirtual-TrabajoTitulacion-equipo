@@ -1,5 +1,11 @@
 # A16 modelo de datos y claves de Redis
 
+## Actualización de integración local (2026-11-09)
+
+Este borrador fue incorporado desde el commit `34d1e3f` en la rama local `feature/a15-a18-redis-docs-local`, basada en el cierre A-14 (`1308429`). A11–A14 ya están integradas y A14 validó el Gateway, CORS, JWT, roles y rutas con `43/43 OK`. Las referencias a `integration/etapa5-redis` representan la base histórica usada para redactar el documento y no deben sustituir la base actual.
+
+La ruta y el DTO definitivos para A17 deben verificarse en el código actual del Gateway y de `msvc-producto`. A16 no autoriza todavía ninguna clave real, dependencia Redis, cambio de seguridad o modificación de datos.
+
 > **Estado:** borrador de diseño; rutas y DTOs observados en `integration/etapa5-redis` al 2026-11-08.
 > **Alcance:** especificar qué respuestas podría guardar A17; no crear claves reales ni cambiar el backend.
 > **Regla principal:** Redis guarda valores clave/valor derivados de lecturas aprobadas, no tablas MySQL completas.

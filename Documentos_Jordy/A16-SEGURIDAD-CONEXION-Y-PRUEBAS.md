@@ -1,5 +1,11 @@
 # A16 seguridad conexión salud y pruebas del piloto Redis
 
+## Actualización de integración local (2026-11-09)
+
+Este documento se incorporó desde el commit `34d1e3f` en la rama local `feature/a15-a18-redis-docs-local`, basada en el cierre A-14 (`1308429`). A14 ya demostró autorización, CORS, propagación JWT, disponibilidad y fallback perimetral del Gateway con `43/43 OK`. Las pruebas Redis de este documento siguen siendo planificadas para A17 y no se han ejecutado.
+
+No se agregan todavía Redis, variables operativas, contraseñas, ACL, dependencias Maven, contenedores ni cambios de producción. Los valores indicados en las tablas son hipótesis de diseño y requieren aprobación antes de implementarse.
+
 > **Estado:** borrador contractual para que A17 implemente sin inventar decisiones. No cambia `pom.xml`, `.env.example`, Compose, Spring ni el servidor.
 > **Base técnica revisada:** `msvc-producto` usa Spring Boot `3.4.5` y Java `17`; su `pom.xml` actual no incluye el starter de Redis.
 

@@ -1,5 +1,13 @@
 # A15 evaluación y decisión de alcance Redis
 
+## Actualización de integración local (2026-11-09)
+
+Este documento fue incorporado desde el commit `34d1e3f` en la rama local `feature/a15-a18-redis-docs-local`, creada sobre el cierre de A-14 (`1308429`). Por tanto, las referencias históricas a `integration/etapa5-redis` y las frases que indican que A11–A14 aún no estaban integradas se conservan como contexto de revisión original, pero quedan supersedidas para esta rama local.
+
+Estado actual de las dependencias: A11, A12, A13 y A14 ya están integradas. A14 fue validada en el entorno local con `43/43 OK` sobre `http://127.0.0.1:8090`. Redis continúa sin implementarse; A15 y A16 permanecen como diseño y evaluación, sin cambios de código, Docker, `.env` ni base de datos.
+
+Para A17, las rutas del Gateway y la autorización deben tomarse de la base actual, no de la rama histórica enlazada en las referencias originales.
+
 > **Estado:** borrador de decisión para revisión del equipo, publicado en `feature/a15-a18-redis`. **Tipo de cambio:** solo documentación. No crea ni configura Redis.
 > **Base consultada:** `integration/etapa5-redis` en `208fd6db97f3163a6a185359f4b3c6ae207722c6`, revisada el 2026-11-08.
 > **Dependencia:** A11–A14 de Gateway aún deben integrarse y validar las rutas; las candidatas de este documento siguen provisionales.

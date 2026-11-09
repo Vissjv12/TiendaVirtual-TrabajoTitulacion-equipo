@@ -440,6 +440,16 @@ Prompt de continuidad A-14:
 
 > Levantar el sistema con la configuración documentada y ejecutar `Documentos_Jordy/pruebas-gateway-a14.ps1 -Gateway http://127.0.0.1:8090`. Registrar éxitos, fallos y tiempos sin imprimir tokens ni secretos. Si el caso `cliente1 → GET /api/usuarios` ya devuelve `403`, conservar la corrección y documentar la evidencia. Si falla, revisar primero Auth y la propagación del Bearer, sin desactivar seguridad. Mantener pendientes separados: formatos de error, cierre de puertos directos y prueba Feign controlada. No eliminar volúmenes ni modificar credenciales de producción.
 
+### Rama local de documentación A-15/A-18 Redis
+
+Se creó la rama local `feature/a15-a18-redis-docs-local` sobre el cierre de A-14 (`1308429`) y se aplicó únicamente el commit documental `34d1e3f`. Esta rama no se publicó en Git remoto.
+
+Se incorporaron los documentos `A15-EVALUACION-Y-DECISION.md`, `A16-MODELO-DE-CACHE.md` y `A16-SEGURIDAD-CONEXION-Y-PRUEBAS.md`. Se añadieron notas de integración para corregir el contexto histórico: A11–A14 ya están integradas y A14 tiene evidencia local `43/43 OK` mediante el Gateway en `127.0.0.1:8090`.
+
+Redis continúa sin implementación funcional. No se agregaron contenedores, dependencias, variables operativas, secretos, cambios en MySQL ni código Java. Las variables, TTL, ACL, claves, invalidación y matriz R01–R16 de A16 son propuestas que requieren aprobación antes de A17.
+
+La rama debe conservarse como base documental local para planificar A17/A18; no debe fusionarse con la rama histórica completa `feature/a15-a18-redis`, porque esa rama parte de una base anterior y puede aparentar eliminar A11–A14 y la migración A13.
+
 ### Etapa 5 Redis
 
 ### Incidencias de configuracion local posteriores a A-13
