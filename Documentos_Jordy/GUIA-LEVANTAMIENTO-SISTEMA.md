@@ -205,8 +205,19 @@ npm run dev
 | **Emprendedor** | `perla_andina` | `password123` | 3 | Tercer emprendedor para pruebas de aislamiento entre empresas (A-05). |
 | **Cliente** | `cliente1` | `password123` (el valor `cliente123` de versiones anteriores ya no coincide con el seed activo) | — | **Tienda Virtual Pública:** Explorar catálogo, agregar productos de un emprendedor al carrito y realizar checkout. |
 
-### Pruebas de seguridad (A-07)
-Con los servicios levantados, `Documentos_Jordy\pruebas-seguridad-a07.ps1` ejecuta la matriz de disponibilidad, cantidades y respuestas `200`/`401`/`403`. Pide las contraseñas de forma oculta, no imprime tokens y no modifica datos.
+### Pruebas de seguridad (A-07) y validación del API Gateway (Etapa 4 / A-12 a A-14)
+1. **Levantar el API Gateway (NGINX en puerto `8080`):**
+   ```powershell
+   docker compose -f .\docker-compose.gateway.yml up -d
+   ```
+   *(Si en tu equipo Windows el puerto `8080` está ocupado por VMware `vmnat.exe`, define `GATEWAY_PORT=8090` en `.env` y `NEXT_PUBLIC_GATEWAY_URL=http://localhost:8090` en `avalon-react-10.1.0\.env.local`).*
+2. **Validar seguridad directa (`A-07`):**
+   Con los servicios levantados, `Documentos_Jordy\pruebas-seguridad-a07.ps1` ejecuta la matriz de disponibilidad, cantidades y respuestas `200`/`401`/`403`.
+3. **Validar el API Gateway de extremo a extremo (`A-14`):**
+   ```powershell
+   .\Documentos_Jordy\pruebas-gateway-a14.ps1
+   ```
+   Verifica salud (`/health`), preflight CORS (`OPTIONS` sin duplicación de cabeceras), bloqueo de rutas internas (`/sincronizar-stock` y `/actuator`), enrutamiento hacia los 4 microservicios y control de roles (`200`/`401`/`403`) a través del Gateway.
 
 ---
 
