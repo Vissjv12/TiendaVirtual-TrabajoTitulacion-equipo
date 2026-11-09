@@ -13,6 +13,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Image } from 'primereact/image';
 import { Toast } from 'primereact/toast';
 import { useRef } from 'react';
+import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
 
 interface DatosBancarios {
     banco: string;
@@ -88,7 +89,7 @@ export default function ConfiguracionMetodosPago() {
         setLoadingData(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -105,7 +106,7 @@ export default function ConfiguracionMetodosPago() {
                 }
 
                 if (data.qrDeunaUrl) {
-                    setQrDeunaUrl(data.qrDeunaUrl);
+                    setQrDeunaUrl(resolveGatewayAssetUrl(data.qrDeunaUrl));
                 }
 
                 if (data.payphone) {
@@ -176,7 +177,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/bancarios`, {
                 method: 'POST',
                 headers: {
@@ -249,7 +250,7 @@ export default function ConfiguracionMetodosPago() {
 
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/deuna-qr`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
@@ -258,7 +259,7 @@ export default function ConfiguracionMetodosPago() {
 
             if (response.ok) {
                 const data = await response.json();
-                setQrDeunaUrl(data.qrUrl);
+                setQrDeunaUrl(resolveGatewayAssetUrl(data.qrUrl));
 
                 toast.current?.show({
                     severity: 'success',
@@ -287,7 +288,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/deuna-qr`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
@@ -328,7 +329,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/payphone`, {
                 method: 'POST',
                 headers: {
@@ -377,7 +378,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/costo-envio`, {
                 method: 'PUT',
                 headers: {

@@ -2,6 +2,7 @@
 
 import authService from './authService';
 import inventarioService from './inventarioService';
+import { GATEWAY_API_URL } from './apiConfig';
 
 // ================ INTERFACES ACTUALIZADAS ================
 export interface Categoria {
@@ -80,10 +81,9 @@ export interface ApiResponse<T> {
 
 // ================ SERVICIO PRINCIPAL ================
 class EmprendedorService {
-    private readonly PRODUCTOS_URL = process.env.NEXT_PUBLIC_PRODUCTOS_API_URL || 'http://localhost:8081/api';
-    // ✅ CORREGIDO: no agregar /api extra; la env var ya incluye el path correcto del proxy
-    private readonly INVENTARIO_URL = process.env.NEXT_PUBLIC_INVENTARIO_API_URL || 'http://localhost:8082/api';
-    private readonly VENTAS_URL = process.env.NEXT_PUBLIC_VENTAS_API_URL || 'http://localhost:8083/api';
+    private readonly PRODUCTOS_URL = GATEWAY_API_URL;
+    private readonly INVENTARIO_URL = GATEWAY_API_URL;
+    private readonly VENTAS_URL = GATEWAY_API_URL;
 
     /**
      * ✅ ACTUALIZAR STOCK EN SEGUNDO PLANO - VERSIÓN BATCH OPTIMIZADA

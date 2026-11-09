@@ -1,4 +1,5 @@
 import authService from './authService';
+import { GATEWAY_BASE_URL } from './apiConfig';
 
 // =====================================
 // INTERFACES PARA USUARIOS
@@ -65,7 +66,7 @@ export const ESTADOS_USUARIO = [
 ];
 
 class UsuariosService {
-    private readonly API_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+    private readonly API_BASE_URL = GATEWAY_BASE_URL;
 
     // =====================================
     // MÉTODOS AUXILIARES

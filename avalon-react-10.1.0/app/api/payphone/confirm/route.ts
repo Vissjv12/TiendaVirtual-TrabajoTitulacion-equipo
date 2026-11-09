@@ -51,9 +51,10 @@ export async function POST(request: Request) {
 
         if (validEmprendedorId) {
             try {
-                // Usamos 127.0.0.1 en lugar de localhost para evitar problemas de resolución IPv6 en algunos entornos
-                const configUrl = `http://127.0.0.1:8084/api/emprendedor/configuracion-pagos/payphone/${emprendedorId}`;
-                console.log(`[Payphone Confirm] Buscando token en DB: ${configUrl}`);
+                // Consumir a través del API Gateway (Actividad A-13), usando 127.0.0.1 por defecto para evitar resolución IPv6
+                const gatewayBase = (process.env.GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+                const configUrl = `${gatewayBase}/api/emprendedor/configuracion-pagos/payphone/${emprendedorId}`;
+                console.log(`[Payphone Confirm] Buscando token en DB vía Gateway: ${configUrl}`);
                 
                 const configRes = await fetch(configUrl, { 
                     cache: 'no-store',

@@ -1,6 +1,7 @@
 import authService from './authService';
+import { GATEWAY_BASE_URL } from './apiConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_INVENTARIO_API_URL || 'http://localhost:8082';
+const API_BASE_URL = GATEWAY_BASE_URL;
 
 // =====================================
 // INTERFACES PARA INVENTARIOS

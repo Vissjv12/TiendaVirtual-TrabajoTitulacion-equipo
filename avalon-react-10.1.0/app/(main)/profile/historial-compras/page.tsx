@@ -21,6 +21,7 @@ import {
     getEstadoIcon
 } from '../../../../services/logisticaService';
 import ventasService from '../../../../services/ventasService';
+import { GATEWAY_BASE_URL } from '../../../../services/apiConfig';
 
 interface DetalleVenta {
     id: number;
@@ -85,7 +86,7 @@ export default function HistorialCompras() {
             console.log('👤 Usuario:', user);
             
             // Intentar obtener el cliente por email, si falla intentar por username
-            const apiBase = process.env.NEXT_PUBLIC_VENTAS_API_URL || 'http://localhost:8083';
+            const apiBase = GATEWAY_BASE_URL;
             console.log('🔍 Buscando cliente por email:', user.email || user.username);
             let clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.email || user.username)}`);
             

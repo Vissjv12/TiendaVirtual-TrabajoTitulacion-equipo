@@ -36,49 +36,48 @@ const nextConfig = {
     unoptimized: true
   },
 
-  // ✅ Proxy inverso inteligente hacia los microservicios Java
-  // Evita double-appends de prefijos /api y redirige correctamente a cada puerto.
+  // ✅ Proxy inverso unificado hacia el API Gateway (Actividad A-13)
+  // Ninguna ruta apunta directamente a los puertos internos 8081-8084.
   async rewrites() {
+    const gatewayUrl = (process.env.GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
     return [
       // Rutas de logos/imágenes
       { source: '/logo.png',       destination: '/layout/images/logo-dark.svg'  },
       { source: '/logo-dark.svg',  destination: '/layout/images/logo-dark.svg'  },
       { source: '/logo-white.svg', destination: '/layout/images/logo-white.svg' },
 
-      // --- Microservicio de Productos (puerto 8081) ---
+      // --- Enrutamiento hacia API Gateway (puerto 8080) ---
       {
         source: '/api/proxy/productos/:path*',
-        destination: 'http://127.0.0.1:8081/api/:path*'
+        destination: `${gatewayUrl}/api/:path*`
       },
-
-      // --- Microservicio de Inventario (puerto 8082) ---
       {
         source: '/api/proxy/inventarios/api/inventarios/:path*',
-        destination: 'http://127.0.0.1:8082/api/inventarios/:path*'
+        destination: `${gatewayUrl}/api/inventarios/:path*`
+      },
+      {
+        source: '/api/proxy/inventarios/api/movimientos/:path*',
+        destination: `${gatewayUrl}/api/movimientos/:path*`
       },
       {
         source: '/api/proxy/inventarios/:path*',
-        destination: 'http://127.0.0.1:8082/api/inventarios/:path*'
+        destination: `${gatewayUrl}/api/inventarios/:path*`
       },
-
-      // --- Microservicio de Ventas (puerto 8083) ---
       {
         source: '/api/proxy/ventas/api/ventas/:path*',
-        destination: 'http://127.0.0.1:8083/api/ventas/:path*'
+        destination: `${gatewayUrl}/api/ventas/:path*`
       },
       {
         source: '/api/proxy/ventas/:path*',
-        destination: 'http://127.0.0.1:8083/:path*'
+        destination: `${gatewayUrl}/:path*`
       },
-
-      // --- Microservicio de Autenticación (puerto 8084) ---
       {
         source: '/api/proxy/auth/api/:path*',
-        destination: 'http://127.0.0.1:8084/api/:path*'
+        destination: `${gatewayUrl}/api/:path*`
       },
       {
         source: '/api/proxy/auth/:path*',
-        destination: 'http://127.0.0.1:8084/:path*'
+        destination: `${gatewayUrl}/:path*`
       }
     ];
   },

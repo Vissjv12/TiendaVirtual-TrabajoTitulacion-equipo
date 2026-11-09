@@ -1,6 +1,7 @@
 import authService from './authService';
+import { GATEWAY_API_URL } from './apiConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8083/api';
+const API_BASE_URL = GATEWAY_API_URL;
 
 export interface SeguimientoLogistica {
     id: number;

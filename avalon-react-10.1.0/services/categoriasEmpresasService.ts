@@ -1,5 +1,6 @@
 import authService from './authService';
-const API_BASE_URL = process.env.NEXT_PUBLIC_PRODUCTOS_API_URL || 'http://localhost:8081/api';
+import { GATEWAY_API_URL } from './apiConfig';
+const API_BASE_URL = GATEWAY_API_URL;
 
 // =====================================
 // INTERFACES PARA CATEGORÍAS
