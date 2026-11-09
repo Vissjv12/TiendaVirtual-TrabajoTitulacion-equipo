@@ -402,6 +402,37 @@ No se debe migrar el frontend a rutas del Gateway antes de tener una tabla de ru
 
 El plan de implementación V2 recomienda NGINX como gateway de producción por la restricción de memoria del servidor (unos 1.4 GB libres); Spring Cloud Gateway queda como componente académico con memoria acotada. Al centralizar CORS en el gateway se deben retirar o alinear las anotaciones `@CrossOrigin` locales, y la regla `OPTIONS` de Inventario debe mantenerse hasta que el frontend deje de llamar directamente a los puertos internos.
 
+### Estado de A-14 - Validación del Gateway y corrección de autorización
+
+A-14 fue revisada para integrarse sobre la base de A-13. La rama incorpora el registro técnico, el script automatizado de pruebas y una corrección puntual en Auth. La integración conserva el resumen del proyecto y la configuración local `GATEWAY_PORT=8090` / `NEXT_PUBLIC_GATEWAY_URL=http://127.0.0.1:8090`.
+
+Cambios incorporados:
+
+- Se agregó `Documentos_Jordy/pruebas-gateway-a14.ps1` para verificar salud, CORS, enrutamiento, rutas internas bloqueadas, consistencia de stock y respuestas `200`/`401`/`403`.
+- Se agregó `Documentos_Jordy/REGISTRO-ETAPA-4-GATEWAY-A11-A14.md` con la matriz y la evidencia declarada por la rama: `43/43 OK` en el entorno del integrante.
+- Se agregó un manejador específico de `AccessDeniedException` en Auth para devolver `403 FORBIDDEN` en lugar de `500` cuando un usuario autenticado no tiene permisos.
+- Se actualizó `Microservicios/start-all-services.ps1` para cargar el `.env` sin imprimir valores y configurar Java 17 antes de abrir los servicios.
+- Se mantuvo la documentación de operación local, incluyendo la separación entre el `.env` raíz y `avalon-react-10.1.0/.env.local`.
+
+Validación técnica realizada antes del merge:
+
+- `git diff --check` no detectó errores en los cambios funcionales; quedó únicamente una advertencia de línea vacía al final del nuevo registro documental.
+- El analizador de VS Code no reportó errores en `GlobalExceptionHandler.java`.
+- La compilación Maven de Auth con Java 17 terminó correctamente usando dependencias habilitadas en Maven Central.
+- La ejecución de pruebas mediante el controlador de VS Code no fue posible porque no descubrió los tests del módulo; la evidencia `43/43 OK` corresponde al script documentado de la rama y debe repetirse en este equipo mediante `pruebas-gateway-a14.ps1`, usando `-Gateway http://127.0.0.1:8090`.
+
+Pendientes no bloqueantes que se conservan para la siguiente revisión:
+
+1. Repetir la matriz completa A-14 sobre el puerto local `8090` y adjuntar la salida real del equipo.
+2. Confirmar que el frontend no genere solicitudes a `8081`–`8084` y decidir el cierre o restricción de esos puertos en el despliegue final.
+3. Unificar o documentar formalmente los dos formatos de error: Gateway (`code`, `message`, `status`) y microservicios (`codigo`, `mensaje`, `timestamp`).
+4. Ejecutar una escritura controlada que valide la propagación Feign Productos → Inventario, con respaldo y rollback, sin usar `down -v`.
+5. Verificar en la matriz que `cliente1 → GET /api/usuarios` devuelve `403` a través del Gateway después de la corrección de Auth.
+
+Prompt de continuidad A-14:
+
+> Levantar el sistema con la configuración documentada y ejecutar `Documentos_Jordy/pruebas-gateway-a14.ps1 -Gateway http://127.0.0.1:8090`. Registrar éxitos, fallos y tiempos sin imprimir tokens ni secretos. Si el caso `cliente1 → GET /api/usuarios` ya devuelve `403`, conservar la corrección y documentar la evidencia. Si falla, revisar primero Auth y la propagación del Bearer, sin desactivar seguridad. Mantener pendientes separados: formatos de error, cierre de puertos directos y prueba Feign controlada. No eliminar volúmenes ni modificar credenciales de producción.
+
 ### Etapa 5 Redis
 
 ### Incidencias de configuracion local posteriores a A-13

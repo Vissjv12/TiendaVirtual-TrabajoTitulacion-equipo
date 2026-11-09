@@ -38,22 +38,35 @@ Get-Content "$root\.env" | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-O
 
 ---
 
-## 🗄️ 2. Paso 1: Levantar la Base de Datos (MySQL 8.0 en Docker)
+## 🗄️ 2. Paso 1: Levantar Base de Datos (MySQL 8.0) y API Gateway (NGINX) en Docker
 
-El proyecto utiliza un contenedor Docker con **MySQL 8.0** que inicializa automáticamente los 4 esquemas (`auth_service`, `productos`, `inventario`, `ventas`) y sus datos semilla.
+El proyecto utiliza **Docker Compose** para dos contenedores ligeros e independientes:
+1. **`mysql-feria-digital` (puerto `3306`):** Inicializa automáticamente los 4 esquemas (`auth_service`, `productos`, `inventario`, `ventas`) y sus datos semilla.
+2. **`gateway-feria-digital` (puerto `8080`):** API Gateway NGINX que unifica el tráfico del frontend hacia los microservicios (`8081–8084`). **No requiere borrar ni recrear el contenedor de MySQL si ya lo tenías levantado.**
 
-### 2.1 Iniciar el contenedor
-Abre PowerShell en la raíz del proyecto (`d:\ESPE\Vinculacion\Trabajo_Vinculacion\TiendaVirtual-TrabajoTitulacion-equipo`). Docker Compose lee automáticamente el `.env` de esa carpeta; si falta `MYSQL_ROOT_PASSWORD`, `MYSQL_USER` o `MYSQL_PASSWORD`, el arranque se detiene con un mensaje explícito.
+### 2.0 Preparar archivos `.env` (solo la primera vez si clonas desde cero)
+Si acabas de clonar el repositorio y aún no tienes tus archivos `.env` y `avalon-react-10.1.0\.env.local`:
+```powershell
+Copy-Item .\.env.example .\.env
+Copy-Item .\avalon-react-10.1.0\.env.local.example .\avalon-react-10.1.0\.env.local
+```
+*(En `.env` asegúrate de definir `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD`, `JWT_SECRET` y `CAMUNDA_BPM_ADMIN_USER_PASSWORD`).*
+
+### 2.1 Iniciar los contenedores (MySQL + API Gateway)
+Abre PowerShell en la raíz del proyecto y ejecuta:
 
 ```powershell
 docker compose -f .\docker-compose.db.yml up -d
+docker compose -f .\docker-compose.gateway.yml up -d
 ```
 
-### 2.2 Verificar estado del contenedor
+### 2.2 Verificar estado de los contenedores y del API Gateway
 ```powershell
 docker compose -f .\docker-compose.db.yml ps
+docker compose -f .\docker-compose.gateway.yml ps
+curl.exe http://localhost:8080/health
 ```
-*(El contenedor `mysql-feria-digital` debe mostrar estado `Up` en el puerto `3306`)*.
+*(El contenedor `mysql-feria-digital` debe mostrar `Up` en el puerto `3306`, `gateway-feria-digital` debe mostrar `Up` en el puerto `8080` y `/health` debe responder `{"status":"UP","service":"api-gateway","engine":"nginx"}`)*.
 
 ### 2.3 Verificar logs y bases de datos
 ```powershell
@@ -82,7 +95,15 @@ docker exec -it mysql-feria-digital sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSW
 > 4. `msvc-inventario` (Stock físico).
 > 5. `msvc-ventas` (Órdenes y Pasarelas de Pago).
 
-Abre **5 terminales separadas** de PowerShell y ejecuta en cada una:
+### ⚡ Opción A (Recomendada): Usar el script automático `start-all-services.ps1`
+Abre PowerShell y ejecuta:
+```powershell
+cd .\Microservicios
+.\start-all-services.ps1
+```
+*(El script carga automáticamente los secretos de tu `.env`, configura Java 17 y abre cada microservicio en una nueva ventana en el orden correcto: Eureka primero, Auth, Producto, Inventario y Ventas).*
+
+### 🖥️ Opción B (Manual): Abrir 5 terminales separadas de PowerShell y ejecutar en cada una:
 
 ---
 
@@ -268,8 +289,19 @@ npm run dev
 | **Emprendedor** | `perla_andina` | `password123` | 3 | Tercer emprendedor para pruebas de aislamiento entre empresas (A-05). |
 | **Cliente** | `cliente1` | `password123` (el valor `cliente123` de versiones anteriores ya no coincide con el seed activo) | — | **Tienda Virtual Pública:** Explorar catálogo, agregar productos de un emprendedor al carrito y realizar checkout. |
 
-### Pruebas de seguridad (A-07)
-Con los servicios levantados, `Documentos_Jordy\pruebas-seguridad-a07.ps1` ejecuta la matriz de disponibilidad, cantidades y respuestas `200`/`401`/`403`. Pide las contraseñas de forma oculta, no imprime tokens y no modifica datos.
+### Pruebas de seguridad (A-07) y validación del API Gateway (Etapa 4 / A-12 a A-14)
+1. **Levantar el API Gateway (NGINX en puerto `8080`):**
+   ```powershell
+   docker compose -f .\docker-compose.gateway.yml up -d
+   ```
+   *(Si en tu equipo Windows el puerto `8080` está ocupado por VMware `vmnat.exe`, define `GATEWAY_PORT=8090` en `.env` y `NEXT_PUBLIC_GATEWAY_URL=http://127.0.0.1:8090` en `avalon-react-10.1.0\.env.local`).*
+2. **Validar seguridad directa (`A-07`):**
+   Con los servicios levantados, `Documentos_Jordy\pruebas-seguridad-a07.ps1` ejecuta la matriz de disponibilidad, cantidades y respuestas `200`/`401`/`403`.
+3. **Validar el API Gateway de extremo a extremo (`A-14`):**
+   ```powershell
+   .\Documentos_Jordy\pruebas-gateway-a14.ps1
+   ```
+   Verifica salud (`/health`), preflight CORS (`OPTIONS` sin duplicación de cabeceras), bloqueo de rutas internas (`/sincronizar-stock` y `/actuator`), enrutamiento hacia los 4 microservicios y control de roles (`200`/`401`/`403`) a través del Gateway.
 
 ---
 
