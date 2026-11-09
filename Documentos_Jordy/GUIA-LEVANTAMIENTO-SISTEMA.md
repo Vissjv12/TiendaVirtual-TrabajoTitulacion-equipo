@@ -95,12 +95,13 @@ docker exec -it mysql-feria-digital sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSW
 > 4. `msvc-inventario` (Stock físico).
 > 5. `msvc-ventas` (Órdenes y Pasarelas de Pago).
 
-### ⚡ Opción A (Rápida): Levantar los 5 microservicios con un solo comando desde la raíz
-Ejecuta este comando desde la carpeta raíz del proyecto (carga automáticamente tu `.env` y abre cada microservicio con Java 17):
-
+### ⚡ Opción A (Recomendada): Usar el script automático `start-all-services.ps1`
+Abre PowerShell y ejecuta:
 ```powershell
-$root = (Get-Location).Path; $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot"; $env:Path = "$env:JAVA_HOME\bin;$env:Path"; Get-Content "$root\.env" | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-Object { $k, $v = $_ -split '=', 2; [Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim().Trim('"'), 'Process') }; foreach ($s in @("eureka-server","demo","msvc-producto","msvc-inventario","msvc-ventas")) { Start-Process powershell -WorkingDirectory "$root\Microservicios\$s" -ArgumentList "-NoExit", "-Command", ".\mvnw.cmd spring-boot:run" }
+cd .\Microservicios
+.\start-all-services.ps1
 ```
+*(El script carga automáticamente los secretos de tu `.env`, configura Java 17 y abre cada microservicio en una nueva ventana en el orden correcto: Eureka primero, Auth, Producto, Inventario y Ventas).*
 
 ### 🖥️ Opción B (Manual): Abrir 5 terminales separadas de PowerShell y ejecutar en cada una:
 
