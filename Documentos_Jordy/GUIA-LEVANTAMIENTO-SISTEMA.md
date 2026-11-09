@@ -38,22 +38,35 @@ Get-Content "$root\.env" | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-O
 
 ---
 
-## 🗄️ 2. Paso 1: Levantar la Base de Datos (MySQL 8.0 en Docker)
+## 🗄️ 2. Paso 1: Levantar Base de Datos (MySQL 8.0) y API Gateway (NGINX) en Docker
 
-El proyecto utiliza un contenedor Docker con **MySQL 8.0** que inicializa automáticamente los 4 esquemas (`auth_service`, `productos`, `inventario`, `ventas`) y sus datos semilla.
+El proyecto utiliza **Docker Compose** para dos contenedores ligeros e independientes:
+1. **`mysql-feria-digital` (puerto `3306`):** Inicializa automáticamente los 4 esquemas (`auth_service`, `productos`, `inventario`, `ventas`) y sus datos semilla.
+2. **`gateway-feria-digital` (puerto `8080`):** API Gateway NGINX que unifica el tráfico del frontend hacia los microservicios (`8081–8084`). **No requiere borrar ni recrear el contenedor de MySQL si ya lo tenías levantado.**
 
-### 2.1 Iniciar el contenedor
-Abre PowerShell en la raíz del proyecto (`d:\ESPE\Vinculacion\Trabajo_Vinculacion\TiendaVirtual-TrabajoTitulacion-equipo`). Docker Compose lee automáticamente el `.env` de esa carpeta; si falta `MYSQL_ROOT_PASSWORD`, `MYSQL_USER` o `MYSQL_PASSWORD`, el arranque se detiene con un mensaje explícito.
+### 2.0 Preparar archivos `.env` (solo la primera vez si clonas desde cero)
+Si acabas de clonar el repositorio y aún no tienes tus archivos `.env` y `avalon-react-10.1.0\.env.local`:
+```powershell
+Copy-Item .\.env.example .\.env
+Copy-Item .\avalon-react-10.1.0\.env.local.example .\avalon-react-10.1.0\.env.local
+```
+*(En `.env` asegúrate de definir `MYSQL_ROOT_PASSWORD`, `MYSQL_USER`, `MYSQL_PASSWORD`, `JWT_SECRET` y `CAMUNDA_BPM_ADMIN_USER_PASSWORD`).*
+
+### 2.1 Iniciar los contenedores (MySQL + API Gateway)
+Abre PowerShell en la raíz del proyecto y ejecuta:
 
 ```powershell
 docker compose -f .\docker-compose.db.yml up -d
+docker compose -f .\docker-compose.gateway.yml up -d
 ```
 
-### 2.2 Verificar estado del contenedor
+### 2.2 Verificar estado de los contenedores y del API Gateway
 ```powershell
 docker compose -f .\docker-compose.db.yml ps
+docker compose -f .\docker-compose.gateway.yml ps
+curl.exe http://localhost:8080/health
 ```
-*(El contenedor `mysql-feria-digital` debe mostrar estado `Up` en el puerto `3306`)*.
+*(El contenedor `mysql-feria-digital` debe mostrar `Up` en el puerto `3306`, `gateway-feria-digital` debe mostrar `Up` en el puerto `8080` y `/health` debe responder `{"status":"UP","service":"api-gateway","engine":"nginx"}`)*.
 
 ### 2.3 Verificar logs y bases de datos
 ```powershell
@@ -82,7 +95,14 @@ docker exec -it mysql-feria-digital sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSW
 > 4. `msvc-inventario` (Stock físico).
 > 5. `msvc-ventas` (Órdenes y Pasarelas de Pago).
 
-Abre **5 terminales separadas** de PowerShell y ejecuta en cada una:
+### ⚡ Opción A (Rápida): Levantar los 5 microservicios con un solo comando desde la raíz
+Ejecuta este comando desde la carpeta raíz del proyecto (carga automáticamente tu `.env` y abre cada microservicio con Java 17):
+
+```powershell
+$root = (Get-Location).Path; $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot"; $env:Path = "$env:JAVA_HOME\bin;$env:Path"; Get-Content "$root\.env" | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-Object { $k, $v = $_ -split '=', 2; [Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim().Trim('"'), 'Process') }; foreach ($s in @("eureka-server","demo","msvc-producto","msvc-inventario","msvc-ventas")) { Start-Process powershell -WorkingDirectory "$root\Microservicios\$s" -ArgumentList "-NoExit", "-Command", ".\mvnw.cmd spring-boot:run" }
+```
+
+### 🖥️ Opción B (Manual): Abrir 5 terminales separadas de PowerShell y ejecutar en cada una:
 
 ---
 
