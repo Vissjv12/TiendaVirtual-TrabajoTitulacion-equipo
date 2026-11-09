@@ -404,6 +404,37 @@ El plan de implementación V2 recomienda NGINX como gateway de producción por l
 
 ### Etapa 5 Redis
 
+### Estado de A-13 - Frontend integrado al Gateway
+
+A-13 fue integrado desde `origin/feature/a13-frontend-gateway` mediante el merge `c68b334 merge: integrar A-13 frontend con api gateway`.
+
+Cambios principales:
+
+- Se centralizaron las URLs del frontend en `services/apiConfig.ts`.
+- Los servicios de autenticacion, productos, inventario, ventas, clientes, pagos, logistica y usuarios consumen el Gateway.
+- Se agrego `NEXT_PUBLIC_GATEWAY_URL` como variable principal.
+- Se actualizaron los rewrites de Next.js para apuntar al Gateway.
+- Se normalizaron recursos QR y URLs de pagos para evitar puertos internos.
+- Se mantuvo la propagacion del token Bearer.
+- Se conservaron los cambios de cantidades y fallback de Inventario de A-07.
+
+Validacion realizada:
+
+- `tsc --noEmit` ejecutado con el TypeScript local del proyecto: sin errores.
+- No se modificaron secretos operativos.
+
+Validacion manual pendiente:
+
+- Levantar el Gateway en el puerto configurado, por ejemplo `8090` en este equipo.
+- Definir `NEXT_PUBLIC_GATEWAY_URL` antes de compilar o iniciar el frontend.
+- Reiniciar Next.js despues de cambiar la variable, porque las variables `NEXT_PUBLIC_*` se incorporan durante la compilacion.
+- Confirmar en Network que login, catalogo, inventario, usuarios, ventas y configuracion de pagos usen el Gateway.
+- Probar QR de Deuna, PayPhone, Stripe y descarga de facturas.
+- Confirmar que no existan solicitudes del navegador hacia `8081`, `8082`, `8083` o `8084`.
+- Repetir las pruebas de `401`, `403`, CORS y rutas internas bloqueadas.
+
+Riesgo operativo pendiente: la rama A-13 usa por defecto `http://localhost:8080`, pero en este equipo el Gateway se valida en `8090`. El valor local debe quedar en `.env.local` sin versionar; el archivo de ejemplo conserva el valor documentado y la alternativa para VMware.
+
 A-15 debe evaluar alternativas y restricciones de memoria. A-16 debe definir claves, TTL, serialización e invalidación. A-17 debe implementar un piloto Cache-Aside. A-18 debe decidir si una migración amplia es conveniente.
 
 Redis no reemplaza MySQL. Las ventas, pagos, usuarios e inventario transaccional deben continuar en MySQL. El piloto debe incluir fallback a MySQL, límites de memoria, métricas y rollback.
