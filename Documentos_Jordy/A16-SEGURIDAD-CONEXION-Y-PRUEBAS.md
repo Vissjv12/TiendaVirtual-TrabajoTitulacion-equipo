@@ -1,13 +1,13 @@
 # A16 seguridad conexión salud y pruebas del piloto Redis
 
-## Actualización de integración local (2026-11-09)
+> **Estado:** contrato documental para A17. No cambia `pom.xml`, `.env.example`, Compose, Spring ni el servidor.
+> **Base revisada:** `integration/estabilizacion-produccion` en `aca30ab648f968651d773d7bfb778f29c9002950` (2026-11-10); A11–A14 integradas.
+> **Estado de Redis:** no implementado; el `pom.xml` actual de `msvc-producto` no declara el starter Redis.
+> **Rama documental actual:** `feature/a15-a18-redis-gateway` parte de `integration/estabilizacion-produccion@aca30ab` para conservar A15/A16. La rama Redis anterior se retira. A17 deberá salir desde el release desplegado según D-06; esta rama sigue siendo documental.
 
-Este documento se incorporó desde el commit `34d1e3f` en la rama local `feature/a15-a18-redis-docs-local`, basada en el cierre A-14 (`1308429`). A14 ya demostró autorización, CORS, propagación JWT, disponibilidad y fallback perimetral del Gateway con `43/43 OK`. Las pruebas Redis de este documento siguen siendo planificadas para A17 y no se han ejecutado.
+## Contexto de Gateway y despliegue
 
-No se agregan todavía Redis, variables operativas, contraseñas, ACL, dependencias Maven, contenedores ni cambios de producción. Los valores indicados en las tablas son hipótesis de diseño y requieren aprobación antes de implementarse.
-
-> **Estado:** borrador contractual para que A17 implemente sin inventar decisiones. No cambia `pom.xml`, `.env.example`, Compose, Spring ni el servidor.
-> **Base técnica revisada:** `msvc-producto` usa Spring Boot `3.4.5` y Java `17`; su `pom.xml` actual no incluye el starter de Redis.
+El Gateway actual es NGINX de enrutamiento; `gateway/nginx.conf` no tiene `proxy_cache`. `docker-compose.gateway.yml` define únicamente el contenedor Gateway. Redis, si el piloto se aprueba, se ubicará en la red interna que usa `msvc-producto`, no en el Compose del Gateway. El `/health` del Gateway es una respuesta estática de NGINX y su healthcheck no prueba Producto, MySQL ni Redis.
 
 ## 1. Variables candidatas
 
@@ -47,11 +47,11 @@ Spring Boot documenta `spring.data.redis.host`, `port`, `username`, `password`, 
 
 ### Puertas de seguridad antes de activar el piloto
 
-1. A14 demuestra autorización efectiva en Gateway y directamente en API, incluidas escrituras de categoría/empresa y acceso por empresa.
-2. A23 resuelve la visibilidad de precio sin eliminar las protecciones de carrito y compra.
-3. Dos empresas sintéticas producen datos distinguibles y los casos cruzados fallan con el código HTTP esperado, sin mutar datos.
-4. Revisar que los logs y las claves no incorporen claims del JWT ni datos del usuario.
-5. Documentar quién administra ACL/secretos y cómo se rota la credencial antes de cualquier despliegue compartido.
+1. El registro A14 informa 43/43 pruebas locales, pero la auditoría vigente sigue dejando tareas de seguridad pendientes. Antes del piloto deben quedar cerradas las autorizaciones/campos aplicables de T07, T12/T13 y H-15, y repetirse la matriz directa y por Gateway en la base del release.
+2. T12/A23 aprueba la visibilidad del precio sin debilitar carrito y compra; el checkout obtiene precio y stock del origen.
+3. D-06 está cumplido para iniciar A17: estabilización T01–T13 desplegada en release y línea base previa registrada; T14/T15 se ejecutan conforme al orden del plan antes de usar la rama nueva de Redis.
+4. Dos empresas sintéticas producen datos distinguibles; los casos cruzados reciben el HTTP esperado y no mutan datos. Revisar que logs y claves no incluyan claims JWT ni datos del usuario.
+5. Documentar responsable de ACL/secretos y rotación antes de cualquier despliegue compartido. No guardar valores reales ni evidencia institucional en el repositorio público.
 
 ## 3. Healthchecks y disponibilidad
 
@@ -62,7 +62,7 @@ Spring Boot documenta `spring.data.redis.host`, `port`, `username`, `password`, 
 | Health/readiness de aplicación | Servicio puede atender su función principal | No debe reportar indisponibilidad total solo porque Redis esté caído si MySQL puede responder | Redis caído -> salud de caché degradada; lectura por origen sigue disponible |
 | Métricas funcionales | Hit, miss, errores Redis, latencia, memoria y lecturas a MySQL | No deben incluir valores ni etiquetas de alta cardinalidad sensible | Revisar tendencias para el informe A18 |
 
-Liveness no debe depender de Redis. Readiness puede marcar Redis como degradado, pero debe seguir `UP` para lecturas que tienen fallback correcto a MySQL. No exponer detalles internos de la conexión Redis en un endpoint público.
+El `/health` actual del Gateway solo dice que NGINX responde; no debe presentarse como salud integral. Liveness del microservicio no debe depender de Redis. Readiness puede mostrar degradación de la caché, pero el servicio debe seguir atendiendo lecturas con MySQL cuando el fallback sea correcto. No exponer detalles internos de Redis en un endpoint público.
 
 ## 4. Conexión, timeouts y fallback
 
@@ -80,12 +80,12 @@ Liveness no debe depender de Redis. Readiness puede marcar Redis como degradado,
 ### Conexión local frente a Docker
 
 - Java ejecutándose en el host: host Redis `127.0.0.1` y puerto loopback documentado.
-- Java dentro de la misma red Compose: nombre de servicio, por ejemplo `redis`, y puerto interno `6379`; no usar `localhost` desde otro contenedor.
-- Entorno institucional: valores reales y ACL solo mediante la persona autorizada. A15/A16 no acceden ni despliegan allí.
+- Java dentro de la red Compose del microservicio: nombre de servicio Redis y puerto interno `6379`; no usar `localhost` desde otro contenedor. No agregar Redis a `docker-compose.gateway.yml`.
+- Entorno institucional: cualquier uso requiere autorización del responsable y los controles del release. A15/A16 no acceden ni despliegan allí; las pruebas de A17 se especifican con fixtures locales sintéticos.
 
 ## 5. Matriz de pruebas A17
 
-Todas las pruebas funcionales usarán MySQL local con fixtures sintéticos de, al menos, dos empresas y usuarios/roles separados. El caso de una ruta por Gateway se ejecutará tras validar A14.
+Todas las pruebas funcionales usarán MySQL local con fixtures sintéticos de, al menos, dos empresas y usuarios/roles separados. El caso de Gateway se ejecutará sobre el release candidato después de repetir la regresión A14 ampliada y cerrar las tareas D-06.
 
 | ID | Caso | Resultado esperado | Evidencia a conservar |
 |---|---|---|---|
@@ -122,13 +122,14 @@ Si no se alcanza el umbral, A18 recomienda mantener el piloto, corregir el cuell
 
 ## 7. Handoff para A17/A18
 
-Antes de programar, A17 debe tener aprobados: endpoint y DTO público, ruta Gateway, clasificación de campos, formato JSON/versionado, nombres finales de variables, ACL/secret source, límites de conexión, salud opcional, TTL, tolerancia a datos obsoletos, invalidaciones, fallback, datos sintéticos, matriz R01–R16 y procedimiento de rollback. La ventana por fallo de invalidación y la carrera de lecturas son decisiones pendientes, no aceptaciones del equipo.
+A15/A16 dejan documentadas las decisiones pendientes; no habilitan implementación. Antes de programar, A17 debe salir en una rama nueva desde el release desplegado, según D-06, y tener aprobados: endpoint y DTO público, ruta Gateway, clasificación de campos, formato JSON/versionado, nombres finales de variables, ACL/secret source, límites de conexión, salud opcional, TTL, tolerancia a datos obsoletos, invalidaciones, fallback, fixtures sintéticos, matriz R01–R16 y rollback. La ventana por fallo de invalidación y la carrera de lecturas son decisiones pendientes, no aceptaciones del equipo.
 
-A18 debe publicar resultados medidos y una recomendación de ampliar/mantener/corregir/retirar. No se considera éxito solo porque el contenedor Redis esté `healthy`.
+A18 debe publicar resultados medidos y recomendar ampliar/mantener/corregir/retirar. No se considera éxito solo porque Redis marque `healthy` ni por la evidencia histórica 43/43 de A14.
 
 ## Referencias técnicas y del repositorio
 
-- `msvc-producto` declara Spring Boot `3.4.5` en su [pom.xml](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/pom.xml).
-- [Spring Boot 3.4: Redis y propiedades `spring.data.redis.*`](https://docs.spring.io/spring-boot/3.4/reference/data/nosql.html) y [propiedades comunes](https://docs.spring.io/spring-boot/3.4/appendix/application-properties/).
+- [Spring Boot 3.4: Redis y propiedades `spring.data.redis.*`](https://docs.spring.io/spring-boot/3.4/reference/data/nosql.html), [propiedades comunes](https://docs.spring.io/spring-boot/3.4/appendix/application-properties/) y [binding de variables de entorno](https://docs.spring.io/spring-boot/3.4/reference/features/external-config.html#features.external-config.typesafe-configuration-properties.relaxed-binding.environment-variables).
+- [Gateway NGINX](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/gateway/nginx.conf) y [Compose del Gateway](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/docker-compose.gateway.yml).
+- [Registro A14](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Documentos_Jordy/REGISTRO-ETAPA-4-GATEWAY-A11-A14.md) y [revisión de seguridad / D-06](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Documentos_Jordy/REVISION-FLUJO-SEGURIDAD-Y-TAREAS.md).
+- [pom.xml de msvc-producto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/pom.xml), [ProductoServiceImpl](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/application/service/ProductoServiceImpl.java), [ProductoListadoDto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/application/dto/ProductoListadoDto.java) y [SecurityConfig](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/infrastructure/config/SecurityConfig.java).
 - [Docker Compose healthcheck](https://docs.docker.com/reference/compose-file/services/#healthcheck).
-- [SecurityConfig actual de Producto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/infrastructure/config/SecurityConfig.java) y [tabla de rutas A11 no integrada](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/feature/a11-diseno-gateway/Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md).
