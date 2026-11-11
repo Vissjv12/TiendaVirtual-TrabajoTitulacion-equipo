@@ -1,21 +1,15 @@
 # A15 evaluación y decisión de alcance Redis
 
-## Actualización de integración local (2026-11-09)
-
-Este documento fue incorporado desde el commit `34d1e3f` en la rama local `feature/a15-a18-redis-docs-local`, creada sobre el cierre de A-14 (`1308429`). Por tanto, las referencias históricas a `integration/etapa5-redis` y las frases que indican que A11–A14 aún no estaban integradas se conservan como contexto de revisión original, pero quedan supersedidas para esta rama local.
-
-Estado actual de las dependencias: A11, A12, A13 y A14 ya están integradas. A14 fue validada en el entorno local con `43/43 OK` sobre `http://127.0.0.1:8090`. Redis continúa sin implementarse; A15 y A16 permanecen como diseño y evaluación, sin cambios de código, Docker, `.env` ni base de datos.
-
-Para A17, las rutas del Gateway y la autorización deben tomarse de la base actual, no de la rama histórica enlazada en las referencias originales.
-
-> **Estado:** borrador de decisión para revisión del equipo, publicado en `feature/a15-a18-redis`. **Tipo de cambio:** solo documentación. No crea ni configura Redis.
-> **Base consultada:** `integration/etapa5-redis` en `208fd6db97f3163a6a185359f4b3c6ae207722c6`, revisada el 2026-11-08.
-> **Dependencia:** A11–A14 de Gateway aún deben integrarse y validar las rutas; las candidatas de este documento siguen provisionales.
+> **Estado:** documentación A15/A16 para revisión del equipo. No implementa ni configura Redis.
+> **Rama documental actual:** `feature/a15-a18-redis-gateway`, creada desde `integration/estabilizacion-produccion@aca30ab`. La rama Redis anterior `feature/a15-a18-redis` se retira. A17 se abrirá desde el release desplegado según D-06.
+> **Base técnica consultada en esta revisión:** `integration/estabilizacion-produccion` en `aca30ab648f968651d773d7bfb778f29c9002950` (2026-11-10), donde A11–A14 ya están integradas.
+> **Evidencia A14:** el registro del repositorio informa 43/43 pruebas locales OK. No las repetí en esta revisión; no equivalen a validación en producción ni cierran los hallazgos posteriores de seguridad.
+> **Secuencia:** A17 se implementará en una rama nueva desde el release desplegado, después de la estabilización indicada en D-06. A15/A16 no acceden a producción ni usan datos o credenciales institucionales.
 > **Aprobación de producción:** no solicitada ni concedida.
 
 ## Decisión propuesta
 
-Adoptar Redis únicamente para un **piloto Cache-Aside de una lectura pública, acotada y repetida**, si A16 confirma que la respuesta no contiene información privada, el contrato del Gateway está aprobado, la autorización se verifica directamente y MySQL puede atender la lectura cuando Redis no esté disponible.
+Adoptar Redis únicamente para un **piloto Cache-Aside de una lectura pública, acotada y repetida**, si A16 confirma una proyección pública segura, se completa la estabilización D-06, se aprueba el contrato de Gateway y MySQL puede atender la lectura cuando Redis no esté disponible. El candidato actual es una proyección de catálogo de productos; la respuesta completa de `/api/productos/listado` no se debe cachear porque también incorpora stock consultado a Inventario.
 
 Redis sería un acelerador opcional de lecturas. MySQL mantiene la fuente de verdad y las operaciones de escritura/transacción siguen ocurriendo en los microservicios y MySQL. No se propone copiar tablas completas a Redis ni hacer una migración general de la aplicación.
 
@@ -23,12 +17,13 @@ Si el análisis A17 previo al piloto demuestra que las esperas se deben a pagos,
 
 ## Contexto observado
 
-- La actividad A15 del plan de etapas es evaluar alternativas y decidir el alcance. A16 diseña el modelo; A17 implementa un piloto; A18 evalúa una migración más amplia con evidencia.
-- El documento de estrategia A11 de Gateway existe en `feature/a11-diseno-gateway`, pero aún no forma parte de `integration/etapa5-redis`. Describe NGINX como Gateway, las rutas y una intención de centralizar CORS y errores.
-- En el código de Producto de la rama de integración hay lecturas GET para productos, categorías y empresas. A11 propone que varias sean públicas; A14 todavía debe demostrar que el comportamiento real y el contrato coinciden con ese diseño.
-- La configuración actual de seguridad de Producto termina en `anyRequest().permitAll()` tras reglas específicas para escrituras de productos; la tabla A11, en cambio, describe escrituras de categorías y empresas solo para administrador. Esta diferencia debe resolverse y probarse en A12–A14 antes de declarar que esas respuestas o mutaciones son seguras para cachear.
-- `ProductoResponseDto` incluye inventario y datos anidados de la empresa; `ProductoListadoDto` incluye `empresaId` e `inventarioCantidad`. No deben cachearse sin una proyección y clasificación de campos aprobadas.
-- La guía de Redis recomienda empezar por datos públicos de lectura y no cachear JWT, usuarios, ventas, inventario privado ni administración. El equipo no tiene credenciales del servidor o de la base institucional, por lo que las pruebas futuras deben usar datos locales sintéticos.
+- A11–A14 están integradas en `integration/estabilizacion-produccion`. NGINX enruta `/api/productos` a `msvc-producto`, centraliza CORS y normaliza errores; no contiene `proxy_cache`. Si se aprueba Redis, el cliente seguirá usando el Gateway y el patrón Cache-Aside vivirá dentro de `msvc-producto`, no en NGINX.
+- El `/health` actual del Gateway devuelve una respuesta estática de NGINX. El healthcheck de `docker-compose.gateway.yml` comprueba ese endpoint y no demuestra disponibilidad de los microservicios, MySQL o Redis.
+- El registro A14 informa 43/43 pruebas locales OK, incluidos GET de catálogo y algunas comprobaciones JWT/roles. Es evidencia reportada por el proyecto; no se repitió aquí y no prueba el estado de producción ni cierra los hallazgos de la revisión de seguridad posterior.
+- `GET /api/productos/listado` ejecuta una consulta optimizada en la base de Productos y luego llama a Inventario por lote para llenar `inventarioCantidad`. El `ProductoListadoDto` también contiene `empresaId`. Cachear esa respuesta completa compartiría stock posiblemente obsoleto y campos que todavía requieren clasificación.
+- El candidato A17 es una **proyección de producto explícita y sanitizada**. El stock debe seguir consultándose al servicio Inventario en cada respuesta si continúa dentro del contrato; si esa separación no da una mejora medible, se descarta o aplaza Redis. Precio público depende de T12/A23.
+- La configuración actual de Producto acaba en `anyRequest().permitAll()`; además, la revisión vigente identifica tareas de seguridad pendientes para Productos, Inventario y datos públicos (por ejemplo T07, T12/T13 y H-15). Las pruebas A14 no sustituyen su resolución antes de activar caché.
+- El trabajo A15/A16 y las pruebas de A17 deben usar un entorno local con fixtures sintéticos de varias empresas. No se incluirán datos, resultados de consultas ni secretos de producción en documentos o repositorios.
 
 ## Alternativas evaluadas
 
@@ -37,7 +32,7 @@ Si el análisis A17 previo al piloto demuestra que las esperas se deben a pagos,
 | No añadir caché todavía; medir y optimizar consulta/índices | No duplica datos; no agrega un servicio; menor riesgo de obsolescencia | No reduce lecturas repetidas si el origen sí es el cuello de botella | Debe elegirse si A22/local perf indica que la causa no es una lectura repetida de MySQL |
 | Caché en memoria del proceso, por ejemplo Caffeine | Sencilla y rápida; poca infraestructura | Cada instancia conserva una copia distinta; invalidación y consistencia se complican al escalar | Puede servir para una sola instancia local, pero no es la opción preferida si varias instancias deben compartir caché |
 | Redis compartido con Cache-Aside | Claves y TTL compartibles; se puede invalidar; proceso y memoria separados de la JVM | Agrega conexión, credenciales, límites de memoria, operación y un nuevo modo de fallo; datos pueden quedar obsoletos | Mejor candidato para un piloto si hay lecturas repetidas, estables y públicas |
-| Caché HTTP/CDN para respuestas públicas | Puede evitar llegar al backend para contenido realmente público | Requiere definir `Cache-Control`, invalidación HTTP, reglas de Gateway/CDN y límites de privacidad | Reconsiderar si el objetivo principal es una respuesta pública cacheable en el borde; Gateway aún se está integrando |
+| Caché HTTP/CDN para respuestas públicas | Puede evitar llegar al backend para contenido realmente público | Requiere definir `Cache-Control`, invalidación HTTP, reglas de Gateway/CDN y límites de privacidad | NGINX ya está integrado como Gateway, pero no tiene directivas `proxy_cache`; el piloto Redis se ubicaría en `msvc-producto`. Evaluar caché de borde como decisión separada |
 
 No se propone una puntuación numérica porque aún faltan mediciones comparables, una política aprobada de frescura y la validación final de rutas/seguridad.
 
@@ -47,7 +42,7 @@ Redis debe guardar **valores por clave**, como una proyección JSON de una consu
 
 | Candidato | Tabla o servicio de origen | Decisión A15 | Condición para A17 |
 |---|---|---|---|
-| Catálogo público de productos | `productos`, relacionadas con `categorias` y `empresas` en la base `productos` | Candidato prioritario, sujeto a filtrado y autorización | Confirmar ruta pública en A14, precios con A23, campos de salida y empresa/estado activos |
+| Catálogo público de productos | `productos`, relacionadas con `categorias` y `empresas` en la base `productos` | Candidato prioritario, sujeto a filtrado y autorización | Resolver T07/T12/T13 y H-15; aprobar la proyección pública y el precio vía T12/A23. El 200 registrado en A14 no basta para habilitar caché |
 | Categorías visibles | `categorias` | Candidato alternativo de menor sensibilidad | Verificar que la ruta de lectura sea pública y excluir categorías inactivas |
 | Empresas visibles | `empresas` | Candidato solo como proyección pública | Aprobar campos públicos; el esquema también contiene RUC, email, teléfono y dirección |
 | Inventario/stock | `inventarios` del microservicio de inventario | Excluido del piloto inicial | Reevaluar solo con prueba de que el stock es público, su frescura está definida y su invalidación puede seguir a cada cambio |
@@ -63,12 +58,12 @@ Redis debe guardar **valores por clave**, como una proyección JSON de una consu
 
 ## Condiciones para avanzar
 
-1. A11–A14 integrados: tabla de rutas, CORS, exposición y códigos HTTP validados de extremo a extremo.
-2. A03/A05/A07 y configuración A08 revisados en el HEAD de integración; las pruebas directas a API confirman que un usuario no obtiene o modifica datos de otra empresa.
-3. Para una respuesta de catálogo con precio, A23 confirma el precio público sin login y mantiene protegido carrito/compra.
-4. Si la respuesta elegida es paginada, A19/A20 publican el contrato primero. Las claves deberán distinguir `page`, `size`, filtros y orden.
-5. Una medición local reproducible demuestra una lectura repetida y establece una línea base antes del piloto.
-6. A16 define TTL, invalidación, fallback, configuración, seguridad, conexión y pruebas; A17 demuestra la ventana real de obsolescencia incluso ante una lectura concurrente y fallo de invalidación. Si el equipo no acepta el máximo medido, el recurso no entra en A17 hasta diseñar invalidación durable.
+1. Usar como referencia de código `integration/estabilizacion-produccion@aca30ab`, no la base antigua de la rama Redis; conservar separado el estado real de esa rama.
+2. Cumplir la secuencia D-06 de `REVISION-FLUJO-SEGURIDAD-Y-TAREAS.md`: estabilizar las tareas T01–T13, desplegar el release aprobado y medir la línea base antes del piloto. A17 sale en una rama nueva del release desplegado; T14/T15 se ejecutan según el orden aprobado en ese documento.
+3. Resolver las autorizaciones y la exposición de campos señaladas por T07/T12/T13 y H-15. A23/T12 debe confirmar el precio público; el checkout siempre consulta y valida el precio y el stock en origen.
+4. A16 debe fijar la proyección y la ruta final. No cachear el DTO actual completo de `/api/productos/listado`; separar la lectura de producto del stock en vivo antes de implementar.
+5. Una medición local reproducible con datos sintéticos demuestra lecturas repetidas y establece una línea base. Si la latencia dominante sigue siendo Inventario u otra llamada, reconsiderar el caso de Redis.
+6. A16 define TTL, invalidación, fallback, configuración, seguridad, conexión y pruebas. A17 debe demostrar la obsolescencia máxima y la carrera de lectura/escritura; si no se acota o no se acepta, no habilitar ese recurso.
 
 ## Registro de decisión
 
@@ -77,14 +72,15 @@ Redis debe guardar **valores por clave**, como una proyección JSON de una consu
 | Función de Redis | Caché compartida y opcional de lecturas | Recomendada; requiere aprobación del equipo |
 | Fuente de verdad | MySQL | Acordada por el plan de trabajo y la guía Redis |
 | Patrón inicial | Cache-Aside | Propuesto para el piloto A17 |
-| Alcance inicial | Una lectura pública, con proyección explícita | Pendiente de A16 y A14 |
+| Alcance inicial | Proyección pública de producto derivada de `GET /api/productos/listado` | Condicionada a T07/T12/T13, H-15, separación del stock vivo y aprobación de A16 |
 | Persistir datos de negocio en Redis | No | Rechazado para este alcance |
 | Despliegue productivo | No en A15/A16 | Requiere autorización, propietario institucional y seguridad aprobada |
 
 ## Referencias revisadas
 
-- [Plan de trabajo por etapas y ramas](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Documentos_Jordy/Plan_de_trabajo_etapas_y_ramas.docx): definición A15–A18.
-- Documento `Sí.docx` proporcionado por el equipo: criterios de datos públicos, exclusiones, fallback y riesgos; deberá estar disponible al revisar la PR documental.
-- [Diseño A11 de Gateway](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/feature/a11-diseno-gateway/Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md) (todavía no integrado).
-- [SecurityConfig de Producto en la integración revisada](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/infrastructure/config/SecurityConfig.java).
-- [Esquema de productos](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/db-03-schema-productos.sql) y [esquema de inventario](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/db-04-schema-inventario.sql).
+- [Plan de trabajo por etapas y ramas](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Documentos_Jordy/Plan_de_trabajo_etapas_y_ramas.docx): definición A15–A18.
+- [Diseño A11 de Gateway integrado](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md), [Gateway NGINX](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/gateway/nginx.conf) y [Compose del Gateway](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/docker-compose.gateway.yml).
+- [Registro A14](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Documentos_Jordy/REGISTRO-ETAPA-4-GATEWAY-A11-A14.md): evidencia local reportada; no sustituye pruebas de producción o tareas de estabilización.
+- [Revisión de seguridad y orden D-06](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Documentos_Jordy/REVISION-FLUJO-SEGURIDAD-Y-TAREAS.md).
+- [ProductoController](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/presentation/controller/ProductoController.java), [ProductoServiceImpl](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/application/service/ProductoServiceImpl.java), [ProductoListadoDto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/application/dto/ProductoListadoDto.java) y [SecurityConfig](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/infrastructure/config/SecurityConfig.java).
+- [Esquema de productos](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/db-03-schema-productos.sql) y [esquema de inventario](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/estabilizacion-produccion/db-04-schema-inventario.sql).
