@@ -24,3 +24,7 @@ backups/*.zip
 
 # Logs locales de arranque
 *.log
+
+# Facturas generadas localmente por msvc-ventas
+facturas/
+Microservicios/msvc-ventas/facturas/

@@ -8,12 +8,14 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoSuchElementException.class)
@@ -36,8 +38,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponse> handleFeignException(FeignException ex) {
+        log.error("Fallo de comunicacion con un microservicio: status={}, mensaje={}",
+                ex.status(), ex.getMessage(), ex);
         ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE",
-                "Error al comunicarse con otro microservicio: " + ex.getMessage());
+                "El servicio requerido no esta disponible temporalmente");
         return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
@@ -54,8 +58,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Error no controlado en msvc-ventas", ex);
         ErrorResponse error = new ErrorResponse("INTERNAL_SERVER_ERROR",
-                "Ha ocurrido un error inesperado: " + ex.getMessage());
+                "Ha ocurrido un error inesperado");
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

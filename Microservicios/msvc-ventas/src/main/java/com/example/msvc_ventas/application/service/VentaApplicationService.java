@@ -1,6 +1,7 @@
 package com.example.msvc_ventas.application.service;
 
 import com.example.msvc_ventas.application.client.ProductoClient;
+import com.example.msvc_ventas.application.client.ConfiguracionPagosClient;
 import com.example.msvc_ventas.application.dto.ProductoDto;
 import com.example.msvc_ventas.application.dto.VentaRequestDto;
 import com.example.msvc_ventas.application.dto.VentaResponseDto;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +30,7 @@ public class VentaApplicationService {
     private final PagoService pagoService;
     private final ClienteRepository clienteRepository;
     private final ProductoClient productoClient;
+    private final ConfiguracionPagosClient configuracionPagosClient;
 
     @Autowired
     public VentaApplicationService(
@@ -35,12 +38,14 @@ public class VentaApplicationService {
             VentaMapper ventaMapper,
             PagoService pagoService,
             ClienteRepository clienteRepository,
-            ProductoClient productoClient) {
+            ProductoClient productoClient,
+            ConfiguracionPagosClient configuracionPagosClient) {
         this.ventaService = ventaService;
         this.ventaMapper = ventaMapper;
         this.pagoService = pagoService;
         this.clienteRepository = clienteRepository;
         this.productoClient = productoClient;
+        this.configuracionPagosClient = configuracionPagosClient;
     }
 
     @Transactional
@@ -59,17 +64,42 @@ public class VentaApplicationService {
 
         // 2. Crear ProductoDtos desde los items del request (sin llamadas HTTP)
         List<ProductoDto> productos = requestDto.getItems().stream()
-                .map(item -> ProductoDto.builder()
-                        .id(item.getProductoId())
-                        .nombre(item.getNombreProducto() != null ? item.getNombreProducto() : "Producto " + item.getProductoId())
-                        .precio(item.getPrecioUnitario())
-                        .build())
+                .map(item -> productoClient.obtenerProducto(item.getProductoId()))
                 .collect(Collectors.toList());
 
         log.info("Productos mapeados: {}", productos.size());
 
+        if (productos.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("Uno o más productos no existen");
+        }
+
+        Long empresaId = productos.stream()
+                .map(ProductoDto::getEmpresa)
+                .filter(Objects::nonNull)
+                .map(com.example.msvc_ventas.application.dto.EmpresaDto::getId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No se pudo determinar la empresa de los productos"));
+
+        boolean mismaEmpresa = productos.stream()
+                .allMatch(producto -> producto.getEmpresa() != null
+                        && empresaId.equals(producto.getEmpresa().getId()));
+        if (!mismaEmpresa) {
+            throw new IllegalArgumentException("Los productos de una venta deben pertenecer a la misma empresa");
+        }
+
+        // La tarifa se obtiene del servicio propietario; el costo recibido del navegador se ignora.
+        var costoEnvio = configuracionPagosClient.obtenerCostoEnvio(empresaId).getCostoEnvio();
+        VentaRequestDto requestAutoritativo = VentaRequestDto.builder()
+                .clienteId(requestDto.getClienteId())
+                .items(requestDto.getItems())
+                .metodoPago(requestDto.getMetodoPago())
+                .comprobanteUrl(requestDto.getComprobanteUrl())
+                .emprendedorId(empresaId)
+                .costoEnvio(costoEnvio)
+                .build();
+
         // 3. Mapear a entidad de dominio y crear la venta
-        Venta venta = ventaMapper.toEntity(requestDto, cliente, productos);
+        Venta venta = ventaMapper.toEntity(requestAutoritativo, cliente, productos);
         log.info("Venta mapeada, procediendo a guardar");
 
         Venta ventaCreada = ventaService.crearVenta(venta);

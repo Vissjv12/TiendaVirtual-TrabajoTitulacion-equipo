@@ -18,4 +18,5 @@ public class ProductoDto {
     private BigDecimal precio;
     private String imagen;
     private Boolean activo;
+    private EmpresaDto empresa;
 }
