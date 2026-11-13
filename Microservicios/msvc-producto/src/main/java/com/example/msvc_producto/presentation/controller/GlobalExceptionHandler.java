@@ -4,6 +4,8 @@ import com.example.msvc_producto.presentation.dto.ErrorResponse;
 import feign.FeignException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,6 +19,8 @@ import java.util.NoSuchElementException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorResponse> handleNoSuchElementException(NoSuchElementException ex) {
@@ -38,14 +42,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
-        ErrorResponse error = new ErrorResponse("FORBIDDEN", ex.getMessage(), LocalDateTime.now());
+        log.warn("Access denied in product service", ex);
+        ErrorResponse error = new ErrorResponse("FORBIDDEN", "No tiene permisos para realizar esta operación", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponse> handleFeignException(FeignException ex) {
+        log.error("Communication failure in product service: status={}, message={}",
+                ex.status(), ex.getMessage(), ex);
         ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE",
-                "Error al comunicarse con otro microservicio: " + ex.getMessage(), LocalDateTime.now());
+                "El servicio requerido no está disponible temporalmente", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
@@ -62,8 +69,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Unhandled error in product service", ex);
         ErrorResponse error = new ErrorResponse("INTERNAL_SERVER_ERROR",
-                "Ha ocurrido un error inesperado: " + ex.getMessage(), LocalDateTime.now());
+                "Ha ocurrido un error inesperado", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
