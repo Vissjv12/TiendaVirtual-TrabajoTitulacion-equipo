@@ -219,16 +219,16 @@ const FeaturedProducts: React.FC = () => {
 
         const footer = (
             <div className="p-3">
-                {isAuthenticated && authService.canViewPrices() ? (
+                {!isAuthenticated || authService.canViewPrices() ? (
                     <div className="flex justify-content-between align-items-center">
                         <div className="text-xl font-bold" style={{ color: primaryColor }}>
                             {productService.formatearPrecio(producto.precio)}
                         </div>
                         <Button
                             icon="pi pi-shopping-cart"
-                            label={authService.isEmployee() ? 'Gestionar' : 'Agregar'}
+                            label={authService.isEmployee() ? 'Gestionar' : isAuthenticated ? 'Agregar' : 'Iniciar sesión para comprar'}
                             className="p-button-sm"
-                            disabled={authService.isEmployee() ? false : !hasStock}
+                            disabled={isAuthenticated && !authService.isEmployee() && !hasStock}
                             style={{
                                 backgroundColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
                                 borderColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
@@ -253,7 +253,9 @@ const FeaturedProducts: React.FC = () => {
                                 }
                             }}
                             onClick={() => {
-                                if (authService.isEmployee()) {
+                                if (!isAuthenticated) {
+                                    handleAddToCart(producto);
+                                } else if (authService.isEmployee()) {
                                     router.push(`/dashboard/productos/${producto.id}`);
                                 } else {
                                     handleAddToCart(producto);
@@ -265,10 +267,10 @@ const FeaturedProducts: React.FC = () => {
                     <div className="text-center">
                         <div className="text-sm text-600 mb-2">
                             <i className="pi pi-lock mr-1" style={{ color: primaryColor }}></i>
-                            Inicia sesión para ver precios
+                            Inicia sesión para comprar
                         </div>
                         <Button
-                            label="Iniciar Sesión"
+                            label="Iniciar sesión para comprar"
                             icon="pi pi-sign-in"
                             className="p-button-sm p-button-outlined w-full"
                             style={{
@@ -534,7 +536,7 @@ const FeaturedProducts: React.FC = () => {
                         <i className="pi pi-info-circle text-4xl" style={{ color: primaryColor }}></i>
                     </div>
                     <h3 className="text-900 mb-3 font-bold">¡Inicia Sesión!</h3>
-                    <p className="text-600 mb-4 line-height-3">Para agregar productos al carrito y ver precios, necesitas iniciar sesión en tu cuenta.</p>
+                    <p className="text-600 mb-4 line-height-3">Para agregar productos al carrito y comprar, necesitas iniciar sesión en tu cuenta.</p>
                     {selectedProduct && (
                         <div
                             className="p-3 border-round-xl mb-4"
@@ -552,7 +554,7 @@ const FeaturedProducts: React.FC = () => {
                     <div className="flex gap-3 justify-content-center">
                         <Button label="Cancelar" icon="pi pi-times" className="p-button-text" onClick={() => setShowLoginDialog(false)} />
                         <Button
-                            label="Iniciar Sesión"
+                            label="Iniciar sesión para comprar"
                             icon="pi pi-sign-in"
                             style={{
                                 backgroundColor: primaryColor,
