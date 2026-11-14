@@ -45,7 +45,7 @@ const CheckoutPage: React.FC = () => {
     const [orderNumber, setOrderNumber] = useState<string>('');
 
     // Estados para métodos de pago
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('transferencia');
     const [paymentFormValid, setPaymentFormValid] = useState(false);
     const [paymentFormData, setPaymentFormData] = useState<any>(null);
 
@@ -560,6 +560,7 @@ const CheckoutPage: React.FC = () => {
             ) : (
                 <>
                     <PaymentMethodSelector
+                        selectedMethod={(selectedPaymentMethod || 'transferencia') as any}
                         onMethodChange={(method) => {
                             console.log('Método seleccionado:', method);
                             setSelectedPaymentMethod(method);

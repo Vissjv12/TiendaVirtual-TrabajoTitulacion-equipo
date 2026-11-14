@@ -221,19 +221,27 @@ export default function ConfiguracionMetodosPago() {
 
         if (!file) return;
 
-        // Validar que sea una imagen
-        if (!file.type.startsWith('image/')) {
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+        const normalizedType = (file.type || '').toLowerCase();
+        const normalizedName = (file.name || '').toLowerCase();
+        const hasValidExtension = allowedExtensions.some((ext) => normalizedName.endsWith(ext));
+
+        // Validar estrictamente que sea una imagen JPG, PNG o WEBP
+        if (!allowedMimeTypes.includes(normalizedType) || !hasValidExtension) {
+            event.options?.clear?.();
             toast.current?.show({
                 severity: 'error',
-                summary: 'Error',
-                detail: 'Solo se permiten archivos de imagen',
-                life: 3000
+                summary: 'Formato no válido',
+                detail: 'Solo se permiten imágenes en formato JPG, PNG o WEBP',
+                life: 3500
             });
             return;
         }
 
         // Validar tamaño (máximo 5MB)
         if (file.size > 5 * 1024 * 1024) {
+            event.options?.clear?.();
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
@@ -268,16 +276,18 @@ export default function ConfiguracionMetodosPago() {
                     life: 3000
                 });
             } else {
-                throw new Error('Error al subir');
+                const errData = await response.json().catch(() => null);
+                throw new Error(errData?.error || 'No se pudo subir el código QR');
             }
-        } catch (error) {
+        } catch (error: any) {
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'No se pudo subir el código QR',
-                life: 3000
+                detail: error?.message || 'No se pudo subir el código QR',
+                life: 3500
             });
         } finally {
+            event.options?.clear?.();
             setUploadingQR(false);
         }
     };
@@ -507,13 +517,13 @@ export default function ConfiguracionMetodosPago() {
                                         <p className="text-600">
                                             Sube una imagen de tu código QR de Deuna.
                                             <br />
-                                            Formatos aceptados: JPG, PNG
+                                            Formatos aceptados: JPG, PNG, WEBP
                                             <br />
                                             Tamaño máximo: 5MB
                                         </p>
                                     </div>
 
-                                    <FileUpload mode="basic" name="qrImage" accept="image/*" maxFileSize={5000000} customUpload uploadHandler={onQRUpload} auto chooseLabel="Seleccionar Imagen" className="p-button-outlined" disabled={uploadingQR} />
+                                    <FileUpload mode="basic" name="qrImage" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" maxFileSize={5000000} customUpload uploadHandler={onQRUpload} auto chooseLabel="Seleccionar Imagen" className="p-button-outlined" disabled={uploadingQR} />
 
                                     {uploadingQR && (
                                         <div className="mt-3">

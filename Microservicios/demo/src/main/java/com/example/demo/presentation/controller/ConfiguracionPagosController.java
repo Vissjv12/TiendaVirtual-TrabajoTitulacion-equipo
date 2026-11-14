@@ -80,21 +80,9 @@ public class ConfiguracionPagosController {
             Authentication authentication) {
         
         Long emprendedorId = obtenerUsuarioId(authentication);
-        
-        // Validar archivo
-        if (archivo.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Archivo vacío"));
-        }
-        
-        if (!archivo.getContentType().startsWith("image/")) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Solo se permiten imágenes"));
-        }
-        
-        if (archivo.getSize() > 5 * 1024 * 1024) { // 5MB
-            return ResponseEntity.badRequest().body(Map.of("error", "Imagen muy grande (máximo 5MB)"));
-        }
-        
+
         try {
+            configuracionPagosService.validarArchivoImagenQr(archivo);
             ConfiguracionPagosDto config = configuracionPagosService.guardarQrDeuna(emprendedorId, archivo);
             
             Map<String, String> response = new HashMap<>();
@@ -102,6 +90,8 @@ public class ConfiguracionPagosController {
             response.put("message", "QR de Deuna guardado exitosamente");
             
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error al guardar el archivo: " + e.getMessage()));

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { RadioButton } from 'primereact/radiobutton';
 import { Divider } from 'primereact/divider';
@@ -23,17 +23,23 @@ export interface PaymentMethodData {
 }
 
 interface PaymentMethodSelectorProps {
+    selectedMethod?: PaymentMethod;
     onMethodChange: (method: PaymentMethod) => void;
     onPaymentDataChange: (data: PaymentMethodData) => void;
     primaryColor?: string;
 }
 
 const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
+    selectedMethod: controlledMethod = 'transferencia',
     onMethodChange,
     onPaymentDataChange,
     primaryColor = 'var(--primary-color)'
 }) => {
-    const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('transferencia');
+    const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(controlledMethod);
+
+    useEffect(() => {
+        setSelectedMethod(controlledMethod);
+    }, [controlledMethod]);
 
     const handleMethodChange = (method: PaymentMethod) => {
         setSelectedMethod(method);

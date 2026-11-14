@@ -45,10 +45,14 @@ const DeunaForm: React.FC<DeunaFormProps> = ({
         try {
             // Llamada al API Gateway para obtener el QR del emprendedor (mitiga O-06)
             const cartItems = cartService.getCart();
-            const emprendedorId = cartItems.length > 0 ? (cartItems[0].producto?.empresa?.id || 1) : 1;
-            const response = await fetch(`${GATEWAY_BASE_URL}/api/emprendedor/configuracion-pagos/deuna-qr/${emprendedorId}`);
-            
+            const firstProduct: any = cartItems.length > 0 ? cartItems[0].producto : null;
+            const empresaId = firstProduct?.empresa?.id || firstProduct?.empresaId || firstProduct?.emprendedorId || 1;
+            const response = await fetch(`${GATEWAY_BASE_URL}/api/emprendedor/configuracion-pagos/deuna-qr/${empresaId}`);
+
             if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('El emprendedor aún no ha configurado su código QR de Deuna');
+                }
                 throw new Error('No se pudo cargar el código QR de Deuna');
             }
 
