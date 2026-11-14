@@ -18,11 +18,9 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
 /**
- * PreparaciÃ³n de Resource Server para A-03.
- *
- * En este incremento la autenticaciÃ³n JWT se procesa cuando llega un Bearer
- * token, pero las reglas de autorizaciÃ³n continÃºan abiertas. Las restricciones
- * por rol y empresa se aplicarÃ¡n en los siguientes incrementos.
+ * Resource Server JWT for A-03. Public catalog reads remain anonymous; product
+ * writes require role and company checks, company/category writes require admin,
+ * and Actuator metrics are restricted to administrators.
  */
 @Configuration
 @EnableMethodSecurity
@@ -37,6 +35,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/metrics", "/actuator/metrics/**")
+                        .hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/actuator/**").denyAll()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/productos").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/productos/*").authenticated()
