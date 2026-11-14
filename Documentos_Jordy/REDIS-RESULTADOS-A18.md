@@ -27,7 +27,7 @@ Se usó el JAR de este checkout, construido con JDK 17. Las rutas ocuparon puert
 La primera carga se ejecutó con `grafana/k6:latest`, el script `scripts/p6-baseline-readonly.js`, 5 VUs y 30 segundos por modo, por el mismo Gateway y con el mismo conjunto de seis rutas. Para la repetición dirigida se añadió `scripts/redis-a18-listado.js`, que envía todas las solicitudes a `GET /api/productos/listado` y verifica HTTP 200 y 39 productos:
 
 ```powershell
-$scriptPath = (Resolve-Path 'scripts/p6-baseline-readonly.js').Path
+$scriptPath = (Resolve-Path 'scripts/redis-a18-listado.js').Path
 docker run --rm --add-host host.docker.internal:host-gateway `
   --mount "type=bind,source=$scriptPath,target=/scripts/redis-a18-listado.js,readonly" `
   --env BASE_URL=http://host.docker.internal:8290 `
@@ -41,7 +41,9 @@ No se guardaron en este documento variables con secretos, tokens ni valores de `
 
 `application-redis-test.properties` vive en `src/test/resources` y no se incluye en el JAR ejecutable. Activar `redis-test` al lanzar el JAR no basta para cargar esas propiedades. En la primera tentativa, Redis quedó en el puerto predeterminado y el indicador informó indisponibilidad; esa carga se descartó, no se contó como miss. Para la ejecución correcta del JAR se pasaron explícitamente las variables de conexión **locales** de MySQL (`127.0.0.1:3307`) y Redis (`127.0.0.1:6380`), más la URL del stub local. La revisión detectó esta diferencia de empaquetado; no se cambiaron los valores por defecto de la aplicación.
 
-## Comparación de carga
+## Primera comparación: carga mixta de seis rutas
+
+Este bloque conserva los resultados de la primera corrida mixta (una repetición por modo). Sus límites aplican a ese escenario; la segunda medición dedicada al listado, más abajo, es la comparación actual para evaluar el efecto de Redis en `GET /api/productos/listado`.
 
 El modo miss usó un TTL de prueba de 1 ms para forzar expiraciones. La concurrencia produjo algunos hits antes del vencimiento; después de descontar una lectura de verificación previa a la carga, el período k6 tuvo 1.559 misses y 100 hits. El modo hit tuvo una lectura de precalentamiento antes de k6 y, durante la carga, 1.806 hits. Redis seguía con una clave de listado y TTL de 228 segundos después de la ejecución hit.
 
@@ -55,14 +57,14 @@ En la línea base hubo 3 respuestas que no cumplieron el check HTTP 200 (0,03 %)
 
 La ruta del listado representa aproximadamente una de las seis rutas mezcladas. El número de llamadas al stub de Inventario quedó cercano a la frecuencia del listado en los tres modos. Esto confirma que el stock sigue consultándose en cada listado cacheado; Redis no almacena inventario. La mejora de rendimiento del listado puede quedar diluida por las otras rutas y por la llamada a Inventario.
 
-### Interpretación frente al umbral A16
+### Interpretación de la primera corrida mixta (histórica)
 
 - El p95 hit fue **32,48 ms**, aproximadamente **1,7 % mayor** que los **31,94 ms** de la línea base local; no alcanza la mejora propuesta de 20 %.
 - El rendimiento observado subió aproximadamente 10,9 % en la mezcla hit, pero el número total de iteraciones difiere y solo hubo una corrida; esto no demuestra una mejora estable.
 - Las métricas de aplicación y las pruebas confirman que un hit no invoca el proveedor de catálogo (`hitReturnsCachedJsonWithoutCallingSource`). No existe todavía una medida del número de sentencias/consultas SQL bajo k6; no se afirma una reducción porcentual de consultas.
 - No se repitieron las corridas y no se aisló únicamente `GET /api/productos/listado`. Se requiere una siguiente medición con varias repeticiones, mismos datos, distribución fija y medición del origen SQL antes de decidir expansión.
 
-**Recomendación A18:** conservar la implementación como piloto local, mantener los flags apagados por defecto y no ampliar rutas ni activar en infraestructura compartida con estos resultados. La carga actual no prueba una mejora global suficiente.
+**Lectura de esa corrida:** por sí sola no justifica expansión ni demuestra una mejora estable. La conclusión de A18 para el listado se basa en la medición repetida de la sección siguiente.
 
 ## Segunda medición A18: solo listado de productos
 
