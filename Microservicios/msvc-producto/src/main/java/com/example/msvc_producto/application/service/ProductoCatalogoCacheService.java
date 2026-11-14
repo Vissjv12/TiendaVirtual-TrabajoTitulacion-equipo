@@ -108,7 +108,12 @@ public final class ProductoCatalogoCacheService {
 
     /** Advances the cache namespace after a committed catalog mutation. */
     public String invalidarCatalogo(String generationKey) {
-        return store.advanceGeneration(requireKey(generationKey, "generationKey"));
+        try {
+            return store.advanceGeneration(requireKey(generationKey, "generationKey"));
+        } catch (RuntimeException invalidationFailure) {
+            recordFailure("invalidation");
+            throw invalidationFailure;
+        }
     }
 
     private void recordResult(String result, long startedAt) {
