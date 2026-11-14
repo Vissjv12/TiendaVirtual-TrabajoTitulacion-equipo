@@ -132,3 +132,34 @@ A18 debe publicar resultados medidos y una recomendación de ampliar/mantener/co
 - [Spring Boot 3.4: Redis y propiedades `spring.data.redis.*`](https://docs.spring.io/spring-boot/3.4/reference/data/nosql.html) y [propiedades comunes](https://docs.spring.io/spring-boot/3.4/appendix/application-properties/).
 - [Docker Compose healthcheck](https://docs.docker.com/reference/compose-file/services/#healthcheck).
 - [SecurityConfig actual de Producto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/infrastructure/config/SecurityConfig.java) y [tabla de rutas A11 no integrada](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/feature/a11-diseno-gateway/Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md).
+
+## Actualización desde A17/A18 local (2026-11-14)
+
+La implementación ya está en el checkout local `integration/avance-hasta-redis`. Los nombres reales se declaran en `Microservicios/msvc-producto/src/main/resources/application.properties`; la tabla inicial de este documento es histórica y contiene candidatos que no deben confundirse con los que usa actualmente la aplicación.
+
+| Variable que usa la aplicación | Propiedad enlazada | Valor por defecto/candidato local | Estado |
+|---|---|---|---|
+| `CACHE_REDIS_ENABLED` | `cache.redis.enabled` | `false` | Interruptor general; rollback local y apagado en entornos compartidos |
+| `CACHE_REDIS_PRODUCTOS_LISTADO_ENABLED` | `cache.redis.productos.listado.enabled` | `false` | Solo listado de producto |
+| `CACHE_REDIS_TTL_PRODUCTOS` | `cache.redis.ttl-productos` | `PT5M` | Duración ISO-8601 |
+| `CACHE_REDIS_CATEGORIAS_ENABLED` | `cache.redis.categorias.enabled` | `false` | Lista/detalle de categoría |
+| `CACHE_REDIS_TTL_CATEGORIAS` | `cache.redis.ttl-categorias` | `PT15M` | Duración ISO-8601 |
+| `REDIS_HOST`, `REDIS_PORT` | `spring.data.redis.host`, `spring.data.redis.port` | `127.0.0.1`, `6379` | En local se pasó explícitamente `127.0.0.1:6380`; en Docker debe usarse nombre de servicio y puerto interno |
+| `REDIS_USERNAME`, `REDIS_PASSWORD` | `spring.data.redis.username`, `spring.data.redis.password` | vacíos | El password es secreto; nunca se escribe en este documento o Git |
+| `REDIS_CONNECT_TIMEOUT`, `REDIS_TIMEOUT` | `spring.data.redis.connect-timeout`, `spring.data.redis.timeout` | `500ms`, `500ms` | Configuración local actual; falta medir R06 con timeout inducido |
+
+Spring puede enlazar también las variables estándar `SPRING_DATA_REDIS_*`, pero los placeholders explícitos del archivo de propiedades usan `REDIS_*`; para reproducir el checkout actual, documentar qué fuente de configuración se está usando y no mezclar nombres.
+
+`application-redis-test.properties` está bajo `src/test/resources`; Maven la usa para pruebas, pero no se empaqueta en el JAR ejecutable. Al lanzar el JAR directamente, se debe inyectar la configuración local mediante entorno o argumentos de ejecución. El informe A18 registra los puntos de conexión usados sin secretos. Ningún valor institucional fue proporcionado ni configurado.
+
+### Seguridad y salud implementadas
+
+- Se expone solo `/actuator/health/**` y `/actuator/metrics/**`; métricas requieren `ROLE_ADMIN`; el resto de Actuator se deniega. Health no revela detalles de Redis.
+- La salud de caché es independiente: Redis desactivado no abre conexión; Redis habilitado pero inaccesible produce 503 solo en `/actuator/health/cache`. Liveness/readiness y lectura del catálogo por origen siguen 200.
+- Las escrituras de categoría y empresa requieren `ROLE_ADMIN`. Las pruebas HTTP rechazan al rol `ROLE_EMP` sin alterar datos ni generación de caché.
+- El microservicio lee mediante la fuente original ante falla Redis. No se cachean respuestas incompletas cuando falla Inventario.
+- Pruebas locales: `clean test` 26/26; suite focalizada Redis/HTTP/autorización 46/46. Fallback y recuperación también se verificaron con el contenedor local. R06 y partes de R12/R14 siguen pendientes según la matriz de resultados A18.
+
+### Decisión operativa
+
+La primera comparación k6 mixta fue exploratoria. La medición posterior aisló `GET /api/productos/listado` en tres corridas por modo: la mediana p95 de hit fue 54,69 ms frente a 49,45 ms desactivado, mientras el contador global MySQL `Com_select` mostró cerca de 99,8 % menos lecturas observadas por solicitud. Este contador no aísla la sesión de Producto, por lo que la reducción debe confirmarse con instrumentación controlada. Mantener flags apagados por defecto fuera de local y no desplegar Redis institucional hasta que el responsable apruebe contrato y frescura, infraestructura entregue valores por canal seguro y se completen los pendientes funcionales. Consultar `REDIS-RESULTADOS-A18.md` y `REDIS-PRUEBA-INSTITUCIONAL-Y-ROLLBACK.md`.

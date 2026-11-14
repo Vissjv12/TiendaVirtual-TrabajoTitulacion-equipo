@@ -1,5 +1,7 @@
 # P7 — Puerta de entrada para Redis
 
+> **Nota de actualización (2026-11-14):** las secciones siguientes conservan el dictamen histórico de P7, cuando Redis aún no estaba implementado. A17 ya se implementó y probó localmente en `integration/avance-hasta-redis`; A18 tiene una primera comparación exploratoria. Para el estado vigente consultar `REDIS-RESULTADOS-A18.md` y `REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md`. La ejecución local no elimina las decisiones pendientes ni autoriza activación o despliegue institucional.
+
 ## Estado y alcance
 
 **Estado:** revisión de preparación, sin implementación de Redis.

@@ -124,3 +124,17 @@ El lector debe recibir el mismo contrato en hit, miss o fallback. Redis no cambi
 - [Esquema `inventarios`](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/db-04-schema-inventario.sql).
 - [ProductoController](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/presentation/controller/ProductoController.java), [ProductoListadoDto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/application/dto/ProductoListadoDto.java) y [ProductoResponseDto](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/integration/etapa5-redis/Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/application/dto/ProductoResponseDto.java).
 - [Gateway A11 (diseño no integrado)](https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo/blob/feature/a11-diseno-gateway/Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md).
+
+## Actualización tras implementación local A17/A18 (2026-11-14)
+
+Esta sección registra el estado del checkout `integration/avance-hasta-redis`. La tabla anterior sigue siendo el diseño de referencia; el código ya implementa tres lecturas locales (listado de productos, lista de categorías y detalle de categoría), pero sus flags continúan apagados por defecto. A15/A16 no autorizan su activación institucional.
+
+| Ruta | Estado de código | TTL inicial en código | Invalidación | Decisión pendiente |
+|---|---|---:|---|---|
+| `GET /api/productos/listado` | Cache-Aside con proyección `ProductoCatalogoPublicoDto`; el inventario se consulta en cada solicitud y se añade a la respuesta fuera de la entrada Redis | `PT5M` | Generación compartida después del commit de producto, categoría o empresa | Aprobar visibilidad de `precio` y `empresaId`; aceptar o resolver ventana R15 |
+| `GET /api/categorias` | Cache-Aside del contrato de categoría actual | `PT15M` | Generación compartida tras mutaciones de catálogo | Aprobar exposición de `activo` y fechas; decidir la visibilidad de inactivos |
+| `GET /api/categorias/{id}` | Cache-Aside del contrato de categoría actual | `PT15M` | Generación compartida tras mutaciones de catálogo | Mismas decisiones de campos/visibilidad que la lista |
+
+Las pruebas locales verifican invalidación al crear/actualizar/desactivar producto; renombrar/desactivar categoría; y renombrar/desactivar empresa. El endpoint `DELETE` de producto realiza baja lógica. Se probó también el rollback, el error al invalidar después del commit y la carrera de publicación vieja. R15 muestra que un fallo post-commit puede dejar una entrada anterior hasta que venza el TTL de su último `SET`; no se añadió outbox ni se aprobó esa ventana.
+
+El listado es compartido por sus actores permitidos porque la ruta actual es pública. La prueba sintética confirma que no incluye `emprendedorId` ni stock en el JSON guardado. La presencia de `precio` y `empresaId` en la proyección es un hecho del código, no aprobación del propietario del dato.

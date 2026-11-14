@@ -1,5 +1,7 @@
 # Verificación de la conexión Redis en local — A17/A18
 
+> **Actualización vigente (2026-11-14):** la evidencia nueva corresponde al checkout `integration/avance-hasta-redis` basado en `1f4aeceef6bcfdf90d1aeb430dfbde4b2fc9317d`. Los puertos, commit, suite `23/23`, suite `29/29` y pruebas Gateway descritos abajo corresponden a la verificación histórica de `feature/a17-piloto-redis-local`; se conservan como antecedente y no describen este checkout actual. Resultados actuales, comparación A18 y matriz R01–R16: `REDIS-RESULTADOS-A18.md`.
+
 **Fecha de verificación:** 14 de noviembre de 2026
 **Rama local:** `feature/a17-piloto-redis-local`
 **Base local:** `integration/estabilizacion-produccion` (`4a99df47b56ae935521875f2907d6ac636984619`)
@@ -106,3 +108,15 @@ El Gateway principal en `8080` también devolvió 200, pero su backend de Produc
 - `Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/infrastructure/cache/RedisProductoCatalogoStore.java`
 - `Microservicios/msvc-producto/src/test/java/com/example/msvc_producto/ProductoCatalogoHttpIT.java`
 - `Microservicios/msvc-producto/src/test/java/com/example/msvc_producto/ProductoCatalogoFallbackIT.java`
+
+## Evidencia añadida para `integration/avance-hasta-redis` (2026-11-14)
+
+- Suite completa limpia en Maven/JDK 17: **26/26**. Suite focalizada Redis/HTTP/autorización: **46/46**.
+- Runtime aislado actual: Producto `8281`, Gateway `8290`, Inventario sintético `8282`, MySQL de prueba `3307` y Redis `6380`. Las seis rutas del script P6 se cargaron por el mismo Gateway; Redis solo cachea las rutas aprobadas por sus flags.
+- Métricas de cache expuestas por Actuator y restringidas a `ROLE_ADMIN`. Las pruebas comprueban 401 anónimo, 403 emprendedor y 200 admin.
+- Con Redis detenido antes del arranque y también durante servicio, Producto inició/continuó y `GET /api/productos/listado` respondió 200 con 39 productos; liveness/readiness 200 y health de caché 503. Después de reanudar el contenedor, `PING`, health de caché y catálogo quedaron 200.
+- La carga mixta histórica de una corrida por modo se conserva como antecedente y no se usa para atribuir una mejora al listado.
+- La medición dedicada actual usa tres corridas por modo, 5 VUs y 30 s en `GET /api/productos/listado`; sus nueve resultados, p50/p95, solicitudes/s, hits/misses, `Com_select` y limitaciones se detallan en `REDIS-RESULTADOS-A18.md`. Todos los checks pasaron con 39 productos.
+- El modo hit registró 23 `Com_select` globales en 12.579 solicitudes, frente a 11.999 en 11.970 solicitudes desactivadas (cerca de 99,8 % menos por solicitud observada). El contador es global del contenedor e incluye actividad de fondo; para atribución exacta falta una medición por sesión. El p95 mediano hit fue 10,6 % mayor, así que no se declara mejora de latencia. No hay aprobación de los campos pendientes ni prueba institucional.
+
+Para comandos, límites, reproducción y matriz completa, ver `REDIS-RESULTADOS-A18.md`. Se mantiene la evidencia histórica anterior para comparación, sin sobrescribir sus resultados.
