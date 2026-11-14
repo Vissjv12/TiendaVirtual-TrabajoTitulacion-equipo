@@ -8,6 +8,7 @@ import com.example.msvc_producto.domain.service.EmpresaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,7 @@ public class EmpresaController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @Operation(summary = "Crear una nueva empresa")
     public ResponseEntity<EmpresaResponseDto> crearEmpresa(@Valid @RequestBody EmpresaRequestDto requestDto) {
         Empresa empresa = empresaMapper.toEntity(requestDto);
@@ -37,6 +39,7 @@ public class EmpresaController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @Operation(summary = "Actualizar una empresa existente")
     public ResponseEntity<EmpresaResponseDto> actualizarEmpresa(
             @PathVariable Long id,
@@ -64,6 +67,7 @@ public class EmpresaController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @Operation(summary = "Eliminar una empresa")
     public ResponseEntity<Void> eliminarEmpresa(@PathVariable Long id) {
         empresaService.eliminarEmpresa(id);
