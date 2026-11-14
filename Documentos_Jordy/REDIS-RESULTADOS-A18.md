@@ -1,9 +1,11 @@
-# Resultados A18 — piloto Redis local
+# Resultados de carga local A18 — piloto Redis
 
 **Fecha:** 2026-11-14  
 **Rama:** `integration/avance-hasta-redis`  
 **Base de la ejecución:** `1f4aeceef6bcfdf90d1aeb430dfbde4b2fc9317d`  
 **Alcance:** microservicio Producto, Redis local, MySQL sintético, Inventario simulado y Gateway NGINX aislado. No hubo acceso al servidor ni a la base institucional.
+
+> **Todos los resultados de rendimiento y funcionamiento que aparecen aquí son de pruebas locales aisladas con datos sintéticos. No son resultados del servidor institucional: no se desplegó la aplicación ni se consultó o midió su base de datos.**
 
 ## Resumen
 
@@ -66,7 +68,7 @@ La ruta del listado representa aproximadamente una de las seis rutas mezcladas. 
 
 **Lectura de esa corrida:** por sí sola no justifica expansión ni demuestra una mejora estable. La conclusión de A18 para el listado se basa en la medición repetida de la sección siguiente.
 
-## Segunda medición A18: solo listado de productos
+## Medición local repetida A18: solo listado de productos
 
 Para aislar el efecto de Redis, se repitió **tres veces por modo** el mismo script k6 con 5 VUs durante 30 s, el mismo Gateway, fixture de 39 productos, MySQL local y stub de Inventario. El modo miss usó TTL de 1 ms y el hit usó el TTL normal de 5 min, con una petición de calentamiento fuera de cada medición. El stub confirmó una llamada de Inventario por cada petición en los tres modos.
 

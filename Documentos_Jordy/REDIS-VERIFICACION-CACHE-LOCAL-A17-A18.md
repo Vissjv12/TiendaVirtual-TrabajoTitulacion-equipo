@@ -109,7 +109,9 @@ El Gateway principal en `8080` también devolvió 200, pero su backend de Produc
 - `Microservicios/msvc-producto/src/test/java/com/example/msvc_producto/ProductoCatalogoHttpIT.java`
 - `Microservicios/msvc-producto/src/test/java/com/example/msvc_producto/ProductoCatalogoFallbackIT.java`
 
-## Evidencia añadida para `integration/avance-hasta-redis` (2026-11-14)
+## Evidencia local añadida para `integration/avance-hasta-redis` (2026-11-14)
+
+> La carga, health, fallback, métricas y datos reportados en esta actualización se verificaron únicamente en local con servicios de prueba aislados. No representan resultados del servidor institucional ni de su base de datos.
 
 - Suite completa limpia en Maven/JDK 17: **26/26**. Suite focalizada Redis/HTTP/autorización: **46/46**.
 - Runtime aislado actual: Producto `8281`, Gateway `8290`, Inventario sintético `8282`, MySQL de prueba `3307` y Redis `6380`. Las seis rutas del script P6 se cargaron por el mismo Gateway; Redis solo cachea las rutas aprobadas por sus flags.

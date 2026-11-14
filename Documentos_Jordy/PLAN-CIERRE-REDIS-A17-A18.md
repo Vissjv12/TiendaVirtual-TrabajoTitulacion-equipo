@@ -12,7 +12,7 @@
 
 **Base revisada:** `integration/avance-hasta-redis` en `1f4aece`; antes de ejecutar, comprobar que la rama y su HEAD sigan siendo los previstos.
 
-**Estado de ejecución (2026-11-14):** el cierre local A17 está implementado y verificado. A18 incluye una comparación mixta exploratoria y una segunda medición dedicada al listado, con tres corridas de 30 s por modo y lectura del contador global `Com_select`; esta última supera el criterio alternativo de reducción de consultas observadas, pero el p95 no mejora. Sigue pendiente validar las consultas con instrumentación por sesión, acordar el contrato público y ejecutar la prueba institucional. El detalle está en `REDIS-RESULTADOS-A18.md` y `REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md`.
+**Estado de ejecución local (2026-11-14):** el cierre local A17 está implementado y verificado. A18 incluye una comparación mixta exploratoria y una segunda medición local dedicada al listado, con tres corridas de 30 s por modo y lectura del contador global `Com_select`; esta última supera el criterio alternativo de reducción de consultas observadas, pero el p95 no mejora. Estos resultados no provienen del servidor institucional ni de su base de datos. Sigue pendiente validar las consultas con instrumentación por sesión, acordar el contrato público y ejecutar la prueba institucional. El detalle está en `REDIS-RESULTADOS-A18.md` y `REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md`.
 
 ## Restricciones y decisiones
 

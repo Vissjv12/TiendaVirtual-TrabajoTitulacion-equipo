@@ -5,6 +5,8 @@
 **HEAD base revisado:** `1f4aeceef6bcfdf90d1aeb430dfbde4b2fc9317d`  
 **Alcance de esta ejecución:** cerrar los pendientes locales de A17, comprobarlos y medir A18 con una carga dedicada al listado en tres modos, con tres repeticiones por modo. El cierre institucional está pendiente porque el equipo universitario no tiene credenciales ni autorización para el servidor y su base de datos.
 
+> **La evidencia y las cifras de A17/A18 en este informe corresponden al entorno local aislado con MySQL/Redis sintéticos, Gateway local e Inventario simulado. No son mediciones ni validación del servidor institucional.**
+
 ## Estado
 
 - **Implementación local A17:** terminada para el alcance de catálogo ya integrado: producto, categorías y salud/observabilidad de caché.
