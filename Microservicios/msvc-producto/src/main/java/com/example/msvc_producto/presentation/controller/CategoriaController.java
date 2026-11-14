@@ -3,6 +3,7 @@ package com.example.msvc_producto.presentation.controller;
 import com.example.msvc_producto.application.dto.CategoriaRequestDto;
 import com.example.msvc_producto.application.dto.CategoriaResponseDto;
 import com.example.msvc_producto.application.mapper.CategoriaMapper;
+import com.example.msvc_producto.application.service.CategoriaCatalogoQueryService;
 import com.example.msvc_producto.domain.model.Categoria;
 import com.example.msvc_producto.domain.service.CategoriaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/categorias")
@@ -26,6 +26,8 @@ public class CategoriaController {
     private CategoriaService categoriaService;
     @Autowired
     private CategoriaMapper categoriaMapper;
+    @Autowired
+    private CategoriaCatalogoQueryService categoriaCatalogoQueryService;
 
 
     @PostMapping
@@ -49,18 +51,13 @@ public class CategoriaController {
     @GetMapping("/{id}")
     @Operation(summary = "Obtener una categoría por su ID")
     public ResponseEntity<CategoriaResponseDto> obtenerCategoriaPorId(@PathVariable Long id) {
-        Categoria categoria = categoriaService.obtenerCategoriaPorId(id);
-        return ResponseEntity.ok(categoriaMapper.toDto(categoria));
+        return ResponseEntity.ok(categoriaCatalogoQueryService.obtenerCategoriaPorId(id));
     }
 
     @GetMapping
     @Operation(summary = "Listar todas las categorías")
     public ResponseEntity<List<CategoriaResponseDto>> listarCategorias() {
-        List<Categoria> categorias = categoriaService.listarCategorias();
-        List<CategoriaResponseDto> responseDtos = categorias.stream()
-                .map(categoriaMapper::toDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responseDtos);
+        return ResponseEntity.ok(categoriaCatalogoQueryService.listarCategorias());
     }
 
     @DeleteMapping("/{id}")

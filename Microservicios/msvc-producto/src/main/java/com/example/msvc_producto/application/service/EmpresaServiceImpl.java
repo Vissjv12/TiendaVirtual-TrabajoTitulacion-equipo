@@ -4,6 +4,7 @@ import com.example.msvc_producto.domain.model.Empresa;
 import com.example.msvc_producto.domain.repository.EmpresaRepository;
 import com.example.msvc_producto.domain.service.EmpresaService;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,9 @@ public class EmpresaServiceImpl implements EmpresaService {
 
     private final EmpresaRepository empresaRepository;
 
+    @Autowired
+    private ProductoCatalogoInvalidacionService invalidacionService;
+
     public EmpresaServiceImpl(EmpresaRepository empresaRepository) {
         this.empresaRepository = empresaRepository;
     }
@@ -25,7 +29,9 @@ public class EmpresaServiceImpl implements EmpresaService {
         empresa.setFechaCreacion(LocalDateTime.now());
         empresa.setFechaActualizacion(LocalDateTime.now());
         empresa.setActivo(true);
-        return empresaRepository.save(empresa);
+        Empresa empresaGuardada = empresaRepository.save(empresa);
+        invalidarCatalogoDespuesDeCommit();
+        return empresaGuardada;
     }
 
     @Override
@@ -41,7 +47,9 @@ public class EmpresaServiceImpl implements EmpresaService {
         empresaExistente.setActivo(empresa.getActivo());
         empresaExistente.setFechaActualizacion(LocalDateTime.now());
 
-        return empresaRepository.save(empresaExistente);
+        Empresa empresaActualizada = empresaRepository.save(empresaExistente);
+        invalidarCatalogoDespuesDeCommit();
+        return empresaActualizada;
     }
 
     @Override
@@ -64,5 +72,12 @@ public class EmpresaServiceImpl implements EmpresaService {
         empresa.setActivo(false);
         empresa.setFechaActualizacion(LocalDateTime.now());
         empresaRepository.save(empresa);
+        invalidarCatalogoDespuesDeCommit();
+    }
+
+    private void invalidarCatalogoDespuesDeCommit() {
+        if (invalidacionService != null) {
+            invalidacionService.invalidarDespuesDeCommit();
+        }
     }
 }
