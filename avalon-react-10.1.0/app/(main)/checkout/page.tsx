@@ -17,7 +17,7 @@ import clientesService from '../../../services/clientesService';
 import CheckoutClienteForm from './components/CheckoutClienteForm';
 import PaymentMethodSelector from './components/PaymentMethodSelector';
 import TransferenciaBancariaForm from './components/TransferenciaBancariaForm';
-import DeunaForm from './components/DeunaForm';
+import DeunaTransferenciaForm from './components/DeunaTransferenciaForm';
 import StripeCheckoutForm from './components/StripeCheckoutForm';
 import PayphoneForm from './components/PayphoneForm';
 import { crearPaymentIntent, confirmarPago } from '../../../services/stripeService';
@@ -631,7 +631,7 @@ const CheckoutPage: React.FC = () => {
             {showStripeForm && stripeClientSecret && <StripeCheckoutForm clientSecret={stripeClientSecret} onSuccess={handleStripeSuccess} onError={handleStripeError} monto={cartSummary?.total || 0} />}
 
             {!paymentProcessing && selectedPaymentMethod === 'deuna' && (
-                <DeunaForm
+                <DeunaTransferenciaForm
                     onDataChange={(data, isValid) => {
                         setPaymentFormData(data);
                         setPaymentFormValid(isValid);
