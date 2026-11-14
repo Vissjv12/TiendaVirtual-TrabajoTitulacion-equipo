@@ -128,6 +128,7 @@ const VentasPage: React.FC = () => {
                     detail: 'Venta completada exitosamente',
                     life: 3000
                 });
+                window.dispatchEvent(new Event('pagosUpdated'));
                 await cargarVentas(); // Recargar datos
             } else {
                 console.error('❌ Error completando venta:', response.message);
@@ -193,6 +194,7 @@ const VentasPage: React.FC = () => {
                     detail: 'Venta cancelada exitosamente',
                     life: 3000
                 });
+                window.dispatchEvent(new Event('pagosUpdated'));
                 await cargarVentas(); // Recargar datos
             } else {
                 console.error('❌ Error cancelando venta:', response.message);

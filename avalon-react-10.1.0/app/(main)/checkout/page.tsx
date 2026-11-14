@@ -230,6 +230,9 @@ const CheckoutPage: React.FC = () => {
                     methodName: metodoPagoNombre
                 });
 
+                // Limpiar carrito una vez registrada la orden
+                cartService.clearCart();
+
                 console.log('🔄 Cambiando a paso 3...');
                 setCurrentStep(3);
 

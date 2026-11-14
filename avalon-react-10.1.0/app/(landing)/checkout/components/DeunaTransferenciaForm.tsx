@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
-import { FileUpload } from 'primereact/fileupload';
-import { Button } from 'primereact/button';
+import { FileUpload, ItemTemplateOptions } from 'primereact/fileupload';
 import { Message } from 'primereact/message';
 import { Image } from 'primereact/image';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
+import { Tag } from 'primereact/tag';
 import cartService from '../../../../services/cartService';
 import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
 
@@ -80,6 +80,25 @@ const DeunaTransferenciaForm: React.FC<DeunaTransferenciaFormProps> = ({
     const onFileRemove = () => {
         setComprobante(null);
         fileUploadRef.current?.clear();
+    };
+
+    const itemTemplate = (inFile: object, options: ItemTemplateOptions) => {
+        const file = inFile as File;
+        return (
+            <div className="flex align-items-center justify-content-between w-full gap-3">
+                <div className="flex align-items-center gap-3">
+                    {options.previewElement || <i className="pi pi-file-pdf text-3xl text-red-500"></i>}
+                    <div>
+                        <div className="font-semibold text-900">{file.name}</div>
+                        <div className="flex align-items-center gap-2 mt-1">
+                            <span className="text-sm text-600">{options.formatSize}</span>
+                            <Tag value="Adjunto" severity="success" />
+                        </div>
+                    </div>
+                </div>
+                {options.removeElement}
+            </div>
+        );
     };
 
     const fetchDeunaQR = async () => {
@@ -288,6 +307,8 @@ const DeunaTransferenciaForm: React.FC<DeunaTransferenciaFormProps> = ({
                                     onSelect={onFileSelect}
                                     onRemove={onFileRemove}
                                     onClear={() => setComprobante(null)}
+                                    itemTemplate={itemTemplate}
+                                    uploadOptions={{ className: 'hidden' }}
                                     emptyTemplate={
                                         <div className="flex align-items-center justify-content-center flex-column">
                                             <i className="pi pi-cloud-upload text-4xl mb-3" style={{ color: primaryColor }}></i>
@@ -302,25 +323,6 @@ const DeunaTransferenciaForm: React.FC<DeunaTransferenciaFormProps> = ({
                                     customUpload
                                     className="w-full"
                                 />
-                                {comprobante && (
-                                    <div
-                                        className="mt-2 p-2 border-round flex align-items-center justify-content-between"
-                                        style={{ backgroundColor: '#10b98115', border: '1px solid #10b98140' }}
-                                    >
-                                        <div className="flex align-items-center gap-2 text-sm">
-                                            <i className="pi pi-check-circle text-green-600"></i>
-                                            <span className="font-semibold text-900">{comprobante.name}</span>
-                                            <span className="text-600">({(comprobante.size / 1024).toFixed(1)} KB)</span>
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            icon="pi pi-times"
-                                            className="p-button-text p-button-danger p-button-sm"
-                                            onClick={onFileRemove}
-                                            aria-label="Quitar comprobante"
-                                        />
-                                    </div>
-                                )}
                                 <small className="block mt-2 text-600">
                                     <i className="pi pi-info-circle mr-1"></i>
                                     Adjunta una captura o PDF de tu comprobante de Deuna para agilizar la verificación

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -93,8 +94,11 @@ public class VentaMapper {
     }
 
     public VentaResponseDto toDto(Venta venta) {
-        // Mapear los detalles
-        List<DetalleVentaResponseDto> detallesDtos = venta.getDetalles().stream()
+        // Mapear los detalles de forma segura (pueden venir nulos tras persistir en JPA)
+        List<DetalleVenta> detallesOrigen = venta.getDetalles() != null
+                ? venta.getDetalles()
+                : Collections.emptyList();
+        List<DetalleVentaResponseDto> detallesDtos = detallesOrigen.stream()
                 .map(detalle -> DetalleVentaResponseDto.builder()
                         .id(detalle.getId())
                         .productoId(detalle.getProductoId())

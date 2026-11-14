@@ -228,6 +228,9 @@ const CheckoutPage: React.FC = () => {
                     methodName: metodoPagoNombre
                 });
 
+                // Limpiar carrito una vez registrada la orden
+                cartService.clearCart();
+
                 // Mostrar mensaje de pago pendiente
                 setCurrentStep(3);
                 setShowSuccessDialog(true);

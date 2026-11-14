@@ -31,12 +31,20 @@ export default function EmprendedorSidebar() {
         };
 
         cargarPagosPendientes();
-        
+
+        const handlePagosUpdated = () => {
+            cargarPagosPendientes();
+        };
+        window.addEventListener('pagosUpdated', handlePagosUpdated);
+
         // Actualizar cada 30 segundos
         const interval = setInterval(cargarPagosPendientes, 30000);
-        
-        return () => clearInterval(interval);
-    }, []);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('pagosUpdated', handlePagosUpdated);
+        };
+    }, [pathname]);
 
     const menuItems = [
         {

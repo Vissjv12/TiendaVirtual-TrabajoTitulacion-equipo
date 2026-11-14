@@ -1,10 +1,15 @@
 package com.example.msvc_ventas.domain.service;
 
+import com.example.msvc_ventas.application.client.InventarioClient;
+import com.example.msvc_ventas.application.dto.SalidaInventarioLoteRequestDto;
+import com.example.msvc_ventas.domain.model.DetalleVenta;
 import com.example.msvc_ventas.domain.model.SeguimientoLogistica;
+import com.example.msvc_ventas.domain.repository.DetalleVentaRepository;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
 import com.example.msvc_ventas.infrastructure.persistence.entity.VentaEntity;
 import com.example.msvc_ventas.infrastructure.persistence.repository.PagoRepository;
 import com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRepository;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +26,8 @@ public class PagoService {
 
     private final PagoRepository pagoRepository;
     private final VentaJpaRepository ventaJpaRepository;
+    private final DetalleVentaRepository detalleVentaRepository;
+    private final InventarioClient inventarioClient;
     private final SeguimientoLogisticaService seguimientoLogisticaService;
     private final FacturaService facturaService;
 
@@ -99,14 +107,40 @@ public class PagoService {
             throw new IllegalStateException("Solo se pueden aprobar pagos en estado PENDIENTE");
         }
 
+        // Descontar inventario si la venta aún estaba PENDIENTE
+        VentaEntity venta = pago.getVenta();
+        if (venta.getEstado() == VentaEntity.EstadoVenta.PENDIENTE) {
+            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
+            if (detalles != null && !detalles.isEmpty()) {
+                try {
+                    List<SalidaInventarioLoteRequestDto.SalidaInventarioItemDto> items = detalles.stream()
+                            .map(detalle -> {
+                                SalidaInventarioLoteRequestDto.SalidaInventarioItemDto item =
+                                        new SalidaInventarioLoteRequestDto.SalidaInventarioItemDto();
+                                item.setProductoId(detalle.getProductoId());
+                                item.setCantidad(detalle.getCantidad());
+                                return item;
+                            })
+                            .collect(Collectors.toList());
+
+                    SalidaInventarioLoteRequestDto salidaDto = new SalidaInventarioLoteRequestDto();
+                    salidaDto.setItems(items);
+                    salidaDto.setMotivo("Venta #" + venta.getNumeroFactura());
+
+                    inventarioClient.procesarSalidaLote(salidaDto);
+                } catch (FeignException e) {
+                    throw new RuntimeException("Error al actualizar el inventario: " + e.getMessage(), e);
+                }
+            }
+        }
+
         pago.setEstadoPago(PagoEntity.EstadoPago.APROBADO);
         pago.setFechaPago(LocalDateTime.now());
         pago.setFechaActualizacion(LocalDateTime.now());
 
         PagoEntity pagoActualizado = pagoRepository.save(pago);
-        
+
         // Actualizar estado de la venta
-        VentaEntity venta = pago.getVenta();
         venta.setEstado(VentaEntity.EstadoVenta.COMPLETADA);
         venta.setEstadoPago(VentaEntity.EstadoPago.APROBADO);
         venta.setFechaActualizacion(LocalDateTime.now());
@@ -167,6 +201,7 @@ public class PagoService {
         // Actualizar estado de la venta
         VentaEntity venta = pago.getVenta();
         venta.setEstado(VentaEntity.EstadoVenta.CANCELADA);
+        venta.setEstadoPago(VentaEntity.EstadoPago.RECHAZADO);
         venta.setFechaActualizacion(LocalDateTime.now());
         ventaJpaRepository.save(venta);
         

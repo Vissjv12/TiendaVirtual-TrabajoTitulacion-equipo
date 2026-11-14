@@ -82,6 +82,7 @@ export default function PagosEmprendedor({ emprendedorId }: PagosEmprendedorProp
 
             setShowDialog(false);
             setPagoSeleccionado(null);
+            window.dispatchEvent(new Event('pagosUpdated'));
             cargarPagos();
         } catch (error) {
             console.error('Error al procesar pago:', error);

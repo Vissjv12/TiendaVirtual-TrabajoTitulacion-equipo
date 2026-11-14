@@ -110,6 +110,7 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
                     detail: 'Venta completada exitosamente',
                     life: 3000
                 });
+                window.dispatchEvent(new Event('pagosUpdated'));
                 cargarVenta(); // Recargar datos
             } else {
                 toast.current?.show({
@@ -158,6 +159,7 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
                     detail: 'Venta cancelada exitosamente',
                     life: 3000
                 });
+                window.dispatchEvent(new Event('pagosUpdated'));
                 cargarVenta(); // Recargar datos
             } else {
                 toast.current?.show({

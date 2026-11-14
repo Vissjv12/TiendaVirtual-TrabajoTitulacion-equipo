@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
-import { FileUpload, FileUploadUploadEvent } from 'primereact/fileupload';
+import { FileUpload, ItemTemplateOptions } from 'primereact/fileupload';
 import { Message } from 'primereact/message';
 import { Divider } from 'primereact/divider';
-import { Button } from 'primereact/button';
+import { Tag } from 'primereact/tag';
 
 export interface TransferData {
     banco: string;
@@ -93,6 +93,25 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
 
     const onFileRemove = () => {
         setComprobante(null);
+    };
+
+    const itemTemplate = (inFile: object, options: ItemTemplateOptions) => {
+        const file = inFile as File;
+        return (
+            <div className="flex align-items-center justify-content-between w-full gap-3">
+                <div className="flex align-items-center gap-3">
+                    {options.previewElement || <i className="pi pi-file-pdf text-3xl text-red-500"></i>}
+                    <div>
+                        <div className="font-semibold text-900">{file.name}</div>
+                        <div className="flex align-items-center gap-2 mt-1">
+                            <span className="text-sm text-600">{options.formatSize}</span>
+                            <Tag value="Adjunto" severity="success" />
+                        </div>
+                    </div>
+                </div>
+                {options.removeElement}
+            </div>
+        );
     };
 
     return (
@@ -239,6 +258,9 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                             maxFileSize={5000000}
                             onSelect={onFileSelect}
                             onRemove={onFileRemove}
+                            onClear={onFileRemove}
+                            itemTemplate={itemTemplate}
+                            uploadOptions={{ className: 'hidden' }}
                             emptyTemplate={
                                 <div className="flex align-items-center justify-content-center flex-column">
                                     <i className="pi pi-cloud-upload text-4xl mb-3" style={{ color: primaryColor }}></i>

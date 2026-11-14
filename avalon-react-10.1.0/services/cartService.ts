@@ -1,5 +1,6 @@
 // services/cartService.ts - Versión corregida
 
+import authService from './authService';
 import clientesService from './clientesService';
 import { GATEWAY_BASE_URL } from './apiConfig';
 
@@ -459,8 +460,7 @@ class CartService {
                 const response = await fetch(`${this.API_BASE_URL}/api/ventas`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${localStorage.getItem('token')}`
+                        ...authService.getAuthHeaders()
                     },
                     body: JSON.stringify(checkoutData),
                     signal: controller.signal
@@ -517,7 +517,7 @@ class CartService {
             // Primero obtener el ID de la venta por número de factura
             const ventaResponse = await fetch(`${this.API_BASE_URL}/api/ventas/factura/${numeroFactura}`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                    ...authService.getAuthHeaders()
                 }
             });
 
@@ -541,8 +541,7 @@ class CartService {
                 const response = await fetch(`${this.API_BASE_URL}/api/ventas/${venta.id}/completar`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${localStorage.getItem('token')}`
+                        ...authService.getAuthHeaders()
                     },
                     signal: controller.signal
                 });
