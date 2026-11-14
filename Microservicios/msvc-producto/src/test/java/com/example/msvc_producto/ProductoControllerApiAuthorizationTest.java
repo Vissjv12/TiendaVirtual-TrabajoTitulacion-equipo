@@ -23,9 +23,12 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = com.example.msvc_producto.presentation.controller.ProductoController.class)
@@ -94,6 +97,26 @@ class ProductoControllerApiAuthorizationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PRODUCTO_VALIDO))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void emprendedorNoPuedeModificarNiDesactivarProductoDeOtraEmpresa() throws Exception {
+        when(productoAuthorizationService.canManageProduct(any(), eq(1L)))
+                .thenReturn(false);
+
+        mockMvc.perform(put("/api/productos/1")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 20L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(PRODUCTO_VALIDO))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/productos/1")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 20L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP"))))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(productoService);
     }
 
     @Test

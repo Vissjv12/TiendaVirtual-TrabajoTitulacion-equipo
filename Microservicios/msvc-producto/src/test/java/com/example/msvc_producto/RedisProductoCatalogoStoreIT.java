@@ -138,8 +138,8 @@ class RedisProductoCatalogoStoreIT {
                 .withUserConfiguration(redisCacheConfig)
                 .withPropertyValues(
                         "cache.redis.enabled=true",
-                        "spring.data.redis.host=127.0.0.1",
-                        "spring.data.redis.port=6380",
+                        "spring.data.redis.host=" + System.getenv().getOrDefault("TEST_REDIS_HOST", "127.0.0.1"),
+                        "spring.data.redis.port=" + System.getenv().getOrDefault("TEST_REDIS_PORT", "6380"),
                         "spring.data.redis.connect-timeout=500ms",
                         "spring.data.redis.timeout=500ms")
                 .run(context -> {
@@ -175,8 +175,8 @@ class RedisProductoCatalogoStoreIT {
                 .withUserConfiguration(redisCacheConfig)
                 .withPropertyValues(
                         "cache.redis.enabled=true",
-                        "spring.data.redis.host=127.0.0.1",
-                        "spring.data.redis.port=6380",
+                        "spring.data.redis.host=" + System.getenv().getOrDefault("TEST_REDIS_HOST", "127.0.0.1"),
+                        "spring.data.redis.port=" + System.getenv().getOrDefault("TEST_REDIS_PORT", "6380"),
                         "spring.data.redis.connect-timeout=500ms",
                         "spring.data.redis.timeout=500ms")
                 .run(context -> {

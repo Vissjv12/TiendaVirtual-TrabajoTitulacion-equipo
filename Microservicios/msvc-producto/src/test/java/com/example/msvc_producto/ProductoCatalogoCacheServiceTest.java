@@ -82,6 +82,22 @@ class ProductoCatalogoCacheServiceTest {
     }
 
     @Test
+    void failedInvalidationIsCountedAndPropagatedToTheTransactionOwner() {
+        SimpleMeterRegistry metrics = new SimpleMeterRegistry();
+        RedisConnectionFailureException failure = new RedisConnectionFailureException("synthetic Redis failure");
+        when(store.advanceGeneration(GENERATION_KEY)).thenThrow(failure);
+        ProductoCatalogoCacheService service = new ProductoCatalogoCacheService(store, metrics);
+
+        assertThatThrownBy(() -> service.invalidarCatalogo(GENERATION_KEY))
+                .isSameAs(failure);
+        assertThat(metrics.get("feriadigital.redis.cache.failures")
+                .tag("resource", "catalogo")
+                .tag("operation", "invalidation")
+                .counter()
+                .count()).isEqualTo(1.0);
+    }
+
+    @Test
     void sourceValidatorRunsBeforeCachePublication() {
         when(store.getGeneration(GENERATION_KEY)).thenReturn("4");
         when(store.getIfGenerationMatches(GENERATION_KEY, "4", KEY_PREFIX + ":g4"))

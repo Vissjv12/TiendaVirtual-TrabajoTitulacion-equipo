@@ -3,6 +3,7 @@ package com.example.msvc_producto;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
@@ -61,6 +62,25 @@ class RedisCacheConfigTest {
                     assertThat(context).doesNotHaveBean("pilotRedisTemplate");
                     assertThat(context).doesNotHaveBean("redisProductoCatalogoStore");
                     assertThat(context).doesNotHaveBean("productoCatalogoCacheService");
+                });
+    }
+
+    @Test
+    void cacheHealthIsExplicitlyDisabledWithoutConnectingWhenPilotIsOff() throws Exception {
+        AtomicInteger connectionFactoryCalls = new AtomicInteger();
+        RedisConnectionFactory connectionFactory = unusedConnectionFactory(connectionFactoryCalls);
+
+        new ApplicationContextRunner()
+                .withUserConfiguration(Class.forName(
+                        "com.example.msvc_producto.infrastructure.config.RedisCacheHealthConfig"))
+                .withBean(RedisConnectionFactory.class, () -> connectionFactory)
+                .withPropertyValues("cache.redis.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasBean("redisCacheHealthIndicator");
+                    HealthIndicator indicator = context.getBean("redisCacheHealthIndicator", HealthIndicator.class);
+                    assertThat(indicator.health().getStatus().getCode()).isEqualTo("UP");
+                    assertThat(indicator.health().getDetails()).containsEntry("state", "disabled");
+                    assertThat(connectionFactoryCalls).hasValue(0);
                 });
     }
 
