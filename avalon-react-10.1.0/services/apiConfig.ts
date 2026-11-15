@@ -47,3 +47,62 @@ export function resolveGatewayAssetUrl(assetUrl?: string | null): string {
     return normalized;
 }
 
+export interface PageResponse<T> {
+    content: T[];
+    pageNumber: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+    first: boolean;
+    last: boolean;
+    empty: boolean;
+}
+
+export interface PaginationParams {
+    page?: number;
+    size?: number;
+    sort?: string;
+    q?: string;
+    [key: string]: string | number | boolean | Array<string | number> | undefined | null;
+}
+
+export function buildPaginationQuery(params?: PaginationParams): string {
+    if (!params) return '';
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        if (Array.isArray(value)) {
+            if (value.length > 0) {
+                searchParams.set(key, value.join(','));
+            }
+            return;
+        }
+        searchParams.set(key, String(value));
+    });
+    const qs = searchParams.toString();
+    return qs ? `?${qs}` : '';
+}
+
+export function emptyPageResponse<T>(pageSize = 10): PageResponse<T> {
+    return {
+        content: [],
+        pageNumber: 0,
+        pageSize,
+        totalElements: 0,
+        totalPages: 0,
+        first: true,
+        last: true,
+        empty: true
+    };
+}
+
+export function toApiSortParam(
+    sortField?: string | null,
+    sortOrder?: 1 | -1 | 0 | null,
+    defaultSort = 'id,desc'
+): string {
+    if (!sortField) return defaultSort;
+    const dir = sortOrder === 1 ? 'asc' : 'desc';
+    return `${sortField},${dir}`;
+}
+

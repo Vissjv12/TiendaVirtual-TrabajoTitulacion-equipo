@@ -20,6 +20,8 @@ import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -132,10 +134,7 @@ public class VentaServiceImpl implements VentaService {
         List<Venta> ventas = ventaRepository.findByClienteId(clienteId);
 
         // Cargar los detalles de cada venta
-        for (Venta venta : ventas) {
-            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
-            venta.setDetalles(detalles);
-        }
+        cargarDetallesLista(ventas);
 
         return ventas;
     }
@@ -146,10 +145,7 @@ public class VentaServiceImpl implements VentaService {
         List<Venta> ventas = ventaRepository.findByEmprendedorId(emprendedorId);
 
         // Cargar los detalles de cada venta
-        for (Venta venta : ventas) {
-            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
-            venta.setDetalles(detalles);
-        }
+        cargarDetallesLista(ventas);
 
         return ventas;
     }
@@ -160,12 +156,45 @@ public class VentaServiceImpl implements VentaService {
         List<Venta> ventas = ventaRepository.findAll();
 
         // Cargar los detalles de cada venta
+        cargarDetallesLista(ventas);
+
+        return ventas;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Venta> listarVentasPaginado(String q, Venta.EstadoVenta estado, Pageable pageable) {
+        Page<Venta> ventas = ventaRepository.findPaginado(q, null, null, estado, pageable);
+        cargarDetallesLista(ventas.getContent());
+        return ventas;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Venta> listarVentasPorClientePaginado(Long clienteId, Pageable pageable) {
+        clienteService.obtenerClientePorId(clienteId);
+        Page<Venta> ventas = ventaRepository.findPaginado("", null, clienteId, null, pageable);
+        cargarDetallesLista(ventas.getContent());
+        return ventas;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Venta> listarVentasPorEmprendedorPaginado(
+            Long emprendedorId,
+            String q,
+            Venta.EstadoVenta estado,
+            Pageable pageable) {
+        Page<Venta> ventas = ventaRepository.findPaginado(q, emprendedorId, null, estado, pageable);
+        cargarDetallesLista(ventas.getContent());
+        return ventas;
+    }
+
+    private void cargarDetallesLista(List<Venta> ventas) {
         for (Venta venta : ventas) {
             List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
             venta.setDetalles(detalles);
         }
-
-        return ventas;
     }
 
     @Override

@@ -10,6 +10,8 @@ import com.example.msvc_inventario.domain.repository.MovimientoInventarioReposit
 import com.example.msvc_inventario.domain.service.InventarioService;
 import feign.FeignException;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -247,5 +249,11 @@ public class InventarioServiceImpl implements InventarioService {
                 System.out.println("Error al actualizar stock en productos: " + e.getMessage());
             }
         });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Inventario> listarPaginado(Boolean soloActivos, Pageable pageable) {
+        return inventarioRepository.findPaginado(soloActivos, pageable);
     }
 }

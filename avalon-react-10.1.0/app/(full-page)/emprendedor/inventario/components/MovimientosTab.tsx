@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, RefObject } from 'react';
+import React, { useState, useEffect, useCallback, RefObject } from 'react';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
@@ -14,6 +14,7 @@ import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { toApiSortParam } from '../../../../../services/apiConfig';
 import inventarioService, { MovimientoInventario, MovimientoRequest } from '../../../../../services/inventarioService';
 import emprendedorService from '../../../../../services/emprendedorService';
 import authService from '../../../../../services/authService';
@@ -22,12 +23,25 @@ interface MovimientosTabProps {
     toast: RefObject<Toast>;
 }
 
+const formatDateParam = (date: Date | null): string | undefined => {
+    if (!date) return undefined;
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
 const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
     // Estados principales
     const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
-    const [movimientosFiltrados, setMovimientosFiltrados] = useState<MovimientoInventario[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('fechaMovimiento');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
 
     // Estados para filtros
     const [filtroTipo, setFiltroTipo] = useState<string>('');
@@ -38,8 +52,9 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
     const [detailVisible, setDetailVisible] = useState(false);
     const [nuevoMovimientoVisible, setNuevoMovimientoVisible] = useState(false);
 
-    // Estados para nuevo movimiento
+    // Estados para nuevo movimiento y alcance por empresa
     const [inventariosPermitidosIds, setInventariosPermitidosIds] = useState<number[]>([]);
+    const [scopeReady, setScopeReady] = useState<boolean>(false);
     const [nuevoMovimiento, setNuevoMovimiento] = useState<MovimientoRequest>({
         inventarioId: 0,
         tipoMovimiento: 'ENTRADA',
@@ -60,44 +75,78 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
 
     const tiposMovimientoCrear = tiposMovimiento.slice(1); // Sin "Todos"
 
-    // Cargar datos iniciales
+    // Debounce búsqueda por motivo
     useEffect(() => {
-        cargarMovimientos();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    // Aplicar filtros cuando cambien
-    useEffect(() => {
-        aplicarFiltros();
-    }, [movimientos, searchTerm, filtroTipo, filtroFecha]);
-
-    const cargarMovimientos = async () => {
-        setLoading(true);
+    // Resolver inventarios autorizados para el emprendedor (o todos si es admin)
+    const resolverInventariosPermitidos = useCallback(async () => {
+        if (authService.isAdmin()) {
+            setInventariosPermitidosIds([]);
+            setScopeReady(true);
+            return;
+        }
         try {
-            console.log('🔄 Cargando movimientos...');
-            const [response, inventariosRes, productosRes] = await Promise.all([
-                inventarioService.obtenerMovimientos(),
+            const [inventariosRes, productosRes] = await Promise.all([
                 inventarioService.obtenerInventarios(),
                 emprendedorService.obtenerProductosEmprendedor()
             ]);
 
+            const productosIdsPermitidos = new Set(
+                (productosRes.data || []).map(p => Number(p.id))
+            );
+            const inventariosIdsAutorizados = (inventariosRes.data || [])
+                .filter(inv => productosIdsPermitidos.has(Number(inv.producto?.id)))
+                .map(inv => Number(inv.id));
+
+            setInventariosPermitidosIds(inventariosIdsAutorizados);
+        } catch (error) {
+            console.error('❌ Error resolviendo inventarios permitidos:', error);
+            setInventariosPermitidosIds([]);
+        } finally {
+            setScopeReady(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        resolverInventariosPermitidos();
+    }, [resolverInventariosPermitidos]);
+
+    const cargarMovimientos = useCallback(async () => {
+        if (!scopeReady) return;
+
+        if (!authService.isAdmin() && inventariosPermitidosIds.length === 0) {
+            setMovimientos([]);
+            setTotalRecords(0);
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaMovimiento,desc');
+            const fechaParam = formatDateParam(filtroFecha);
+
+            const response = await inventarioService.obtenerMovimientosPaginado({
+                page,
+                size: rows,
+                sort,
+                inventarioIds: authService.isAdmin() ? undefined : inventariosPermitidosIds,
+                tipo: filtroTipo || undefined,
+                motivo: debouncedSearch.trim() || undefined,
+                fechaDesde: fechaParam,
+                fechaHasta: fechaParam
+            });
+
             if (response.success && response.data) {
-                const productosIdsPermitidos = new Set(
-                    (productosRes.data || []).map(p => Number(p.id))
-                );
-
-                const inventariosIdsAutorizados = (inventariosRes.data || [])
-                    .filter(inv => productosIdsPermitidos.has(Number(inv.producto?.id)))
-                    .map(inv => Number(inv.id));
-
-                setInventariosPermitidosIds(inventariosIdsAutorizados);
-                const setInvIds = new Set(inventariosIdsAutorizados);
-
-                const movimientosAutorizados = authService.isAdmin()
-                    ? response.data
-                    : response.data.filter(mov => setInvIds.has(Number(mov.inventarioId)));
-
-                setMovimientos(movimientosAutorizados);
-                console.log('✅ Movimientos autorizados cargados:', movimientosAutorizados.length);
+                setMovimientos(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 toast.current?.show({
                     severity: 'error',
@@ -117,44 +166,41 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [
+        scopeReady,
+        inventariosPermitidosIds,
+        first,
+        rows,
+        sortField,
+        sortOrder,
+        filtroTipo,
+        debouncedSearch,
+        filtroFecha,
+        toast
+    ]);
 
-    // Aplicar filtros
-    const aplicarFiltros = () => {
-        let filtered = [...movimientos];
-
-        // Filtro por búsqueda de texto
-        if (searchTerm.trim()) {
-            const search = searchTerm.toLowerCase();
-            filtered = filtered.filter(movimiento => 
-                movimiento.tipoMovimiento?.toLowerCase().includes(search) ||
-                movimiento.motivo?.toLowerCase().includes(search) ||
-                movimiento.id.toString().includes(search)
-            );
-        }
-
-        // Filtro por tipo de movimiento
-        if (filtroTipo) {
-            filtered = filtered.filter(movimiento => movimiento.tipoMovimiento === filtroTipo);
-        }
-
-        // Filtro por fecha
-        if (filtroFecha) {
-            const fechaSeleccionada = filtroFecha.toDateString();
-            filtered = filtered.filter(movimiento => {
-                const fechaMovimiento = new Date(movimiento.fechaMovimiento).toDateString();
-                return fechaMovimiento === fechaSeleccionada;
-            });
-        }
-
-        setMovimientosFiltrados(filtered);
-    };
+    useEffect(() => {
+        cargarMovimientos();
+    }, [cargarMovimientos]);
 
     // Limpiar filtros
     const limpiarFiltros = () => {
         setSearchTerm('');
+        setDebouncedSearch('');
         setFiltroTipo('');
         setFiltroFecha(null);
+        setFirst(0);
+    };
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'fechaMovimiento');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     // Ver detalles
@@ -298,13 +344,19 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
                 <Dropdown
                     value={filtroTipo}
                     options={tiposMovimiento}
-                    onChange={(e) => setFiltroTipo(e.value)}
+                    onChange={(e) => {
+                        setFirst(0);
+                        setFiltroTipo(e.value);
+                    }}
                     placeholder="Filtrar por tipo"
                     className="w-10rem"
                 />
                 <Calendar
                     value={filtroFecha}
-                    onChange={(e) => setFiltroFecha(e.value as Date)}
+                    onChange={(e) => {
+                        setFirst(0);
+                        setFiltroFecha((e.value as Date) ?? null);
+                    }}
                     placeholder="Filtrar por fecha"
                     showIcon
                     className="w-10rem"
@@ -320,7 +372,7 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
                     <InputText 
                         value={searchTerm} 
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Buscar movimientos..." 
+                        placeholder="Buscar por motivo..." 
                         className="w-15rem"
                     />
                 </span>
@@ -347,21 +399,27 @@ const MovimientosTab: React.FC<MovimientosTabProps> = ({ toast }) => {
                 right={rightToolbarTemplate}
             />
 
-            {loading ? (
+            {loading && movimientos.length === 0 ? (
                 renderSkeleton()
             ) : (
                 <DataTable 
-                    value={movimientosFiltrados}
+                    value={movimientos}
+                    lazy
+                    loading={loading}
                     paginator
-                    rows={15}
+                    first={first}
+                    rows={rows}
+                    totalRecords={totalRecords}
                     rowsPerPageOptions={[10, 15, 25, 50]}
+                    onPage={handlePage}
+                    onSort={handleSort}
                     emptyMessage="No se encontraron movimientos"
                     responsiveLayout="scroll"
                     className="p-datatable-sm"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                     currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} movimientos"
-                    sortField="fechaMovimiento"
-                    sortOrder={-1}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
                 >
                     <Column 
                         field="id" 

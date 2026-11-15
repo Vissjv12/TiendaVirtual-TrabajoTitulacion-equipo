@@ -3,6 +3,8 @@ package com.example.msvc_producto.application.service;
 import com.example.msvc_producto.domain.model.Categoria;
 import com.example.msvc_producto.domain.repository.CategoriaRepository;
 import com.example.msvc_producto.domain.service.CategoriaService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +62,12 @@ public class CategoriaServiceImpl implements CategoriaService {
     @Transactional(readOnly = true)
     public List<Categoria> listarCategorias() {
         return categoriaRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Categoria> listarCategoriasPaginado(String q, Pageable pageable) {
+        return categoriaRepository.findPaginado(q == null ? "" : q.trim(), pageable);
     }
 
     @Override

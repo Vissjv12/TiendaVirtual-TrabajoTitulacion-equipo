@@ -1,5 +1,5 @@
 // services/productService.ts - CON FALLBACK RÁPIDO
-import { GATEWAY_API_URL, GATEWAY_INVENTARIOS_URL } from './apiConfig';
+import { GATEWAY_API_URL, GATEWAY_INVENTARIOS_URL, PageResponse, PaginationParams, buildPaginationQuery, emptyPageResponse } from './apiConfig';
 
 export interface ProductoResponse {
     id: number;
@@ -157,6 +157,105 @@ class ProductService {
         // NO hacer 39 requests individuales en serie — eso satura el servidor.
         console.log('⚠️ Stock batch falló — productos mostrados sin stock (se reintentará en próxima carga)');
         return stockMap;
+    }
+
+    /**
+     * ✅ OBTENER PRODUCTOS DE VITRINA PAGINADOS (Contrato A-19: size default 12, max 50)
+     */
+    async obtenerProductosListadoPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<ProductoResponse>>> {
+        const size = params?.size ?? 12;
+        try {
+            const query = buildPaginationQuery({
+                page: params?.page ?? 0,
+                size,
+                sort: params?.sort ?? 'nombre,asc',
+                q: params?.q,
+                categoria: params?.categoria,
+                empresa: params?.empresa
+            });
+
+            const response = await fetch(`${this.PRODUCTOS_URL}/productos/listado/paginado${query}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(10000)
+            });
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    data: emptyPageResponse<ProductoResponse>(size),
+                    message: `Error ${response.status} al obtener catálogo paginado`
+                };
+            }
+
+            const pageData: PageResponse<any> = await response.json();
+            const mappedContent: ProductoResponse[] = (pageData.content || []).map((dto: any) => ({
+                id: dto.id,
+                nombre: dto.nombre,
+                descripcion: dto.descripcion,
+                precio: dto.precio,
+                imagen: dto.imagen || '/demo/images/product/product-placeholder.svg',
+                categoria: {
+                    id: 0,
+                    nombre: dto.categoriaNombre || 'Sin categoría',
+                    descripcion: '',
+                    fechaCreacion: '',
+                    fechaActualizacion: ''
+                },
+                empresa: {
+                    id: dto.empresaId || 0,
+                    nombre: dto.empresaNombre || 'Sin empresa',
+                    descripcion: '',
+                    contacto: '',
+                    fechaCreacion: '',
+                    fechaActualizacion: ''
+                },
+                inventario: {
+                    id: 0,
+                    productoId: dto.id,
+                    cantidad: dto.inventarioCantidad ?? -1,
+                    activo: true,
+                    ubicacion: 'Disponible',
+                    fechaCreacion: '',
+                    fechaActualizacion: ''
+                },
+                fechaCreacion: '',
+                fechaActualizacion: ''
+            }));
+
+            const ids = mappedContent.map((p) => p.id).filter((id) => typeof id === 'number');
+            if (ids.length > 0) {
+                const stockMap = await this.obtenerStockBatch(ids);
+                mappedContent.forEach((producto) => {
+                    const cantidad = stockMap.get(producto.id) ?? 0;
+                    producto.inventario = {
+                        id: 0,
+                        productoId: producto.id,
+                        cantidad,
+                        activo: cantidad > 0,
+                        ubicacion: cantidad > 0 ? 'Disponible' : 'Sin stock',
+                        fechaCreacion: '',
+                        fechaActualizacion: ''
+                    };
+                });
+            }
+
+            return {
+                success: true,
+                data: {
+                    ...pageData,
+                    content: mappedContent
+                },
+                message: 'Catálogo paginado obtenido'
+            };
+        } catch (error: any) {
+            console.error('❌ Error obteniendo catálogo paginado:', error);
+            return {
+                success: false,
+                data: emptyPageResponse<ProductoResponse>(size),
+                message: 'Error de conexión al obtener catálogo paginado'
+            };
+        }
     }
 
     /**

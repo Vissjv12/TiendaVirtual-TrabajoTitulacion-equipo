@@ -2,7 +2,7 @@
 
 import authService from './authService';
 import inventarioService from './inventarioService';
-import { GATEWAY_API_URL } from './apiConfig';
+import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 // ================ INTERFACES ACTUALIZADAS ================
 export interface Categoria {
@@ -514,6 +514,96 @@ class EmprendedorService {
             fechaCreacion: producto.fechaCreacion || '',
             fechaActualizacion: producto.fechaActualizacion || ''
         };
+    }
+
+    async obtenerProductosEmprendedorPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<ProductoEmprendedor>>> {
+        try {
+            const isAdmin = authService.isAdmin();
+            const userEmpresaId = authService.getEmpresaId();
+
+            if (!isAdmin && !userEmpresaId) {
+                return {
+                    success: false,
+                    status: 403,
+                    message: 'Tu cuenta de emprendedor no tiene una empresa asociada en la sesión. Inicia sesión nuevamente.'
+                };
+            }
+
+            const query = buildPaginationQuery({
+                page: params?.page ?? 0,
+                size: params?.size ?? 10,
+                sort: params?.sort ?? 'id,desc',
+                q: params?.q,
+                empresaId: params?.empresaId,
+                categoriaId: params?.categoriaId,
+                activo: params?.activo
+            });
+
+            const endpoint = isAdmin
+                ? `${this.PRODUCTOS_URL}/productos/paginado${query}`
+                : `${this.PRODUCTOS_URL}/productos/empresa/${userEmpresaId}/paginado${query}`;
+
+            const response = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authService.getAuthHeaders()
+                },
+                signal: AbortSignal.timeout(10000)
+            });
+
+            if (!response.ok) {
+                const errorMsg = await authService.extractErrorMessage(
+                    response,
+                    `Error ${response.status}: ${response.statusText}`
+                );
+                return {
+                    success: false,
+                    status: response.status,
+                    message: errorMsg
+                };
+            }
+
+            const pageData: PageResponse<any> = await response.json();
+            const content: ProductoEmprendedor[] = (pageData.content || []).map((p: any) => {
+                const mapped = this.mapProductoDtoToEmprendedor(p);
+                if (!isAdmin && userEmpresaId && !mapped.empresa.id) {
+                    mapped.empresa.id = userEmpresaId;
+                }
+                return mapped;
+            });
+
+            const ids = content.map((p) => p.id).filter((id) => typeof id === 'number');
+            if (ids.length > 0) {
+                const stockMap = await inventarioService.obtenerStockBatch(ids);
+                content.forEach((p) => {
+                    const qty = stockMap[p.id.toString()];
+                    if (typeof qty === 'number') {
+                        p.inventario = {
+                            id: p.inventario?.id || 0,
+                            cantidad: qty,
+                            ubicacion: qty > 0 ? (p.inventario?.ubicacion || 'Disponible') : 'Sin stock'
+                        };
+                    }
+                });
+            }
+
+            return {
+                success: true,
+                status: response.status,
+                data: {
+                    ...pageData,
+                    content
+                },
+                message: 'Productos paginados obtenidos exitosamente'
+            };
+        } catch (error: any) {
+            console.error('❌ Error obteniendo productos paginados:', error);
+            return {
+                success: false,
+                message: `Error de conexión: ${error.message}`
+            };
+        }
     }
 
     async obtenerProductosEmprendedor(): Promise<ApiResponse<ProductoEmprendedor[]>> {

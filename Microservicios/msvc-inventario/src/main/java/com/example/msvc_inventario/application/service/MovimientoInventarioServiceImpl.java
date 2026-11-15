@@ -3,6 +3,8 @@ package com.example.msvc_inventario.application.service;
 import com.example.msvc_inventario.domain.model.MovimientoInventario;
 import com.example.msvc_inventario.domain.repository.MovimientoInventarioRepository;
 import com.example.msvc_inventario.domain.service.MovimientoInventarioService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,5 +42,25 @@ public class MovimientoInventarioServiceImpl implements MovimientoInventarioServ
     @Override
     public List<MovimientoInventario> listarTodos() {
         return movimientoRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MovimientoInventario> listarPorInventarioIdPaginado(Long inventarioId, Pageable pageable) {
+        return movimientoRepository.findByInventarioId(inventarioId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<MovimientoInventario> listarPaginado(
+            Long inventarioId,
+            List<Long> inventarioIds,
+            MovimientoInventario.TipoMovimiento tipo,
+            String motivo,
+            LocalDateTime fechaDesde,
+            LocalDateTime fechaHasta,
+            Pageable pageable) {
+        return movimientoRepository.findPaginado(
+                inventarioId, inventarioIds, tipo, motivo, fechaDesde, fechaHasta, pageable);
     }
 }

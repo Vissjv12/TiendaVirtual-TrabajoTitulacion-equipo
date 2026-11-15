@@ -5,6 +5,8 @@ import com.example.msvc_inventario.domain.repository.InventarioRepository;
 import com.example.msvc_inventario.infrastructure.persistence.entity.InventarioEntity;
 import com.example.msvc_inventario.infrastructure.persistence.mapper.InventarioEntityMapper;
 import com.example.msvc_inventario.infrastructure.persistence.repository.InventarioJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -54,6 +56,12 @@ public class InventarioRepositoryImpl implements InventarioRepository {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Inventario> findPaginado(Boolean soloActivos, Pageable pageable) {
+        return jpaRepository.findPaginado(soloActivos, pageable)
+                .map(mapper::toDomain);
     }
 
     @Override

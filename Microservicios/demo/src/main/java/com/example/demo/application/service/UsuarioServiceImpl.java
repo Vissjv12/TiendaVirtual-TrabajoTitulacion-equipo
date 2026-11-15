@@ -6,6 +6,8 @@ import com.example.demo.domain.model.Usuario;
 import com.example.demo.domain.repository.UsuarioRepository;
 import com.example.demo.domain.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -138,6 +140,11 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     public List<Usuario> buscarPorRol(String rol) {
         return usuarioRepository.findByRolesContaining(rol);
+    }
+
+    @Override
+    public Page<Usuario> obtenerUsuariosPaginado(String q, String rol, Boolean activo, Pageable pageable) {
+        return usuarioRepository.findPaginado(q, rol, activo, pageable);
     }
 
     @Override

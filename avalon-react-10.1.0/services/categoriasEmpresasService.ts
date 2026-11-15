@@ -1,5 +1,5 @@
 import authService from './authService';
-import { GATEWAY_API_URL } from './apiConfig';
+import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 const API_BASE_URL = GATEWAY_API_URL;
 
 // =====================================
@@ -128,6 +128,16 @@ class CategoriasEmpresasService {
         return this.makeRequest<Categoria[]>('/categorias');
     }
 
+    async obtenerCategoriasPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Categoria>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            q: params?.q
+        });
+        return this.makeRequest<PageResponse<Categoria>>(`/categorias/paginado${query}`);
+    }
+
     async obtenerCategoriaPorId(id: number): Promise<ApiResponse<Categoria>> {
         return this.makeRequest<Categoria>(`/categorias/${id}`);
     }
@@ -168,6 +178,30 @@ class CategoriasEmpresasService {
             } else {
                 res.data = [];
             }
+        }
+        return res;
+    }
+
+    async obtenerEmpresasPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Empresa>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            q: params?.q
+        });
+        const res = await this.makeRequest<PageResponse<Empresa>>(`/empresas/paginado${query}`);
+        if (res.success && res.data && !authService.isAdmin() && authService.hasRole('ROLE_EMP')) {
+            const userEmpresaId = authService.getEmpresaId();
+            const filtered = userEmpresaId
+                ? res.data.content.filter((e) => Number(e.id) === Number(userEmpresaId))
+                : [];
+            res.data = {
+                ...res.data,
+                content: filtered,
+                totalElements: filtered.length,
+                totalPages: filtered.length > 0 ? 1 : 0,
+                empty: filtered.length === 0
+            };
         }
         return res;
     }

@@ -6,6 +6,8 @@ import com.example.demo.infrastructure.persistence.entity.UsuarioEntity;
 import com.example.demo.infrastructure.persistence.repository.UsuarioJpaRepository;
 import com.example.demo.application.mapper.UsuarioMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -113,5 +115,15 @@ public class UsuarioRepositoryImpl implements UsuarioRepository {
     @Override
     public long countByRolesContaining(String rol) {
         return jpaRepository.countByRolesContaining(rol);
+    }
+
+    @Override
+    public Page<Usuario> findPaginado(String q, String rol, Boolean activo, Pageable pageable) {
+        return jpaRepository.findPaginado(
+                        q == null ? "" : q.trim(),
+                        rol == null ? "" : rol.trim(),
+                        activo,
+                        pageable)
+                .map(mapper::toDomain);
     }
 }

@@ -12,6 +12,8 @@ import com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRep
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -264,6 +266,22 @@ public class PagoService {
      */
     public List<PagoEntity> listarPagosPorEstado(PagoEntity.EstadoPago estado) {
         return pagoRepository.findByEstadoPago(estado);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PagoEntity> listarPagosPendientesPorEmprendedorPaginado(Long emprendedorId, Pageable pageable) {
+        return pagoRepository.findByEmprendedorIdAndEstadoPago(
+                emprendedorId, PagoEntity.EstadoPago.PENDIENTE, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PagoEntity> listarPagosPorEmprendedorPaginado(Long emprendedorId, Pageable pageable) {
+        return pagoRepository.findByEmprendedorId(emprendedorId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PagoEntity> listarPagosPorEstadoPaginado(PagoEntity.EstadoPago estado, Pageable pageable) {
+        return pagoRepository.findByEstadoPago(estado, pageable);
     }
 
     /**

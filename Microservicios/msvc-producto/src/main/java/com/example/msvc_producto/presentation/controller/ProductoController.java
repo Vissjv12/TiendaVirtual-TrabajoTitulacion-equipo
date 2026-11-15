@@ -2,10 +2,12 @@ package com.example.msvc_producto.presentation.controller;
 
 import com.example.msvc_producto.application.client.InventarioClient;
 import com.example.msvc_producto.application.dto.InventarioInfoDto;
+import com.example.msvc_producto.application.dto.PageResponseDto;
 import com.example.msvc_producto.application.dto.ProductoListadoDto;
 import com.example.msvc_producto.application.dto.ProductoRequestDto;
 import com.example.msvc_producto.application.dto.ProductoResponseDto;
 import com.example.msvc_producto.application.mapper.ProductoMapper;
+import com.example.msvc_producto.application.util.PaginationUtils;
 import com.example.msvc_producto.domain.model.Categoria;
 import com.example.msvc_producto.domain.model.Empresa;
 import com.example.msvc_producto.domain.model.Producto;
@@ -19,6 +21,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.LoggerFactory;
@@ -191,6 +197,92 @@ public class ProductoController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ArrayList<>());
         }
+    }
+
+    private static final Map<String, String> PRODUCTO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "nombre", "nombre",
+            "precio", "precio",
+            "activo", "activo",
+            "fechaCreacion", "fechaCreacion",
+            "fechaActualizacion", "fechaActualizacion"
+    );
+
+    private static final Map<String, String> LISTADO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "nombre", "nombre",
+            "precio", "precio",
+            "fechaCreacion", "fechaCreacion"
+    );
+
+    @GetMapping("/paginado")
+    @Operation(summary = "Listar productos paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<ProductoResponseDto>> listarProductosPaginado(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "id,desc") String sort,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long empresaId,
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) Boolean activo) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "id", Sort.Direction.DESC, PRODUCTO_SORT_FIELDS);
+        Page<Producto> result = productoService.listarProductosPaginado(
+                q, empresaId, categoriaId, activo, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(result, productoMapper::toDto));
+    }
+
+    @GetMapping("/listado/paginado")
+    @Operation(summary = "Listar productos públicos paginados para vitrina (contrato A-19)")
+    public ResponseEntity<PageResponseDto<ProductoListadoDto>> listarProductosOptimizadoPaginado(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "12") Integer size,
+            @RequestParam(defaultValue = "nombre,asc") String sort,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) String empresa) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_STOREFRONT_SIZE,
+                "nombre", Sort.Direction.ASC, LISTADO_SORT_FIELDS);
+        Page<ProductoListadoDto> result = productoService.obtenerProductosOptimizadoPaginado(
+                q, categoria, empresa, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(result));
+    }
+
+    @GetMapping("/empresa/{empresaId}/paginado")
+    @Operation(summary = "Buscar productos por empresa paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<ProductoResponseDto>> buscarProductosPorEmpresaPaginado(
+            @PathVariable Long empresaId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "id,desc") String sort,
+            @RequestParam(required = false) String q) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "id", Sort.Direction.DESC, PRODUCTO_SORT_FIELDS);
+        Page<Producto> result = productoService.listarProductosPaginado(
+                q, empresaId, null, null, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(result, productoMapper::toDto));
+    }
+
+    @GetMapping("/categoria/{categoriaId}/paginado")
+    @Operation(summary = "Buscar productos por categoría paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<ProductoResponseDto>> buscarProductosPorCategoriaPaginado(
+            @PathVariable Long categoriaId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "id,desc") String sort) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "id", Sort.Direction.DESC, PRODUCTO_SORT_FIELDS);
+        Page<Producto> result = productoService.listarProductosPaginado(
+                null, null, categoriaId, null, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(result, productoMapper::toDto));
     }
 
     @GetMapping("/empresa/{empresaId}")

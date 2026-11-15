@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { DataTable } from 'primereact/datatable';
+import React, { useCallback, useEffect, useState } from 'react';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
@@ -9,7 +9,14 @@ import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { Card } from 'primereact/card';
 import { Badge } from 'primereact/badge';
-import { listarPagosPendientes, listarPagosPorEmprendedor, aprobarPago, rechazarPago, PagoResponse } from '@/services/pagoService';
+import { toApiSortParam } from '@/services/apiConfig';
+import {
+    listarPagosPendientesPaginado,
+    listarPagosPorEmprendedorPaginado,
+    aprobarPago,
+    rechazarPago,
+    PagoResponse
+} from '@/services/pagoService';
 
 interface PagosEmprendedorProps {
     emprendedorId: number;
@@ -17,37 +24,83 @@ interface PagosEmprendedorProps {
 
 export default function PagosEmprendedor({ emprendedorId }: PagosEmprendedorProps) {
     const [pagosPendientes, setPagosPendientes] = useState<PagoResponse[]>([]);
+    const [loadingPendientes, setLoadingPendientes] = useState(true);
+    const [firstPendientes, setFirstPendientes] = useState(0);
+    const [rowsPendientes, setRowsPendientes] = useState(5);
+    const [totalPendientes, setTotalPendientes] = useState(0);
+    const [sortFieldPendientes, setSortFieldPendientes] = useState('fechaCreacion');
+    const [sortOrderPendientes, setSortOrderPendientes] = useState<1 | -1>(-1);
+
     const [todosPagos, setTodosPagos] = useState<PagoResponse[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loadingHistorial, setLoadingHistorial] = useState(true);
+    const [firstHistorial, setFirstHistorial] = useState(0);
+    const [rowsHistorial, setRowsHistorial] = useState(10);
+    const [totalHistorial, setTotalHistorial] = useState(0);
+    const [sortFieldHistorial, setSortFieldHistorial] = useState('fechaCreacion');
+    const [sortOrderHistorial, setSortOrderHistorial] = useState<1 | -1>(-1);
+
     const [showDialog, setShowDialog] = useState(false);
     const [pagoSeleccionado, setPagoSeleccionado] = useState<PagoResponse | null>(null);
     const [accion, setAccion] = useState<'aprobar' | 'rechazar'>('aprobar');
     const toast = React.useRef<Toast>(null);
 
-    useEffect(() => {
-        cargarPagos();
-    }, [emprendedorId]);
-
-    const cargarPagos = async () => {
+    const cargarPagosPendientes = useCallback(async () => {
         try {
-            setLoading(true);
-            const [pendientes, todos] = await Promise.all([
-                listarPagosPendientes(emprendedorId),
-                listarPagosPorEmprendedor(emprendedorId)
-            ]);
-            setPagosPendientes(pendientes);
-            setTodosPagos(todos);
+            setLoadingPendientes(true);
+            const pageData = await listarPagosPendientesPaginado(emprendedorId, {
+                page: Math.floor(firstPendientes / rowsPendientes),
+                size: rowsPendientes,
+                sort: toApiSortParam(sortFieldPendientes, sortOrderPendientes, 'fechaCreacion,desc')
+            });
+            setPagosPendientes(pageData.content || []);
+            setTotalPendientes(pageData.totalElements ?? 0);
         } catch (error) {
-            console.error('Error al cargar pagos:', error);
+            console.error('Error al cargar pagos pendientes:', error);
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'No se pudieron cargar los pagos',
+                detail: 'No se pudieron cargar los pagos pendientes',
                 life: 3000
             });
         } finally {
-            setLoading(false);
+            setLoadingPendientes(false);
         }
+    }, [emprendedorId, firstPendientes, rowsPendientes, sortFieldPendientes, sortOrderPendientes]);
+
+    const cargarHistorialPagos = useCallback(async () => {
+        try {
+            setLoadingHistorial(true);
+            const pageData = await listarPagosPorEmprendedorPaginado(emprendedorId, {
+                page: Math.floor(firstHistorial / rowsHistorial),
+                size: rowsHistorial,
+                sort: toApiSortParam(sortFieldHistorial, sortOrderHistorial, 'fechaCreacion,desc')
+            });
+            setTodosPagos(pageData.content || []);
+            setTotalHistorial(pageData.totalElements ?? 0);
+        } catch (error) {
+            console.error('Error al cargar historial de pagos:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'No se pudo cargar el historial de pagos',
+                life: 3000
+            });
+        } finally {
+            setLoadingHistorial(false);
+        }
+    }, [emprendedorId, firstHistorial, rowsHistorial, sortFieldHistorial, sortOrderHistorial]);
+
+    useEffect(() => {
+        cargarPagosPendientes();
+    }, [cargarPagosPendientes]);
+
+    useEffect(() => {
+        cargarHistorialPagos();
+    }, [cargarHistorialPagos]);
+
+    const cargarPagos = () => {
+        cargarPagosPendientes();
+        cargarHistorialPagos();
     };
 
     const confirmarAccion = (pago: PagoResponse, accionParam: 'aprobar' | 'rechazar') => {
@@ -192,24 +245,41 @@ export default function PagosEmprendedor({ emprendedorId }: PagosEmprendedorProp
                     title={
                         <div className="flex align-items-center justify-content-between">
                             <span>Pagos Pendientes de Aprobación</span>
-                            <Badge value={pagosPendientes.length} severity="warning" />
+                            <Badge value={totalPendientes} severity="warning" />
                         </div>
                     }
                 >
                     <DataTable
                         value={pagosPendientes}
-                        loading={loading}
+                        lazy
+                        loading={loadingPendientes}
                         emptyMessage="No hay pagos pendientes"
                         paginator
-                        rows={5}
+                        first={firstPendientes}
+                        rows={rowsPendientes}
+                        totalRecords={totalPendientes}
+                        rowsPerPageOptions={[5, 10, 25]}
+                        onPage={(e: DataTableStateEvent) => {
+                            setFirstPendientes(e.first ?? 0);
+                            setRowsPendientes(e.rows ?? 5);
+                        }}
+                        onSort={(e: DataTableStateEvent) => {
+                            setFirstPendientes(0);
+                            setSortFieldPendientes(e.sortField || 'fechaCreacion');
+                            setSortOrderPendientes((e.sortOrder === 1 ? 1 : -1) as 1 | -1);
+                        }}
+                        sortField={sortFieldPendientes}
+                        sortOrder={sortOrderPendientes}
                         responsiveLayout="scroll"
+                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} pagos"
                     >
-                        <Column field="id" header="ID" style={{ width: '5%' }} />
+                        <Column field="id" header="ID" sortable style={{ width: '5%' }} />
                         <Column field="numeroFactura" header="Factura" />
                         <Column field="clienteNombre" header="Cliente" />
-                        <Column header="Método" body={metodoPagoTemplate} />
-                        <Column header="Monto" body={montoTemplate} />
-                        <Column header="Fecha" body={fechaTemplate} />
+                        <Column field="metodoPago" header="Método" body={metodoPagoTemplate} sortable />
+                        <Column field="monto" header="Monto" body={montoTemplate} sortable />
+                        <Column field="fechaCreacion" header="Fecha" body={fechaTemplate} sortable />
                         <Column header="Comprobante" body={comprobanteTemplate} />
                         <Column header="Acciones" body={accionesTemplate} style={{ width: '10%' }} />
                     </DataTable>
@@ -221,19 +291,36 @@ export default function PagosEmprendedor({ emprendedorId }: PagosEmprendedorProp
                 <Card title="Historial de Pagos">
                     <DataTable
                         value={todosPagos}
-                        loading={loading}
+                        lazy
+                        loading={loadingHistorial}
                         emptyMessage="No hay pagos registrados"
                         paginator
-                        rows={10}
+                        first={firstHistorial}
+                        rows={rowsHistorial}
+                        totalRecords={totalHistorial}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={(e: DataTableStateEvent) => {
+                            setFirstHistorial(e.first ?? 0);
+                            setRowsHistorial(e.rows ?? 10);
+                        }}
+                        onSort={(e: DataTableStateEvent) => {
+                            setFirstHistorial(0);
+                            setSortFieldHistorial(e.sortField || 'fechaCreacion');
+                            setSortOrderHistorial((e.sortOrder === 1 ? 1 : -1) as 1 | -1);
+                        }}
+                        sortField={sortFieldHistorial}
+                        sortOrder={sortOrderHistorial}
                         responsiveLayout="scroll"
+                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} pagos"
                     >
-                        <Column field="id" header="ID" style={{ width: '5%' }} />
+                        <Column field="id" header="ID" sortable style={{ width: '5%' }} />
                         <Column field="numeroFactura" header="Factura" />
                         <Column field="clienteNombre" header="Cliente" />
-                        <Column header="Método" body={metodoPagoTemplate} />
-                        <Column header="Estado" body={estadoPagoTemplate} />
-                        <Column header="Monto" body={montoTemplate} />
-                        <Column header="Fecha" body={fechaTemplate} />
+                        <Column field="metodoPago" header="Método" body={metodoPagoTemplate} sortable />
+                        <Column field="estadoPago" header="Estado" body={estadoPagoTemplate} sortable />
+                        <Column field="monto" header="Monto" body={montoTemplate} sortable />
+                        <Column field="fechaCreacion" header="Fecha" body={fechaTemplate} sortable />
                         <Column header="Comprobante" body={comprobanteTemplate} />
                     </DataTable>
                 </Card>

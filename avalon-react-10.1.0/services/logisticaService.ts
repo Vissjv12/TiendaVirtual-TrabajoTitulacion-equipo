@@ -1,5 +1,5 @@
 import authService from './authService';
-import { GATEWAY_API_URL } from './apiConfig';
+import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 const API_BASE_URL = GATEWAY_API_URL;
 
@@ -123,6 +123,34 @@ export const obtenerSeguimientosPorEmprendedor = async (emprendedorId: number): 
 
     if (!response.ok) {
         const msg = await authService.extractErrorMessage(response, 'Error al obtener seguimientos del emprendedor');
+        throw new Error(msg);
+    }
+
+    return response.json();
+};
+
+/**
+ * Obtiene seguimientos paginados de un emprendedor (contrato A-19)
+ */
+export const obtenerSeguimientosPorEmprendedorPaginado = async (
+    emprendedorId: number,
+    params?: PaginationParams
+): Promise<PageResponse<SeguimientoLogistica>> => {
+    const query = buildPaginationQuery({
+        page: params?.page ?? 0,
+        size: params?.size ?? 10,
+        sort: params?.sort ?? 'fechaCreacion,desc',
+        estado: params?.estado
+    });
+    const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/emprendedor/${emprendedorId}/paginado${query}`, {
+        method: 'GET',
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
+
+    if (!response.ok) {
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener seguimientos paginados del emprendedor');
         throw new Error(msg);
     }
 

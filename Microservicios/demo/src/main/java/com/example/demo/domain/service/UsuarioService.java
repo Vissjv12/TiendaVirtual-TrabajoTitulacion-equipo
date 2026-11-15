@@ -3,6 +3,8 @@ package com.example.demo.domain.service;
 import com.example.demo.application.dto.ActualizarUsuarioDto;
 import com.example.demo.application.dto.EstadisticasUsuariosDto;
 import com.example.demo.domain.model.Usuario;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,5 +29,6 @@ public interface UsuarioService {
     void eliminarUsuario(Long id);
     List<Usuario> buscarUsuarios(String query);
     List<Usuario> buscarPorRol(String rol);
+    Page<Usuario> obtenerUsuariosPaginado(String q, String rol, Boolean activo, Pageable pageable);
     EstadisticasUsuariosDto obtenerEstadisticas();
 }

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTablePageEvent, DataTableSortEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
@@ -16,6 +16,7 @@ import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import emprendedorService, { ProductoEmprendedor, Categoria, Empresa } from '../../../../services/emprendedorService';
 import authService from '../../../../services/authService';
+import { toApiSortParam } from '../../../../services/apiConfig';
 
 const ProductosPage: React.FC = () => {
     const router = useRouter();
@@ -23,11 +24,16 @@ const ProductosPage: React.FC = () => {
 
     // Estados principales
     const [productos, setProductos] = useState<ProductoEmprendedor[]>([]);
-    const [productosFiltrados, setProductosFiltrados] = useState<ProductoEmprendedor[]>([]);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [empresas, setEmpresas] = useState<Empresa[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('id');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
 
     // Estados para el modal de detalles
     const [selectedProducto, setSelectedProducto] = useState<ProductoEmprendedor | null>(null);
@@ -53,15 +59,26 @@ const ProductosPage: React.FC = () => {
         }
     };
 
-    // Cargar datos iniciales
     useEffect(() => {
-        cargarDatos();
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+            setFirst(0);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-        // ✅ ESCUCHAR EVENTOS DE ACTUALIZACIÓN DE STOCK
+    // Cargar categorías, empresas y escuchar eventos de stock
+    useEffect(() => {
+        Promise.all([emprendedorService.obtenerCategorias(), emprendedorService.obtenerEmpresas()])
+            .then(([categoriasRes, empresasRes]) => {
+                if (categoriasRes.success && categoriasRes.data) setCategorias(categoriasRes.data);
+                if (empresasRes.success && empresasRes.data) setEmpresas(empresasRes.data);
+            })
+            .catch(() => {});
+
         const handleStockUpdate = (event: CustomEvent) => {
             const { productoId, stock } = event.detail;
-
-            const updateProducts = (prevProductos: ProductoEmprendedor[]) =>
+            setProductos((prevProductos) =>
                 prevProductos.map((producto) =>
                     producto.id === productoId
                         ? {
@@ -74,30 +91,33 @@ const ProductosPage: React.FC = () => {
                               }
                           }
                         : producto
-                );
-
-            setProductos(updateProducts);
-            setProductosFiltrados(updateProducts);
+                )
+            );
         };
 
         window.addEventListener('stockUpdatedEmprendedor', handleStockUpdate as EventListener);
-
         return () => {
             window.removeEventListener('stockUpdatedEmprendedor', handleStockUpdate as EventListener);
         };
     }, []);
 
+    useEffect(() => {
+        cargarDatos();
+    }, [first, rows, debouncedSearch, sortField, sortOrder]);
+
     const cargarDatos = async () => {
         setLoading(true);
         try {
-            console.log('🔄 Cargando datos del panel de emprendedor...');
-
-            // Cargar productos, categorías y empresas en paralelo
-            const [productosRes, categoriasRes, empresasRes] = await Promise.all([emprendedorService.obtenerProductosEmprendedor(), emprendedorService.obtenerCategorias(), emprendedorService.obtenerEmpresas()]);
+            const page = Math.floor(first / rows);
+            const productosRes = await emprendedorService.obtenerProductosEmprendedorPaginado({
+                page,
+                size: rows,
+                sort: toApiSortParam(sortField, sortOrder, 'id,desc'),
+                q: debouncedSearch || undefined
+            });
 
             if (productosRes.success && productosRes.data) {
-                // ✅ NORMALIZAR DATOS para evitar valores null/undefined
-                const productosNormalizados = productosRes.data.map((producto) => ({
+                const productosNormalizados = (productosRes.data.content || []).map((producto) => ({
                     ...producto,
                     nombre: producto.nombre || '',
                     descripcion: producto.descripcion || '',
@@ -113,8 +133,7 @@ const ProductosPage: React.FC = () => {
                 }));
 
                 setProductos(productosNormalizados);
-                setProductosFiltrados(productosNormalizados);
-                console.log('✅ Productos cargados:', productosNormalizados.length);
+                setTotalRecords(productosRes.data.totalElements ?? 0);
             } else {
                 if (productosRes.status === 401) {
                     toast.current?.show({
@@ -133,14 +152,6 @@ const ProductosPage: React.FC = () => {
                     life: 4000
                 });
             }
-
-            if (categoriasRes.success && categoriasRes.data) {
-                setCategorias(categoriasRes.data);
-            }
-
-            if (empresasRes.success && empresasRes.data) {
-                setEmpresas(empresasRes.data);
-            }
         } catch (error) {
             console.error('❌ Error cargando datos:', error);
             toast.current?.show({
@@ -154,21 +165,19 @@ const ProductosPage: React.FC = () => {
         }
     };
 
-    // ✅ FUNCIÓN DE FILTRO MANUAL (más segura)
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
+        setSearchTerm(e.target.value);
+    };
 
-        if (!value.trim()) {
-            setProductosFiltrados(productos);
-            return;
-        }
+    const onPage = (event: DataTablePageEvent) => {
+        setFirst(event.first);
+        setRows(event.rows);
+    };
 
-        const filtered = productos.filter(
-            (producto) => producto.nombre?.toLowerCase().includes(value) || producto.descripcion?.toLowerCase().includes(value) || producto.categoria?.nombre?.toLowerCase().includes(value) || producto.empresa?.nombre?.toLowerCase().includes(value)
-        );
-
-        setProductosFiltrados(filtered);
+    const onSort = (event: DataTableSortEvent) => {
+        setSortField(event.sortField || 'id');
+        setSortOrder((event.sortOrder || -1) as 1 | -1);
+        setFirst(0);
     };
 
     // Confirmar eliminación
@@ -190,9 +199,7 @@ const ProductosPage: React.FC = () => {
             const response = await emprendedorService.eliminarProducto(id);
 
             if (response.success) {
-                const updatedProducts = productos.filter((p) => p.id !== id);
-                setProductos(updatedProducts);
-                setProductosFiltrados(updatedProducts);
+                cargarDatos();
                 toast.current?.show({
                     severity: 'success',
                     summary: 'Éxito',
@@ -337,9 +344,16 @@ const ProductosPage: React.FC = () => {
                     renderSkeleton()
                 ) : (
                     <DataTable
-                        value={productosFiltrados}
+                        value={productos}
+                        lazy
                         paginator
-                        rows={10}
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
+                        onPage={onPage}
+                        onSort={onSort}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                         rowsPerPageOptions={[5, 10, 25, 50]}
                         emptyMessage="No se encontraron productos"
                         responsiveLayout="scroll"
@@ -349,10 +363,10 @@ const ProductosPage: React.FC = () => {
                     >
                         <Column field="imagen" header="Imagen" body={imageBodyTemplate} style={{ width: '100px' }} sortable={false} />
                         <Column field="nombre" header="Nombre" sortable className="font-bold" />
-                        <Column field="categoria.nombre" header="Categoría" sortable />
-                        <Column field="empresa.nombre" header="Empresa" sortable />
+                        <Column field="categoria.nombre" header="Categoría" />
+                        <Column field="empresa.nombre" header="Empresa" />
                         <Column field="precio" header="Precio" body={priceBodyTemplate} sortable />
-                        <Column field="inventario.cantidad" header="Stock" body={stockBodyTemplate} sortable />
+                        <Column field="inventario.cantidad" header="Stock" body={stockBodyTemplate} />
                         <Column field="activo" header="Estado" body={statusBodyTemplate} sortable />
                         <Column body={actionBodyTemplate} header="Acciones" style={{ width: '150px' }} sortable={false} />
                     </DataTable>

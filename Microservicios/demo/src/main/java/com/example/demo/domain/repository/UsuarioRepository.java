@@ -1,6 +1,8 @@
 package com.example.demo.domain.repository;
 
 import com.example.demo.domain.model.Usuario;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,4 +30,5 @@ public interface UsuarioRepository {
     long countByActivoTrue();
     long countByActivoFalse();
     long countByRolesContaining(String rol);
+    Page<Usuario> findPaginado(String q, String rol, Boolean activo, Pageable pageable);
 }

@@ -1,6 +1,6 @@
 // services/ventasService.ts - VERSIÓN CORREGIDA
 import authService from './authService';
-import { GATEWAY_BASE_URL } from './apiConfig';
+import { GATEWAY_BASE_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 const API_BASE_URL = GATEWAY_BASE_URL;
 
@@ -161,6 +161,17 @@ class VentasService {
         return this.makeRequest<VentaResponse[]>('/api/ventas');
     }
 
+    async listarVentasPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<VentaResponse>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaVenta,desc',
+            q: params?.q,
+            estado: params?.estado
+        });
+        return this.makeRequest<PageResponse<VentaResponse>>(`/api/ventas/paginado${query}`);
+    }
+
     /**
      * Listar ventas por cliente
      */
@@ -169,12 +180,38 @@ class VentasService {
         return this.makeRequest<VentaResponse[]>(`/api/ventas/cliente/${clienteId}`);
     }
 
+    async listarVentasPorClientePaginado(
+        clienteId: number,
+        params?: PaginationParams
+    ): Promise<ApiResponse<PageResponse<VentaResponse>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaVenta,desc'
+        });
+        return this.makeRequest<PageResponse<VentaResponse>>(`/api/ventas/cliente/${clienteId}/paginado${query}`);
+    }
+
     /**
      * Listar ventas por emprendedor
      */
     async listarVentasPorEmprendedor(emprendedorId: number): Promise<ApiResponse<VentaResponse[]>> {
         console.log('📋 Listando ventas por emprendedor:', emprendedorId);
         return this.makeRequest<VentaResponse[]>(`/api/ventas/emprendedor/${emprendedorId}`);
+    }
+
+    async listarVentasPorEmprendedorPaginado(
+        emprendedorId: number,
+        params?: PaginationParams
+    ): Promise<ApiResponse<PageResponse<VentaResponse>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaVenta,desc',
+            q: params?.q,
+            estado: params?.estado
+        });
+        return this.makeRequest<PageResponse<VentaResponse>>(`/api/ventas/emprendedor/${emprendedorId}/paginado${query}`);
     }
 
     /**

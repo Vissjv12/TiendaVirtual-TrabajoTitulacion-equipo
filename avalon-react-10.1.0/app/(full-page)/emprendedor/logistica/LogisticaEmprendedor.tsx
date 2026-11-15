@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { DataTable } from 'primereact/datatable';
+import React, { useState, useEffect, useCallback } from 'react';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
@@ -13,10 +13,11 @@ import { Toast } from 'primereact/toast';
 import { Card } from 'primereact/card';
 import { Divider } from 'primereact/divider';
 import { Timeline } from 'primereact/timeline';
+import { toApiSortParam } from '../../../../services/apiConfig';
 import { 
     SeguimientoLogistica, 
     actualizarEstadoSeguimiento, 
-    obtenerSeguimientosPorEmprendedor,
+    obtenerSeguimientosPorEmprendedorPaginado,
     obtenerEstadosDisponibles,
     obtenerHistorialPorVenta,
     EstadoLogistico,
@@ -26,6 +27,7 @@ import {
 import authService from '../../../../services/authService';
 
 interface PedidoConSeguimiento {
+    id: number;
     ventaId: number;
     numeroFactura: string;
     clienteNombre: string;
@@ -39,6 +41,11 @@ interface PedidoConSeguimiento {
 export default function LogisticaEmprendedor() {
     const [pedidos, setPedidos] = useState<PedidoConSeguimiento[]>([]);
     const [loading, setLoading] = useState(true);
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('fechaCreacion');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
     const [selectedPedido, setSelectedPedido] = useState<PedidoConSeguimiento | null>(null);
     const [showActualizarDialog, setShowActualizarDialog] = useState(false);
     const [showHistorialDialog, setShowHistorialDialog] = useState(false);
@@ -54,7 +61,6 @@ export default function LogisticaEmprendedor() {
     const [observaciones, setObservaciones] = useState('');
 
     useEffect(() => {
-        cargarPedidos();
         cargarEstadosDisponibles();
     }, []);
 
@@ -67,7 +73,7 @@ export default function LogisticaEmprendedor() {
         }
     };
 
-    const cargarPedidos = async () => {
+    const cargarPedidos = useCallback(async () => {
         setLoading(true);
         try {
             // Obtener empresaId del usuario autenticado
@@ -76,6 +82,7 @@ export default function LogisticaEmprendedor() {
             if (!emprendedorId) {
                 console.warn('⚠️ No se encontró empresaId en el usuario autenticado');
                 setPedidos([]);
+                setTotalRecords(0);
                 toast?.current?.show({
                     severity: 'warn',
                     summary: 'Acceso restringido',
@@ -85,25 +92,20 @@ export default function LogisticaEmprendedor() {
                 return;
             }
 
-            console.log('📦 Cargando pedidos para empresa ID:', emprendedorId);
-            const seguimientos = await obtenerSeguimientosPorEmprendedor(emprendedorId);
-
-            // Agrupar por venta y obtener el último estado de cada una
-            const pedidosMap = new Map<number, SeguimientoLogistica>();
-            
-            seguimientos.forEach((seg) => {
-                const existing = pedidosMap.get(seg.ventaId);
-                if (!existing || new Date(seg.fechaCreacion) > new Date(existing.fechaCreacion)) {
-                    pedidosMap.set(seg.ventaId, seg);
-                }
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaCreacion,desc');
+            const pageData = await obtenerSeguimientosPorEmprendedorPaginado(emprendedorId, {
+                page,
+                size: rows,
+                sort
             });
 
-            // Convertir a formato de tabla
-            const pedidosData: PedidoConSeguimiento[] = Array.from(pedidosMap.values()).map((seg) => ({
+            const pedidosData: PedidoConSeguimiento[] = (pageData.content || []).map((seg) => ({
+                id: seg.id,
                 ventaId: seg.ventaId,
                 numeroFactura: seg.numeroFactura,
-                clienteNombre: 'Cliente', // TODO: Obtener de la API
-                total: 0, // TODO: Obtener de la API
+                clienteNombre: 'Cliente',
+                total: 0,
                 fechaVenta: seg.fechaCreacion,
                 ultimoEstado: seg.estadoLogistica,
                 ultimoEstadoTitulo: seg.estadoTitulo,
@@ -111,6 +113,7 @@ export default function LogisticaEmprendedor() {
             }));
 
             setPedidos(pedidosData);
+            setTotalRecords(pageData.totalElements ?? 0);
         } catch (error) {
             console.error('Error al cargar pedidos:', error);
             toast?.current?.show({
@@ -122,6 +125,21 @@ export default function LogisticaEmprendedor() {
         } finally {
             setLoading(false);
         }
+    }, [first, rows, sortField, sortOrder, toast]);
+
+    useEffect(() => {
+        cargarPedidos();
+    }, [cargarPedidos]);
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'fechaCreacion');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     const abrirDialogActualizar = (pedido: PedidoConSeguimiento) => {
@@ -276,16 +294,26 @@ export default function LogisticaEmprendedor() {
                 <Card title="Gestión de Logística de Pedidos">
                     <DataTable
                         value={pedidos}
+                        lazy
                         loading={loading}
                         paginator
-                        rows={10}
-                        dataKey="ventaId"
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
+                        dataKey="id"
                         emptyMessage="No hay pedidos con seguimiento"
+                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
                     >
-                        <Column field="numeroFactura" header="Nº Factura" sortable />
-                        <Column field="clienteNombre" header="Cliente" sortable />
-                        <Column field="ultimoEstado" header="Estado Actual" body={estadoTemplate} sortable />
-                        <Column field="ultimaActualizacion" header="Última Actualización" body={fechaTemplate} sortable />
+                        <Column field="numeroFactura" header="Nº Factura" />
+                        <Column field="clienteNombre" header="Cliente" />
+                        <Column field="estadoLogistica" header="Estado Actual" body={estadoTemplate} sortable />
+                        <Column field="fechaActualizacion" header="Última Actualización" body={fechaTemplate} sortable />
                         <Column header="Acciones" body={accionesTemplate} />
                     </DataTable>
                 </Card>

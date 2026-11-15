@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Badge } from 'primereact/badge';
@@ -12,6 +12,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { InputText } from 'primereact/inputtext';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
+import { toApiSortParam } from '../../../../services/apiConfig';
 import ventasService, { VentaResponse } from '../../../../services/ventasService';
 
 const VentasPage: React.FC = () => {
@@ -20,25 +21,38 @@ const VentasPage: React.FC = () => {
 
     // Estados principales
     const [ventas, setVentas] = useState<VentaResponse[]>([]);
-    const [ventasFiltradas, setVentasFiltradas] = useState<VentaResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('fechaVenta');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
 
-    // Cargar datos iniciales
     useEffect(() => {
-        cargarVentas();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    const cargarVentas = async () => {
+    const cargarVentas = useCallback(async () => {
         setLoading(true);
         try {
-            console.log('🔄 Cargando ventas...');
-            const response = await ventasService.listarVentas();
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaVenta,desc');
+            const response = await ventasService.listarVentasPaginado({
+                page,
+                size: rows,
+                sort,
+                q: debouncedSearch.trim() || undefined
+            });
 
             if (response.success && response.data) {
-                setVentas(response.data);
-                setVentasFiltradas(response.data);
-                console.log('✅ Ventas cargadas:', response.data.length);
+                setVentas(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 toast.current?.show({
                     severity: 'error',
@@ -58,26 +72,27 @@ const VentasPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [first, rows, sortField, sortOrder, debouncedSearch]);
+
+    // Cargar datos iniciales y cambios de paginación
+    useEffect(() => {
+        cargarVentas();
+    }, [cargarVentas]);
 
     // Función de filtro
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
-        
-        if (!value.trim()) {
-            setVentasFiltradas(ventas);
-            return;
-        }
-        
-        const filtered = ventas.filter(venta => 
-            venta.numeroFactura?.toLowerCase().includes(value) ||
-            venta.cliente?.nombre?.toLowerCase().includes(value) ||
-            venta.cliente?.apellido?.toLowerCase().includes(value) ||
-            venta.estado?.toLowerCase().includes(value)
-        );
-        
-        setVentasFiltradas(filtered);
+        setSearchTerm(e.target.value);
+    };
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'fechaVenta');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     // Completar venta
@@ -370,21 +385,27 @@ const VentasPage: React.FC = () => {
                     right={rightToolbarTemplate}
                 />
 
-                {loading ? (
+                {loading && ventas.length === 0 ? (
                     renderSkeleton()
                 ) : (
                     <DataTable 
-                        value={ventasFiltradas}
+                        value={ventas}
+                        lazy
+                        loading={loading}
                         paginator
-                        rows={10}
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
                         emptyMessage="No se encontraron ventas"
                         responsiveLayout="scroll"
                         className="p-datatable-sm"
                         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} ventas"
-                        sortField="fechaVenta"
-                        sortOrder={-1}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                     >
                         <Column 
                             field="numeroFactura" 
@@ -396,7 +417,6 @@ const VentasPage: React.FC = () => {
                             field="cliente.nombre" 
                             header="Cliente" 
                             body={clienteBodyTemplate}
-                            sortable
                         />
                         <Column 
                             field="total" 

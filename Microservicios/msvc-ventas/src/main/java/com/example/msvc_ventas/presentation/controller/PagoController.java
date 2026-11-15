@@ -2,6 +2,7 @@ package com.example.msvc_ventas.presentation.controller;
 
 import com.example.msvc_ventas.application.dto.*;
 import com.example.msvc_ventas.application.mapper.PagoMapper;
+import com.example.msvc_ventas.application.util.PaginationUtils;
 import com.example.msvc_ventas.domain.service.PagoService;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,11 +10,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -113,6 +118,66 @@ public class PagoController {
                 .map(pagoMapper::toDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(pagosDto);
+    }
+
+    private static final Map<String, String> PAGO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "monto", "monto",
+            "metodoPago", "metodoPago",
+            "estadoPago", "estadoPago",
+            "fechaPago", "fechaPago",
+            "fechaCreacion", "fechaCreacion"
+    );
+
+    @GetMapping("/emprendedor/{emprendedorId}/pendientes/paginado")
+    @Operation(summary = "Listar pagos pendientes de aprobación de un emprendedor paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<PagoResponseDto>> listarPagosPendientesPaginado(
+            @PathVariable Long emprendedorId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, PAGO_SORT_FIELDS);
+        Page<PagoEntity> pagos = pagoService.listarPagosPendientesPorEmprendedorPaginado(emprendedorId, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(pagos, pagoMapper::toDto));
+    }
+
+    @GetMapping("/emprendedor/{emprendedorId}/paginado")
+    @Operation(summary = "Listar todos los pagos de un emprendedor paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<PagoResponseDto>> listarPagosPorEmprendedorPaginado(
+            @PathVariable Long emprendedorId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, PAGO_SORT_FIELDS);
+        Page<PagoEntity> pagos = pagoService.listarPagosPorEmprendedorPaginado(emprendedorId, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(pagos, pagoMapper::toDto));
+    }
+
+    @GetMapping("/estado/{estado}/paginado")
+    @Operation(summary = "Listar pagos por estado paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<PagoResponseDto>> listarPagosPorEstadoPaginado(
+            @PathVariable String estado,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort) {
+        PagoEntity.EstadoPago estadoPago;
+        try {
+            estadoPago = PagoEntity.EstadoPago.valueOf(estado.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, PAGO_SORT_FIELDS);
+        Page<PagoEntity> pagos = pagoService.listarPagosPorEstadoPaginado(estadoPago, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(pagos, pagoMapper::toDto));
     }
 
     @GetMapping("/estado/{estado}")

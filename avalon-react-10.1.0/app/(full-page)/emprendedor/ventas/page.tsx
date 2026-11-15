@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Badge } from 'primereact/badge';
@@ -12,6 +12,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { InputText } from 'primereact/inputtext';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
+import { toApiSortParam } from '../../../../services/apiConfig';
 import ventasService, { VentaResponse } from '../../../../services/ventasService';
 import authService from '../../../../services/authService';
 
@@ -21,19 +22,27 @@ const VentasPage: React.FC = () => {
 
     // Estados principales
     const [ventas, setVentas] = useState<VentaResponse[]>([]);
-    const [ventasFiltradas, setVentasFiltradas] = useState<VentaResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('fechaVenta');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
     const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
 
     const primaryColor = 'var(--primary-color)';
 
-    // Cargar datos iniciales
     useEffect(() => {
-        cargarVentas();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    const cargarVentas = async () => {
+    const cargarVentas = useCallback(async () => {
         setLoading(true);
         try {
             const userInfo = authService.getUserInfo();
@@ -42,7 +51,7 @@ const VentasPage: React.FC = () => {
             if (!emprendedorId) {
                 console.warn('⚠️ No se encontró empresaId del emprendedor');
                 setVentas([]);
-                setVentasFiltradas([]);
+                setTotalRecords(0);
                 toast.current?.show({
                     severity: 'warn',
                     summary: 'Atención',
@@ -52,13 +61,18 @@ const VentasPage: React.FC = () => {
                 return;
             }
 
-            console.log('🔄 Cargando ventas para emprendedor:', emprendedorId);
-            const response = await ventasService.listarVentasPorEmprendedor(emprendedorId);
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaVenta,desc');
+            const response = await ventasService.listarVentasPorEmprendedorPaginado(emprendedorId, {
+                page,
+                size: rows,
+                sort,
+                q: debouncedSearch.trim() || undefined
+            });
 
             if (response.success && response.data) {
-                console.log('✅ Ventas cargadas:', response.data);
-                setVentas(response.data);
-                setVentasFiltradas(response.data);
+                setVentas(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 console.error('❌ Error cargando ventas:', response.message);
                 toast.current?.show({
@@ -79,28 +93,27 @@ const VentasPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [first, rows, sortField, sortOrder, debouncedSearch]);
+
+    // Cargar datos iniciales y cambios de paginación
+    useEffect(() => {
+        cargarVentas();
+    }, [cargarVentas]);
 
     // Función de filtro
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
+        setSearchTerm(e.target.value);
+    };
 
-        if (!value.trim()) {
-            setVentasFiltradas(ventas);
-            return;
-        }
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
 
-        const filtered = ventas.filter(
-            (venta) =>
-                venta.numeroFactura?.toLowerCase().includes(value) ||
-                venta.cliente?.nombre?.toLowerCase().includes(value) ||
-                venta.cliente?.apellido?.toLowerCase().includes(value) ||
-                venta.cliente?.email?.toLowerCase().includes(value) ||
-                ventasService.formatearEstado(venta.estado)?.toLowerCase().includes(value)
-        );
-
-        setVentasFiltradas(filtered);
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'fechaVenta');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     // Completar venta con manejo de errores mejorado
@@ -417,24 +430,30 @@ const VentasPage: React.FC = () => {
             <Card>
                 <Toolbar className="mb-4" left={leftToolbarTemplate} right={rightToolbarTemplate} />
 
-                {loading ? (
+                {loading && ventas.length === 0 ? (
                     renderSkeleton()
                 ) : (
                     <DataTable
-                        value={ventasFiltradas}
+                        value={ventas}
+                        lazy
+                        loading={loading}
                         paginator
-                        rows={10}
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
                         emptyMessage="No se encontraron ventas"
                         responsiveLayout="scroll"
                         className="p-datatable-sm"
                         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} ventas"
-                        sortField="fechaVenta"
-                        sortOrder={-1}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                     >
                         <Column field="numeroFactura" header="N° Factura" body={numeroFacturaBodyTemplate} sortable />
-                        <Column field="cliente.nombre" header="Cliente" body={clienteBodyTemplate} sortable />
+                        <Column field="cliente.nombre" header="Cliente" body={clienteBodyTemplate} />
                         <Column field="total" header="Total" body={totalBodyTemplate} sortable />
                         <Column field="estado" header="Estado" body={estadoBodyTemplate} sortable />
                         <Column field="fechaVenta" header="Fecha" body={fechaBodyTemplate} sortable />

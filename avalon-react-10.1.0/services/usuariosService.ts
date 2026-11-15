@@ -1,5 +1,5 @@
 import authService from './authService';
-import { GATEWAY_BASE_URL } from './apiConfig';
+import { GATEWAY_BASE_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 // =====================================
 // INTERFACES PARA USUARIOS
@@ -128,6 +128,18 @@ class UsuariosService {
     
     async obtenerUsuarios(): Promise<ApiResponse<Usuario[]>> {
         return this.makeRequest<Usuario[]>('/api/usuarios');
+    }
+
+    async obtenerUsuariosPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Usuario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            q: params?.q,
+            rol: params?.rol,
+            activo: params?.activo
+        });
+        return this.makeRequest<PageResponse<Usuario>>(`/api/usuarios/paginado${query}`);
     }
 
     async obtenerUsuarioPorId(id: number): Promise<ApiResponse<Usuario>> {

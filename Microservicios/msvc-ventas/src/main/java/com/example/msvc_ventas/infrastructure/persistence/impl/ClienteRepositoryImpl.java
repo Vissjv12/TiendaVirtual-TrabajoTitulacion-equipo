@@ -6,6 +6,8 @@ import com.example.msvc_ventas.infrastructure.persistence.entity.ClienteEntity;
 import com.example.msvc_ventas.infrastructure.persistence.mapper.ClienteEntityMapper;
 import com.example.msvc_ventas.infrastructure.persistence.repository.ClienteJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -43,6 +45,12 @@ public class ClienteRepositoryImpl implements ClienteRepository {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Cliente> findPaginado(Pageable pageable) {
+        return jpaRepository.findAll(pageable)
+                .map(mapper::toDomain);
     }
 
     @Override

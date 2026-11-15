@@ -14,12 +14,20 @@ import { Dropdown } from 'primereact/dropdown';
 import { Sidebar } from 'primereact/sidebar';
 import { Divider } from 'primereact/divider';
 import { Chip } from 'primereact/chip';
+import { Paginator, PaginatorPageChangeEvent } from 'primereact/paginator';
 // ✅ CORREGIDO: Remover importación de LandingNavbar
 import productService, { ProductoResponse, Categoria, Empresa } from '../../../services/productService';
 import authService from '../../../services/authService';
 import cartService from '../../../services/cartService';
 
 type SortOption = 'nombre-asc' | 'nombre-desc' | 'precio-asc' | 'precio-desc';
+
+const SORT_TO_API: Record<SortOption, string> = {
+    'nombre-asc': 'nombre,asc',
+    'nombre-desc': 'nombre,desc',
+    'precio-asc': 'precio,asc',
+    'precio-desc': 'precio,desc'
+};
 
 interface SortOptionLabel {
     label: string;
@@ -40,11 +48,15 @@ const ProductosPage: React.FC = () => {
     const [empresas, setEmpresas] = useState<Empresa[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Estados de filtros - ✅ CORREGIDO: Filtrar por NOMBRE, no ID
+    // Estados de filtros y paginación servidor (A-19 / A-21)
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedCategoriaNombre, setSelectedCategoriaNombre] = useState<string | null>(null);
     const [selectedEmpresaNombre, setSelectedEmpresaNombre] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<SortOption>('nombre-asc');
+    const [first, setFirst] = useState(0);
+    const [rows, setRows] = useState(12);
+    const [totalRecords, setTotalRecords] = useState(0);
 
     // Estados de UI
     const [showLoginDialog, setShowLoginDialog] = useState(false);
@@ -64,67 +76,50 @@ const ProductosPage: React.FC = () => {
         { label: 'Precio mayor a menor', value: 'precio-desc' }
     ];
 
-    // ✅ CORREGIDO: Filtros por NOMBRE
-    const productosFiltrados = useMemo(() => {
-        if (!mounted || productos.length === 0) return [];
-
-        let resultado = [...productos];
-
-        // Filtrar por búsqueda
-        if (searchTerm.trim()) {
-            resultado = productService.filtrarProductos(resultado, searchTerm);
-        }
-
-        // ✅ CORREGIDO: Filtrar por NOMBRE de categoría
-        if (selectedCategoriaNombre) {
-            resultado = resultado.filter((p) => p.categoria.nombre === selectedCategoriaNombre);
-        }
-
-        // ✅ CORREGIDO: Filtrar por NOMBRE de empresa
-        if (selectedEmpresaNombre) {
-            resultado = resultado.filter((p) => p.empresa.nombre === selectedEmpresaNombre);
-        }
-
-        // Ordenar
-        switch (sortBy) {
-            case 'nombre-asc':
-                resultado.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-                break;
-            case 'nombre-desc':
-                resultado.sort((a, b) => b.nombre.localeCompare(a.nombre, 'es'));
-                break;
-            case 'precio-asc':
-                resultado.sort((a, b) => a.precio - b.precio);
-                break;
-            case 'precio-desc':
-                resultado.sort((a, b) => b.precio - a.precio);
-                break;
-        }
-
-        return resultado;
-    }, [productos, searchTerm, selectedCategoriaNombre, selectedEmpresaNombre, sortBy, mounted]);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+            setFirst(0);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
     useEffect(() => {
         const initializePage = async () => {
-            setMounted(true);
             window.scrollTo(0, 0);
-
             setIsAuthenticated(authService.isAuthenticated());
 
-            // ✅ CORREGIDO: Procesar parámetros por NOMBRE
             const categoria = searchParams.get('categoria');
             const empresa = searchParams.get('empresa');
-            const busqueda = searchParams.get('q');
+            const busqueda = searchParams.get('q') || '';
 
-            if (categoria) setSelectedCategoriaNombre(categoria);
-            if (empresa) setSelectedEmpresaNombre(empresa);
-            if (busqueda) setSearchTerm(busqueda);
+            setSelectedCategoriaNombre(categoria);
+            setSelectedEmpresaNombre(empresa);
+            setSearchTerm(busqueda);
+            setDebouncedSearch(busqueda.trim());
+            setFirst(0);
 
-            await cargarDatos();
+            try {
+                const [categoriasRes, empresasRes] = await Promise.all([
+                    productService.obtenerCategorias(),
+                    productService.obtenerEmpresas()
+                ]);
+                if (categoriasRes.success && categoriasRes.data) setCategorias(categoriasRes.data);
+                if (empresasRes.success && empresasRes.data) setEmpresas(empresasRes.data);
+            } catch (error) {
+                console.error('❌ Error cargando filtros del catálogo:', error);
+            }
+
+            setMounted(true);
         };
 
         initializePage();
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!mounted) return;
+        cargarProductosPaginados();
+    }, [mounted, first, rows, debouncedSearch, selectedCategoriaNombre, selectedEmpresaNombre, sortBy]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -137,18 +132,25 @@ const ProductosPage: React.FC = () => {
         return () => clearInterval(interval);
     }, [mounted]);
 
-    const cargarDatos = async () => {
+    const cargarProductosPaginados = async () => {
         setLoading(true);
         try {
-            console.log('🚀 Iniciando carga de datos (ProductosPage)...');
-
-            const productosRes = await productService.obtenerProductos();
-            console.log('📦 Productos cargados:', productosRes.success);
+            const page = Math.floor(first / rows);
+            const productosRes = await productService.obtenerProductosListadoPaginado({
+                page,
+                size: rows,
+                sort: SORT_TO_API[sortBy],
+                q: debouncedSearch || undefined,
+                categoria: selectedCategoriaNombre || undefined,
+                empresa: selectedEmpresaNombre || undefined
+            });
 
             if (productosRes.success && productosRes.data) {
-                setProductos(productosRes.data);
-                console.log('✅ Productos seteados:', productosRes.data.length);
+                setProductos(productosRes.data.content || []);
+                setTotalRecords(productosRes.data.totalElements ?? 0);
             } else {
+                setProductos([]);
+                setTotalRecords(0);
                 toast.current?.show({
                     severity: 'error',
                     summary: 'Error',
@@ -156,18 +158,8 @@ const ProductosPage: React.FC = () => {
                     life: 3000
                 });
             }
-
-            const [categoriasRes, empresasRes] = await Promise.all([productService.obtenerCategorias(), productService.obtenerEmpresas()]);
-
-            if (categoriasRes.success && categoriasRes.data) {
-                setCategorias(categoriasRes.data);
-            }
-
-            if (empresasRes.success && empresasRes.data) {
-                setEmpresas(empresasRes.data);
-            }
         } catch (error) {
-            console.error('❌ Error cargando datos:', error);
+            console.error('❌ Error cargando productos paginados:', error);
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
@@ -176,15 +168,22 @@ const ProductosPage: React.FC = () => {
             });
         } finally {
             setLoading(false);
-            console.log('✅ Carga completada (ProductosPage)');
         }
+    };
+
+    const handlePageChange = (event: PaginatorPageChangeEvent) => {
+        setFirst(event.first);
+        setRows(event.rows);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const limpiarFiltros = () => {
         setSearchTerm('');
+        setDebouncedSearch('');
         setSelectedCategoriaNombre(null);
         setSelectedEmpresaNombre(null);
         setSortBy('nombre-asc');
+        setFirst(0);
         router.push('/products');
     };
 
@@ -520,7 +519,10 @@ const ProductosPage: React.FC = () => {
                 <label className="block mb-2 font-semibold text-sm text-900">Categoría</label>
                 <Dropdown
                     value={selectedCategoriaNombre}
-                    onChange={(e) => setSelectedCategoriaNombre(e.value)}
+                    onChange={(e) => {
+                        setSelectedCategoriaNombre(e.value);
+                        setFirst(0);
+                    }}
                     options={[{ label: 'Todas las categorías', value: null }, ...categorias.map((cat) => ({ label: cat.nombre, value: cat.nombre }))]}
                     placeholder="Seleccionar categoría"
                     className="w-full"
@@ -532,7 +534,10 @@ const ProductosPage: React.FC = () => {
                 <label className="block mb-2 font-semibold text-sm text-900">Empresa</label>
                 <Dropdown
                     value={selectedEmpresaNombre}
-                    onChange={(e) => setSelectedEmpresaNombre(e.value)}
+                    onChange={(e) => {
+                        setSelectedEmpresaNombre(e.value);
+                        setFirst(0);
+                    }}
                     options={[{ label: 'Todas las empresas', value: null }, ...empresas.map((emp) => ({ label: emp.nombre, value: emp.nombre }))]}
                     placeholder="Seleccionar empresa"
                     className="w-full"
@@ -679,7 +684,7 @@ const ProductosPage: React.FC = () => {
                                             Todos los Productos
                                         </h1>
                                         <p className="text-lg" style={{ color: 'var(--text-color-secondary)' }}>
-                                            {loading ? 'Cargando...' : `${productosFiltrados.length} productos disponibles`}
+                                            {loading ? 'Cargando...' : `${totalRecords} productos disponibles`}
                                         </p>
                                     </div>
 
@@ -695,7 +700,16 @@ const ProductosPage: React.FC = () => {
                                             }}
                                         />
 
-                                        <Dropdown value={sortBy} onChange={(e) => setSortBy(e.value)} options={sortOptions} placeholder="Ordenar por" className="w-12rem" />
+                                        <Dropdown
+                                            value={sortBy}
+                                            onChange={(e) => {
+                                                setSortBy(e.value);
+                                                setFirst(0);
+                                            }}
+                                            options={sortOptions}
+                                            placeholder="Ordenar por"
+                                            className="w-12rem"
+                                        />
                                     </div>
                                 </div>
 
@@ -707,9 +721,9 @@ const ProductosPage: React.FC = () => {
                                         </span>
                                         {searchTerm && <Chip label={`Búsqueda: "${searchTerm}"`} removable onRemove={() => setSearchTerm('')} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />}
                                         {selectedCategoriaNombre && (
-                                            <Chip label={`Categoría: ${selectedCategoriaNombre}`} removable onRemove={() => setSelectedCategoriaNombre(null)} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />
+                                            <Chip label={`Categoría: ${selectedCategoriaNombre}`} removable onRemove={() => { setSelectedCategoriaNombre(null); setFirst(0); }} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />
                                         )}
-                                        {selectedEmpresaNombre && <Chip label={`Empresa: ${selectedEmpresaNombre}`} removable onRemove={() => setSelectedEmpresaNombre(null)} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />}
+                                        {selectedEmpresaNombre && <Chip label={`Empresa: ${selectedEmpresaNombre}`} removable onRemove={() => { setSelectedEmpresaNombre(null); setFirst(0); }} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />}
                                     </div>
                                 )}
                             </div>
@@ -727,20 +741,33 @@ const ProductosPage: React.FC = () => {
                                 <div className="col-12 lg:col-9">
                                     {loading ? (
                                         <div className="grid">
-                                            {Array.from({ length: 12 }).map((_, index) => (
+                                            {Array.from({ length: rows }).map((_, index) => (
                                                 <div key={index} className="col-12 sm:col-6 lg:col-4 xl:col-3">
                                                     {renderSkeleton()}
                                                 </div>
                                             ))}
                                         </div>
-                                    ) : productosFiltrados.length > 0 ? (
-                                        <div className="grid">
-                                            {productosFiltrados.map((producto) => (
-                                                <div key={producto.id} className="col-12 sm:col-6 lg:col-4 xl:col-3">
-                                                    {renderProductCard(producto)}
-                                                </div>
-                                            ))}
-                                        </div>
+                                    ) : productos.length > 0 ? (
+                                        <>
+                                            <div className="grid">
+                                                {productos.map((producto) => (
+                                                    <div key={producto.id} className="col-12 sm:col-6 lg:col-4 xl:col-3">
+                                                        {renderProductCard(producto)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4">
+                                                <Paginator
+                                                    first={first}
+                                                    rows={rows}
+                                                    totalRecords={totalRecords}
+                                                    rowsPerPageOptions={[12, 24, 36, 48]}
+                                                    onPageChange={handlePageChange}
+                                                    template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                                                    currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} productos"
+                                                />
+                                            </div>
+                                        </>
                                     ) : (
                                         <div className="text-center py-8">
                                             <Card className="max-w-md mx-auto" style={{ backgroundColor: 'var(--surface-card)' }}>

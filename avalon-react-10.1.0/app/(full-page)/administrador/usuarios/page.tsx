@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -13,6 +13,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { Dropdown } from 'primereact/dropdown';
 import { Badge } from 'primereact/badge';
+import { toApiSortParam } from '@/services/apiConfig';
 import usuariosService, { Usuario, ROLES_DISPONIBLES, ESTADOS_USUARIO } from '@/services/usuariosService';
 
 export default function UsuariosPage() {
@@ -20,21 +21,41 @@ export default function UsuariosPage() {
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [loading, setLoading] = useState(true);
     const [globalFilter, setGlobalFilter] = useState('');
+    const [debouncedFilter, setDebouncedFilter] = useState('');
     const [selectedUsuarios, setSelectedUsuarios] = useState<Usuario[]>([]);
     const [filtroRol, setFiltroRol] = useState<string>('');
     const [filtroEstado, setFiltroEstado] = useState<boolean | null>(null);
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('id');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
     const toast = React.useRef<Toast>(null);
 
     useEffect(() => {
-        cargarUsuarios();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedFilter(globalFilter);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [globalFilter]);
 
-    const cargarUsuarios = async () => {
+    const cargarUsuarios = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await usuariosService.obtenerUsuarios();
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'id,desc');
+            const response = await usuariosService.obtenerUsuariosPaginado({
+                page,
+                size: rows,
+                sort,
+                q: debouncedFilter.trim() || undefined,
+                rol: filtroRol || undefined,
+                activo: filtroEstado ?? undefined
+            });
             if (response.success && response.data) {
-                setUsuarios(response.data);
+                setUsuarios(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 mostrarError('Error al cargar usuarios: ' + response.message);
             }
@@ -44,6 +65,21 @@ export default function UsuariosPage() {
         } finally {
             setLoading(false);
         }
+    }, [first, rows, sortField, sortOrder, debouncedFilter, filtroRol, filtroEstado]);
+
+    useEffect(() => {
+        cargarUsuarios();
+    }, [cargarUsuarios]);
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'id');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     const mostrarExito = (mensaje: string) => {
@@ -194,7 +230,10 @@ export default function UsuariosPage() {
                     { label: 'Todos los roles', value: '' },
                     ...ROLES_DISPONIBLES.map(r => ({ label: r.label, value: r.value }))
                 ]}
-                onChange={(e) => setFiltroRol(e.value)}
+                onChange={(e) => {
+                    setFirst(0);
+                    setFiltroRol(e.value);
+                }}
                 placeholder="Filtrar por rol"
                 className="w-12rem"
             />
@@ -204,26 +243,15 @@ export default function UsuariosPage() {
                     { label: 'Todos los estados', value: null },
                     ...ESTADOS_USUARIO.map(e => ({ label: e.label, value: e.value }))
                 ]}
-                onChange={(e) => setFiltroEstado(e.value)}
+                onChange={(e) => {
+                    setFirst(0);
+                    setFiltroEstado(e.value);
+                }}
                 placeholder="Filtrar por estado"
                 className="w-12rem"
             />
         </div>
     );
-
-    // Filtrar usuarios localmente
-    const usuariosFiltrados = usuarios.filter(usuario => {
-        const cumpleFiltroTexto = !globalFilter || 
-            usuario.username.toLowerCase().includes(globalFilter.toLowerCase()) ||
-            usuario.nombre.toLowerCase().includes(globalFilter.toLowerCase()) ||
-            usuario.apellido.toLowerCase().includes(globalFilter.toLowerCase()) ||
-            usuario.email.toLowerCase().includes(globalFilter.toLowerCase());
-
-        const cumpleFiltroRol = !filtroRol || usuario.roles.includes(filtroRol);
-        const cumpleFiltroEstado = filtroEstado === null || usuario.activo === filtroEstado;
-
-        return cumpleFiltroTexto && cumpleFiltroRol && cumpleFiltroEstado;
-    });
 
     return (
         <div className="grid">
@@ -237,7 +265,7 @@ export default function UsuariosPage() {
                             <p className="text-600 m-0 mt-1">Administre todos los usuarios del sistema</p>
                         </div>
                         <Badge 
-                            value={usuariosFiltrados.length} 
+                            value={totalRecords} 
                             severity="info" 
                             size="large"
                         />
@@ -250,10 +278,17 @@ export default function UsuariosPage() {
                     />
 
                     <DataTable
-                        value={usuariosFiltrados}
-                        paginator
-                        rows={10}
+                        value={usuarios}
+                        lazy
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
+                        paginator
                         loading={loading}
                         selection={selectedUsuarios}
                         onSelectionChange={(e) => setSelectedUsuarios(e.value as Usuario[])}

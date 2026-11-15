@@ -1,5 +1,5 @@
 import authService from './authService';
-import { GATEWAY_BASE_URL } from './apiConfig';
+import { GATEWAY_BASE_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 const API_BASE_URL = GATEWAY_BASE_URL;
 
@@ -173,6 +173,16 @@ class InventarioService {
         return this.makeRequest<Inventario[]>('/api/inventarios');
     }
 
+    async obtenerInventariosPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Inventario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            soloActivos: params?.soloActivos
+        });
+        return this.makeRequest<PageResponse<Inventario>>(`/api/inventarios/paginado${query}`);
+    }
+
     async obtenerInventarioPorId(id: number): Promise<ApiResponse<Inventario>> {
         return this.makeRequest<Inventario>(`/api/inventarios/${id}`);
     }
@@ -280,6 +290,35 @@ class InventarioService {
 
     async obtenerMovimientos(): Promise<ApiResponse<MovimientoInventario[]>> {
         return this.makeRequest<MovimientoInventario[]>('/api/movimientos');
+    }
+
+    async obtenerMovimientosPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<MovimientoInventario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaMovimiento,desc',
+            inventarioId: params?.inventarioId,
+            inventarioIds: params?.inventarioIds,
+            tipo: params?.tipo,
+            motivo: params?.motivo,
+            fechaDesde: params?.fechaDesde,
+            fechaHasta: params?.fechaHasta
+        });
+        return this.makeRequest<PageResponse<MovimientoInventario>>(`/api/movimientos/paginado${query}`);
+    }
+
+    async obtenerMovimientosPorInventarioPaginado(
+        inventarioId: number,
+        params?: PaginationParams
+    ): Promise<ApiResponse<PageResponse<MovimientoInventario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaMovimiento,desc'
+        });
+        return this.makeRequest<PageResponse<MovimientoInventario>>(
+            `/api/movimientos/inventario/${inventarioId}/paginado${query}`
+        );
     }
 
     async obtenerMovimientoPorId(id: number): Promise<ApiResponse<MovimientoInventario>> {

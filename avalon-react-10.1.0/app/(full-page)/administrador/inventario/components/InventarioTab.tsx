@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTablePageEvent, DataTableSortEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -13,6 +13,7 @@ import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import emprendedorService, { ProductoEmprendedor } from '../../../../../services/emprendedorService';
+import { toApiSortParam } from '../../../../../services/apiConfig';
 
 interface InventarioTabProps {
     toast: React.RefObject<Toast>;
@@ -21,93 +22,83 @@ interface InventarioTabProps {
 const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
     const router = useRouter();
     
-    // ✅ USAR EXACTAMENTE LOS MISMOS ESTADOS QUE PRODUCTOS
     const [productos, setProductos] = useState<ProductoEmprendedor[]>([]);
-    const [productosFiltrados, setProductosFiltrados] = useState<ProductoEmprendedor[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('id');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
 
-    // ✅ USAR EXACTAMENTE LA MISMA LÓGICA DE CARGA QUE PRODUCTOS
     useEffect(() => {
-        cargarDatos();
-        
-        // ✅ EXACTAMENTE EL MISMO LISTENER QUE PRODUCTOS
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+            setFirst(0);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
         const handleStockUpdate = (event: CustomEvent) => {
             const { productoId, stock } = event.detail;
-            
-            const updateProducts = (prevProductos: ProductoEmprendedor[]) => 
-                prevProductos.map(producto => 
-                    producto.id === productoId 
+            setProductos(prevProductos =>
+                prevProductos.map(producto =>
+                    producto.id === productoId
                         ? {
-                            ...producto,
-                            inventario: {
-                                ...producto.inventario,
-                                id: producto.inventario?.id || 0,
-                                cantidad: stock,
-                                ubicacion: stock > 0 ? 'Disponible' : 'No disponible'
-                            }
-                        }
+                              ...producto,
+                              inventario: {
+                                  ...producto.inventario,
+                                  id: producto.inventario?.id || 0,
+                                  cantidad: stock,
+                                  ubicacion: stock > 0 ? 'Disponible' : 'No disponible'
+                              }
+                          }
                         : producto
-                );
-            
-            setProductos(updateProducts);
-            setProductosFiltrados(updateProducts);
+                )
+            );
         };
 
         window.addEventListener('stockUpdatedEmprendedor', handleStockUpdate as EventListener);
-        
         return () => {
             window.removeEventListener('stockUpdatedEmprendedor', handleStockUpdate as EventListener);
         };
     }, []);
 
-    // ✅ EXACTAMENTE LA MISMA FUNCIÓN cargarDatos QUE PRODUCTOS (SIN ACTUALIZACIÓN EN SEGUNDO PLANO)
+    useEffect(() => {
+        cargarDatos();
+    }, [first, rows, debouncedSearch, sortField, sortOrder]);
+
     const cargarDatos = async () => {
         setLoading(true);
         try {
-            console.log('🔄 Cargando datos del inventario (usando lógica de productos SIN actualización segundo plano)...');
-
-            // ✅ USAR LA MISMA LLAMADA QUE PRODUCTOS
-            const productosRes = await emprendedorService.obtenerProductosEmprendedor();
+            const page = Math.floor(first / rows);
+            const productosRes = await emprendedorService.obtenerProductosEmprendedorPaginado({
+                page,
+                size: rows,
+                sort: toApiSortParam(sortField, sortOrder, 'id,desc'),
+                q: debouncedSearch || undefined
+            });
 
             if (productosRes.success && productosRes.data) {
-                // ✅ LOG PARA VER QUE LLEGA ANTES DE NORMALIZAR
-                console.log('🔍 Datos RAW de productos antes de normalizar:', productosRes.data.slice(0, 3).map(p => ({
-                    id: p.id,
-                    nombre: p.nombre,
-                    inventario: p.inventario
-                })));
-                
-                // ✅ EXACTAMENTE LA MISMA NORMALIZACIÓN QUE PRODUCTOS (SIN MODIFICAR INVENTARIO)
-                const productosNormalizados = productosRes.data.map(producto => {
-                    console.log(`🔍 Producto ${producto.nombre}: inventario original =`, producto.inventario);
-                    
-                    return {
-                        ...producto,
-                        nombre: producto.nombre || '',
-                        descripcion: producto.descripcion || '',
-                        categoria: {
-                            ...producto.categoria,
-                            nombre: producto.categoria?.nombre || 'Sin categoría'
-                        },
-                        empresa: {
-                            ...producto.empresa,
-                            nombre: producto.empresa?.nombre || 'Sin empresa'
-                        },
-                        // ✅ MANTENER INVENTARIO TAL COMO VIENE (NO CREAR UNO NUEVO)
-                        inventario: producto.inventario || { id: 0, cantidad: 0, ubicacion: 'Sin stock' }
-                    };
-                });
-                
-                console.log('🔍 Productos normalizados:', productosNormalizados.slice(0, 3).map(p => ({
-                    id: p.id,
-                    nombre: p.nombre,
-                    inventario: p.inventario
-                })));
-                
+                const productosNormalizados = (productosRes.data.content || []).map(producto => ({
+                    ...producto,
+                    nombre: producto.nombre || '',
+                    descripcion: producto.descripcion || '',
+                    categoria: {
+                        ...producto.categoria,
+                        nombre: producto.categoria?.nombre || 'Sin categoría'
+                    },
+                    empresa: {
+                        ...producto.empresa,
+                        nombre: producto.empresa?.nombre || 'Sin empresa'
+                    },
+                    inventario: producto.inventario || { id: 0, cantidad: 0, ubicacion: 'Sin stock' }
+                }));
+
                 setProductos(productosNormalizados);
-                setProductosFiltrados(productosNormalizados);
-                console.log('✅ Productos cargados en inventario (SIN actualización segundo plano):', productosNormalizados.length);
+                setTotalRecords(productosRes.data.totalElements ?? 0);
             } else {
                 toast.current?.show({
                     severity: 'error',
@@ -116,7 +107,6 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                     life: 3000
                 });
             }
-
         } catch (error) {
             console.error('❌ Error cargando datos:', error);
             toast.current?.show({
@@ -130,24 +120,19 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
         }
     };
 
-    // ✅ EXACTAMENTE LA MISMA FUNCIÓN DE FILTRO QUE PRODUCTOS
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
-        
-        if (!value.trim()) {
-            setProductosFiltrados(productos);
-            return;
-        }
-        
-        const filtered = productos.filter(producto => 
-            producto.nombre?.toLowerCase().includes(value) ||
-            producto.descripcion?.toLowerCase().includes(value) ||
-            producto.categoria?.nombre?.toLowerCase().includes(value) ||
-            producto.empresa?.nombre?.toLowerCase().includes(value)
-        );
-        
-        setProductosFiltrados(filtered);
+        setSearchTerm(e.target.value);
+    };
+
+    const onPage = (event: DataTablePageEvent) => {
+        setFirst(event.first);
+        setRows(event.rows);
+    };
+
+    const onSort = (event: DataTableSortEvent) => {
+        setSortField(event.sortField || 'id');
+        setSortOrder((event.sortOrder || -1) as 1 | -1);
+        setFirst(0);
     };
 
     // ✅ EXACTAMENTE LOS MISMOS TEMPLATES QUE PRODUCTOS
@@ -278,7 +263,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                 <div className="col-12 md:col-3">
                     <div className="bg-blue-50 border-round p-3 text-center">
                         <div className="text-blue-600 font-bold text-xl">
-                            {productos.length}
+                            {totalRecords}
                         </div>
                         <div className="text-600 text-sm">Total Productos</div>
                     </div>
@@ -291,7 +276,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                                 return stock > 5;
                             }).length}
                         </div>
-                        <div className="text-600 text-sm">Stock Suficiente</div>
+                        <div className="text-600 text-sm">Stock Suficiente (pág.)</div>
                     </div>
                 </div>
                 <div className="col-12 md:col-3">
@@ -302,7 +287,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                                 return stock > 0 && stock <= 5;
                             }).length}
                         </div>
-                        <div className="text-600 text-sm">Stock Bajo</div>
+                        <div className="text-600 text-sm">Stock Bajo (pág.)</div>
                     </div>
                 </div>
                 <div className="col-12 md:col-3">
@@ -313,7 +298,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                                 return stock === 0;
                             }).length}
                         </div>
-                        <div className="text-600 text-sm">Sin Stock</div>
+                        <div className="text-600 text-sm">Sin Stock (pág.)</div>
                     </div>
                 </div>
             </div>
@@ -325,14 +310,21 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                 right={rightToolbarTemplate}
             />
 
-            {/* ✅ TABLA DE INVENTARIO - EXACTAMENTE IGUAL QUE PRODUCTOS */}
+            {/* ✅ TABLA DE INVENTARIO */}
             {loading ? (
                 renderSkeleton()
             ) : (
                 <DataTable 
-                    value={productosFiltrados}
+                    value={productos}
+                    lazy
                     paginator
-                    rows={10}
+                    first={first}
+                    rows={rows}
+                    totalRecords={totalRecords}
+                    onPage={onPage}
+                    onSort={onSort}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
                     rowsPerPageOptions={[5, 10, 25, 50]}
                     emptyMessage="No se encontraron productos en inventario"
                     responsiveLayout="scroll"
@@ -356,19 +348,16 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                     <Column 
                         field="categoria.nombre" 
                         header="Categoría" 
-                        sortable
                     />
                     <Column 
                         field="inventario.cantidad" 
                         header="Stock Actual" 
                         body={stockBodyTemplate}
-                        sortable
                     />
                     <Column 
                         field="inventario.ubicacion" 
                         header="Ubicación/Estado" 
                         body={ubicacionBodyTemplate}
-                        sortable
                     />
                     <Column 
                         body={actionBodyTemplate} 

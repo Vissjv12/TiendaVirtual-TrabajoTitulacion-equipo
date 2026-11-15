@@ -3,6 +3,8 @@ package com.example.msvc_producto.application.service;
 import com.example.msvc_producto.domain.model.Empresa;
 import com.example.msvc_producto.domain.repository.EmpresaRepository;
 import com.example.msvc_producto.domain.service.EmpresaService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +65,12 @@ public class EmpresaServiceImpl implements EmpresaService {
     @Transactional(readOnly = true)
     public List<Empresa> listarEmpresas() {
         return empresaRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Empresa> listarEmpresasPaginado(String q, Pageable pageable) {
+        return empresaRepository.findPaginado(q == null ? "" : q.trim(), pageable);
     }
 
     @Override

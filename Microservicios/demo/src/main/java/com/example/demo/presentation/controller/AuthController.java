@@ -4,6 +4,7 @@ import com.example.demo.application.dto.*;
 import com.example.demo.application.mapper.UsuarioMapper;
 import com.example.demo.application.service.AuthService;
 import com.example.demo.application.service.PasswordResetService;
+import com.example.demo.application.util.PaginationUtils;
 import com.example.demo.domain.model.Usuario;
 import com.example.demo.domain.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,12 +15,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -157,6 +162,33 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(usuarioMapper.toResponseDto(usuarioRegistrado));
+    }
+
+    private static final Map<String, String> USUARIO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "username", "username",
+            "email", "email",
+            "nombre", "nombre",
+            "apellido", "apellido",
+            "activo", "activo"
+    );
+
+    @GetMapping("/usuarios/paginado")
+    @Operation(summary = "Listar usuarios paginados (Solo Admin, contrato A-19)")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PageResponseDto<UsuarioResponseDto>> obtenerUsuariosPaginado(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "id,desc") String sort,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String rol,
+            @RequestParam(required = false) Boolean activo) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "id", Sort.Direction.DESC, USUARIO_SORT_FIELDS);
+        Page<Usuario> result = usuarioService.obtenerUsuariosPaginado(q, rol, activo, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(result, usuarioMapper::toResponseDto));
     }
 
     @GetMapping("/usuarios")

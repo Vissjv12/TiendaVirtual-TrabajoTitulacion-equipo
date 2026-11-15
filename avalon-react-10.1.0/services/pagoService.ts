@@ -1,6 +1,6 @@
 // services/pagoService.ts
 import authService from './authService';
-import { GATEWAY_API_URL } from './apiConfig';
+import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 const API_BASE_URL = GATEWAY_API_URL;
 
@@ -130,6 +130,29 @@ export const listarPagosPendientes = async (emprendedorId: number): Promise<Pago
     return response.json();
 };
 
+export const listarPagosPendientesPaginado = async (
+    emprendedorId: number,
+    params?: PaginationParams
+): Promise<PageResponse<PagoResponse>> => {
+    const query = buildPaginationQuery({
+        page: params?.page ?? 0,
+        size: params?.size ?? 10,
+        sort: params?.sort ?? 'fechaCreacion,desc'
+    });
+    const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}/pendientes/paginado${query}`, {
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
+
+    if (!response.ok) {
+        const msg = await authService.extractErrorMessage(response, 'Error al listar pagos pendientes paginados');
+        throw new Error(msg);
+    }
+
+    return response.json();
+};
+
 export const listarPagosPorEmprendedor = async (emprendedorId: number): Promise<PagoResponse[]> => {
     const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}`, {
         headers: {
@@ -139,6 +162,29 @@ export const listarPagosPorEmprendedor = async (emprendedorId: number): Promise<
     
     if (!response.ok) {
         const msg = await authService.extractErrorMessage(response, 'Error al listar pagos del emprendedor');
+        throw new Error(msg);
+    }
+
+    return response.json();
+};
+
+export const listarPagosPorEmprendedorPaginado = async (
+    emprendedorId: number,
+    params?: PaginationParams
+): Promise<PageResponse<PagoResponse>> => {
+    const query = buildPaginationQuery({
+        page: params?.page ?? 0,
+        size: params?.size ?? 10,
+        sort: params?.sort ?? 'fechaCreacion,desc'
+    });
+    const response = await fetch(`${API_BASE_URL}/pagos/emprendedor/${emprendedorId}/paginado${query}`, {
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
+
+    if (!response.ok) {
+        const msg = await authService.extractErrorMessage(response, 'Error al listar pagos paginados del emprendedor');
         throw new Error(msg);
     }
 
@@ -171,6 +217,8 @@ export default {
     rechazarPago,
     subirComprobante,
     listarPagosPendientes,
+    listarPagosPendientesPaginado,
     listarPagosPorEmprendedor,
+    listarPagosPorEmprendedorPaginado,
     procesarPagoSimulado
 };

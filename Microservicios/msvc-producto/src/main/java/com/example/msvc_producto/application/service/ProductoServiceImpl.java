@@ -21,6 +21,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -291,5 +293,48 @@ public class ProductoServiceImpl implements ProductoService {
     @Transactional(readOnly = true)
     public List<ProductoListadoDto> listarProductosOptimizado() {
         return obtenerProductosOptimizado();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Producto> listarProductosPaginado(
+            String q,
+            Long empresaId,
+            Long categoriaId,
+            Boolean activo,
+            Pageable pageable) {
+        String filtroTexto = q == null ? "" : q.trim();
+        return productoRepository.findPaginado(filtroTexto, empresaId, categoriaId, activo, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductoListadoDto> obtenerProductosOptimizadoPaginado(
+            String q,
+            String categoria,
+            String empresa,
+            Pageable pageable) {
+        String filtroQ = q == null ? "" : q.trim();
+        String filtroCategoria = categoria == null ? "" : categoria.trim();
+        String filtroEmpresa = empresa == null ? "" : empresa.trim();
+
+        Page<ProductoListadoDto> page = productoRepository.findListadoPaginado(
+                filtroQ, filtroCategoria, filtroEmpresa, pageable);
+
+        if (!page.isEmpty() && inventarioClient != null) {
+            List<Long> productosIds = page.getContent().stream()
+                    .map(ProductoListadoDto::getId)
+                    .toList();
+            try {
+                Map<String, Integer> cantidades = consultarCantidadesInventario(productosIds);
+                page.getContent().forEach(producto -> {
+                    Integer cantidad = cantidades.get(String.valueOf(producto.getId()));
+                    producto.setInventarioCantidad(cantidad != null ? Math.max(cantidad, 0) : 0);
+                });
+            } catch (Exception ex) {
+                logger.warn("No se pudo enriquecer el stock en lote de la página actual: {}", ex.getMessage());
+            }
+        }
+        return page;
     }
 }
