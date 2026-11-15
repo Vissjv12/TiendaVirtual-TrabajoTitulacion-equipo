@@ -38,6 +38,7 @@ export interface EstadisticasUsuarios {
     usuariosActivos: number;
     usuariosInactivos: number;
     administradores: number;
+    administradoresActivos?: number;
     emprendedores: number;
     clientes: number;
 }
@@ -89,7 +90,14 @@ class UsuariosService {
                 let errorMessage = `Error ${response.status}`;
                 try {
                     const errorData = await response.text();
-                    errorMessage = errorData || errorMessage;
+                    if (errorData) {
+                        try {
+                            const parsed = JSON.parse(errorData);
+                            errorMessage = parsed.message || parsed.error || errorData;
+                        } catch {
+                            errorMessage = errorData;
+                        }
+                    }
                 } catch {
                     // Si no se puede leer el error, usar el mensaje por defecto
                 }

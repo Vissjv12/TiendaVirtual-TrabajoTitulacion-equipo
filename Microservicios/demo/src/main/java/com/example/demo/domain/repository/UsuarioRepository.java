@@ -30,5 +30,6 @@ public interface UsuarioRepository {
     long countByActivoTrue();
     long countByActivoFalse();
     long countByRolesContaining(String rol);
+    long countByRolAndActivoTrue(String rol);
     Page<Usuario> findPaginado(String q, String rol, Boolean activo, Pageable pageable);
 }

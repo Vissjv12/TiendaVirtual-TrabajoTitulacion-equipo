@@ -9,7 +9,7 @@ import { InputText } from 'primereact/inputtext';
 import { Tag } from 'primereact/tag';
 import { Card } from 'primereact/card';
 import { Toolbar } from 'primereact/toolbar';
-import { confirmDialog } from 'primereact/confirmdialog';
+import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { Dropdown } from 'primereact/dropdown';
 import { Badge } from 'primereact/badge';
@@ -30,6 +30,8 @@ export default function UsuariosPage() {
     const [totalRecords, setTotalRecords] = useState<number>(0);
     const [sortField, setSortField] = useState<string>('id');
     const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
+    const [totalAdmins, setTotalAdmins] = useState<number>(0);
+    const [activeAdmins, setActiveAdmins] = useState<number>(0);
     const toast = React.useRef<Toast>(null);
 
     useEffect(() => {
@@ -45,14 +47,21 @@ export default function UsuariosPage() {
         try {
             const page = Math.floor(first / rows);
             const sort = toApiSortParam(sortField, sortOrder, 'id,desc');
-            const response = await usuariosService.obtenerUsuariosPaginado({
-                page,
-                size: rows,
-                sort,
-                q: debouncedFilter.trim() || undefined,
-                rol: filtroRol || undefined,
-                activo: filtroEstado ?? undefined
-            });
+            const [response, statsRes] = await Promise.all([
+                usuariosService.obtenerUsuariosPaginado({
+                    page,
+                    size: rows,
+                    sort,
+                    q: debouncedFilter.trim() || undefined,
+                    rol: filtroRol || undefined,
+                    activo: filtroEstado ?? undefined
+                }),
+                usuariosService.obtenerEstadisticas()
+            ]);
+            if (statsRes.success && statsRes.data) {
+                setTotalAdmins(statsRes.data.administradores ?? 0);
+                setActiveAdmins(statsRes.data.administradoresActivos ?? statsRes.data.administradores ?? 0);
+            }
             if (response.success && response.data) {
                 setUsuarios(response.data.content || []);
                 setTotalRecords(response.data.totalElements ?? 0);
@@ -92,10 +101,12 @@ export default function UsuariosPage() {
 
     const confirmarEliminar = (usuario: Usuario) => {
         confirmDialog({
-            message: `¿Está seguro de eliminar al usuario "${usuario.username}"?`,
+            message: `¿Está seguro de eliminar lógicamente al usuario "${usuario.username}"? El usuario pasará a estado inactivo sin borrarse de la base de datos.`,
             header: 'Confirmar eliminación',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
+            acceptLabel: 'Sí, eliminar',
+            rejectLabel: 'Cancelar',
             accept: () => eliminarUsuario(usuario.id),
         });
     };
@@ -104,7 +115,7 @@ export default function UsuariosPage() {
         try {
             const response = await usuariosService.eliminarUsuario(id);
             if (response.success) {
-                mostrarExito('Usuario eliminado exitosamente');
+                mostrarExito('Usuario eliminado lógicamente (desactivado) exitosamente');
                 cargarUsuarios();
             } else {
                 mostrarError('Error al eliminar usuario: ' + response.message);
@@ -165,34 +176,47 @@ export default function UsuariosPage() {
         />
     );
 
-    const accionesTemplate = (rowData: Usuario) => (
-        <div className="flex gap-2">
-            <Button
-                icon="pi pi-eye"
-                className="p-button-text p-button-info"
-                tooltip="Ver detalles"
-                onClick={() => router.push(`/administrador/usuarios/${rowData.id}`)}
-            />
-            <Button
-                icon="pi pi-pencil"
-                className="p-button-text p-button-warning"
-                tooltip="Editar"
-                onClick={() => router.push(`/administrador/usuarios/${rowData.id}/editar`)}
-            />
-            <Button
-                icon={rowData.activo ? 'pi pi-times' : 'pi pi-check'}
-                className={`p-button-text ${rowData.activo ? 'p-button-warning' : 'p-button-success'}`}
-                tooltip={rowData.activo ? 'Desactivar' : 'Activar'}
-                onClick={() => cambiarEstado(rowData)}
-            />
-            <Button
-                icon="pi pi-trash"
-                className="p-button-text p-button-danger"
-                tooltip="Eliminar"
-                onClick={() => confirmarEliminar(rowData)}
-            />
-        </div>
-    );
+    const esUnicoAdmin = (usuario: Usuario) => {
+        if (!usuario.roles.includes('ROLE_ADMIN')) return false;
+        return totalAdmins <= 1 || (usuario.activo && activeAdmins <= 1);
+    };
+
+    const accionesTemplate = (rowData: Usuario) => {
+        const protegerAdmin = esUnicoAdmin(rowData);
+
+        return (
+            <div className="flex gap-2">
+                <Button
+                    icon="pi pi-eye"
+                    className="p-button-text p-button-info"
+                    tooltip="Ver detalles"
+                    onClick={() => router.push(`/administrador/usuarios/${rowData.id}`)}
+                />
+                <Button
+                    icon="pi pi-pencil"
+                    className="p-button-text p-button-warning"
+                    tooltip="Editar"
+                    onClick={() => router.push(`/administrador/usuarios/${rowData.id}/editar`)}
+                />
+                {!protegerAdmin && (
+                    <>
+                        <Button
+                            icon={rowData.activo ? 'pi pi-times' : 'pi pi-check'}
+                            className={`p-button-text ${rowData.activo ? 'p-button-warning' : 'p-button-success'}`}
+                            tooltip={rowData.activo ? 'Desactivar' : 'Activar'}
+                            onClick={() => cambiarEstado(rowData)}
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            className="p-button-text p-button-danger"
+                            tooltip="Eliminar (borrado lógico)"
+                            onClick={() => confirmarEliminar(rowData)}
+                        />
+                    </>
+                )}
+            </div>
+        );
+    };
 
     // =====================================
     // FILTROS Y TOOLBAR
@@ -256,6 +280,7 @@ export default function UsuariosPage() {
     return (
         <div className="grid">
             <Toast ref={toast} />
+            <ConfirmDialog />
             
             <div className="col-12">
                 <Card>

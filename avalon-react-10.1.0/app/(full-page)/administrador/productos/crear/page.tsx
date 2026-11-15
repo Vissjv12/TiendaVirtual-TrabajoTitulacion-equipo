@@ -142,7 +142,7 @@ const CrearProductoPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/productos');
+                    router.push('/administrador/productos');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -208,7 +208,7 @@ const CrearProductoPage: React.FC = () => {
                         label="Volver" 
                         icon="pi pi-arrow-left" 
                         className="p-button-outlined"
-                        onClick={() => router.push('/emprendedor/productos')}
+                        onClick={() => router.push('/administrador/productos')}
                     />
                 </div>
             </div>
@@ -411,7 +411,7 @@ const CrearProductoPage: React.FC = () => {
                     label="Cancelar" 
                     icon="pi pi-times" 
                     className="p-button-outlined"
-                    onClick={() => router.push('/emprendedor/productos')}
+                    onClick={() => router.push('/administrador/productos')}
                     disabled={loading}
                 />
                 <Button 

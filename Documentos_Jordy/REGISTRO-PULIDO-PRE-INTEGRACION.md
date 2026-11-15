@@ -51,16 +51,34 @@
 - **`avalon-react-10.1.0/app/(main)/components/FeaturedProducts.tsx`** y **`avalon-react-10.1.0/app/(landing)/components/FeaturedProducts.tsx`**:
   - Se aplicó el mismo criterio de visibilidad y enrutamiento (`/emprendedor/productos/${producto.id}/editar` para `ROLE_EMP` en sus propios productos y `/administrador/productos/${producto.id}/editar` para `ROLE_ADMIN` en todos), corrigiendo la ruta muerta anterior `/dashboard/productos/${producto.id}`.
 
+### 1.6 Correcciones del panel Administrador (Usuarios, Productos y Navegación)
+- **Borrado lógico real de usuarios + diálogo de confirmación en UI:**
+  - **`avalon-react-10.1.0/app/(full-page)/administrador/usuarios/page.tsx`** y **`avalon-react-10.1.0/app/(full-page)/administrador/usuarios/[id]/page.tsx`**: se importó y renderizó `<ConfirmDialog />` (su ausencia impedía que `confirmDialog(...)` mostrara el modal al pulsar el botón rojo de eliminar) y se actualizó el mensaje para indicar desactivación lógica (`activo = false`).
+  - **`Microservicios/demo/src/main/java/com/example/demo/application/service/UsuarioServiceImpl.java`**: `eliminarUsuario(Long id)` realiza ahora borrado lógico (`usuario.setActivo(false)` + sincronización de `EmprendedorEntity.activo = false`) en lugar de `deleteById`, compatible con `spring.jpa.hibernate.ddl-auto=validate` y la integridad referencial.
+- **Bloqueo de inicio de sesión para usuarios desactivados:**
+  - **`Microservicios/demo/src/main/java/com/example/demo/application/service/AuthService.java`**: `login(LoginRequestDto)` valida explícitamente `!userDetails.isEnabled()` y `!usuario.isActivo()`, lanzando `DisabledException("La cuenta está desactivada. Contacte al administrador.")`.
+  - **`Microservicios/demo/src/main/java/com/example/demo/presentation/controller/AuthController.java`**: `/auth/login` retorna HTTP `403 Forbidden` con `{ message }` cuando la cuenta está desactivada.
+- **Protección del último o único Administrador activo:**
+  - **`Microservicios/demo/src/main/java/com/example/demo/infrastructure/persistence/repository/UsuarioJpaRepository.java`**, **`domain/repository/UsuarioRepository.java`**, **`infrastructure/persistence/impl/UsuarioRepositoryImpl.java`**, **`EstadisticasUsuariosDto.java`** y **`UsuarioServiceImpl.java`**: se añadió `countByRolAndActivoTrue(String rol)` (`administradoresActivos` en `/auth/usuarios/estadisticas`) y `validarProteccionUltimoAdmin(...)`, impidiendo eliminar lógicamente, desactivar o quitar `ROLE_ADMIN` al único/último administrador activo (retornando HTTP `400 Bad Request` con `{ message }` en `AuthController`).
+  - **`avalon-react-10.1.0/services/usuariosService.ts`**, **`administrador/usuarios/page.tsx`** y **`administrador/usuarios/[id]/page.tsx`**: cuando el usuario es el único/último administrador activo (`esUnicoAdmin`), se ocultan los botones de **Desactivar** y **Eliminar** tanto en la tabla como en la vista de detalle, y `makeRequest` propaga el campo JSON `message` del backend en caso de rechazo.
+- **Creación de productos habilitada para Administrador dentro de su panel:**
+  - **`avalon-react-10.1.0/app/(full-page)/administrador/productos/page.tsx`** y **`avalon-react-10.1.0/app/(full-page)/administrador/productos/crear/page.tsx`**: se mantuvo habilitado `+ Nuevo Producto` y el formulario de creación seleccionando categoría y empresa desde `/administrador/productos/crear`, corrigiendo las redirecciones hacia `/administrador/productos` (sin saltar a `/emprendedor/...`).
+  - **`Microservicios/msvc-producto/src/main/java/com/example/msvc_producto/presentation/controller/ProductoController.java`**: se conservó `@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")` en `crearProducto`.
+- **Corrección de navegación dentro del layout `/administrador`:**
+  - Se reemplazaron las rutas hardcoded hacia `/emprendedor/...` por `/administrador/...` en `categorias/` (`page.tsx`, `crear/page.tsx`, `[id]/editar/page.tsx`), `empresas/` (`page.tsx`, `crear/page.tsx`, `[id]/editar/page.tsx`), `inventario/` (`page.tsx`, `InventarioTab.tsx`, `ajustar/page.tsx`, `crear/page.tsx`, `[id]/editar/page.tsx`), `productos/` (`page.tsx`, `[id]/editar/page.tsx`) y `ventas/` (`page.tsx`, `[id]/page.tsx`).
+
 ---
 
 ## 2. Verificación Técnica Ejecutada
 
 | Verificación | Alcance | Resultado |
 | :--- | :--- | :--- |
-| TypeScript (`.\node_modules\.bin\tsc.cmd --noEmit`) | Todo `avalon-react-10.1.0` tras la última edición | Exit code `0` (0 errores) |
-| Pruebas unitarias de helpers (`verify_helpers.js`) | `formValidations.ts` y `csvExport.ts` (rechazo de letras en cuenta/referencia, cédula/teléfono, BOM UTF-8, escaping RFC 4180 y anti-fórmulas) | Exit code `0` (`ALL HELPER UNIT CHECKS PASSED (22 assertions)`) |
-| Compilación de producción (`.\node_modules\.bin\next.cmd build --no-lint`) | App completa Next.js (`105` páginas generadas) | Exit code `0` |
-| Prueba en navegador headless Chrome (`repro404.js` sobre `next start -p 3099`) | Visita a `/checkout/fse` (HTTP `404`), clic en texto de la pantalla y clic en botón `Ir al Inicio` | Navega a `http://127.0.0.1:3099/`, carga el storefront completo con `0` errores/excepciones, exit code `0` |
+| Backend `msvc-auth` (`Microservicios/demo`: `.\mvnw.cmd test "-Dtest=AuthServiceDisabledUserTest,UsuarioServiceImplTest,UsuarioPaginationTest"`) | `UsuarioServiceImplTest` (`9`), `AuthServiceDisabledUserTest` (`1`) y `UsuarioPaginationTest` (`2`); se reubicó `UsuarioServiceImplTest.java` desde `src/main/java` a `src/test/java` para que Surefire lo ejecute (`LoginApplicationTests` excluido por requerir BD activa) | Exit code `0` (`Tests run: 12, Failures: 0, Errors: 0, Skipped: 0`) |
+| Backend `msvc-producto` (`Microservicios/msvc-producto`: `.\mvnw.cmd test "-Dtest=ProductoControllerApiAuthorizationTest,ProductoAuthorizationServiceTest,ProductoPaginationTest"`) | `ProductoAuthorizationServiceTest` (`7`), `ProductoControllerApiAuthorizationTest` (`8`) y `ProductoPaginationTest` (`4`) | Exit code `0` (`Tests run: 19, Failures: 0, Errors: 0, Skipped: 0`) |
+| TypeScript (`.\node_modules\.bin\tsc.cmd --noEmit`) | Todo `avalon-react-10.1.0` tras las últimas ediciones del panel Administrador | Exit code `0` (0 errores) |
+| Compilación de producción (`.\node_modules\.bin\next.cmd build --no-lint`) | App completa Next.js (`105` páginas generadas) tras las últimas ediciones | Exit code `0` |
+| Pruebas unitarias de helpers (`verify_helpers.js`) | `formValidations.ts` y `csvExport.ts` (ejecutado en la etapa previa de validaciones/exportación CSV) | Exit code `0` (`ALL HELPER UNIT CHECKS PASSED (22 assertions)`) |
+| Prueba en navegador headless Chrome (`repro404.js` sobre `next start -p 3099`) | Visita a `/checkout/fse` y navegación por `Ir al Inicio` (ejecutado en la etapa previa de pantalla `404`) | Exit code `0` |
 
 ---
 

@@ -186,7 +186,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                     className="p-button-rounded p-button-warning p-button-sm" 
                     onClick={() => {
                         console.log('🔄 Navegando a editar inventario producto:', rowData.id);
-                        router.push(`/emprendedor/inventario/${rowData.id}/editar`);
+                        router.push(`/administrador/inventario/${rowData.id}/editar`);
                     }}
                     tooltip="Editar inventario"
                 />
@@ -195,7 +195,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                     className="p-button-rounded p-button-success p-button-sm" 
                     onClick={() => {
                         console.log('🔄 Navegando a ajuste rápido producto:', rowData.id);
-                        router.push(`/emprendedor/inventario/ajustar?producto=${rowData.id}`);
+                        router.push(`/administrador/inventario/ajustar?producto=${rowData.id}`);
                     }}
                     tooltip="Ajuste rápido"
                 />
@@ -211,7 +211,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                     label="Nuevo Inventario" 
                     icon="pi pi-plus" 
                     className="p-button-success"
-                    onClick={() => router.push('/emprendedor/inventario/crear')}
+                    onClick={() => router.push('/administrador/inventario/crear')}
                 />
                 <Button 
                     label="Actualizar" 
@@ -223,7 +223,7 @@ const InventarioTab: React.FC<InventarioTabProps> = ({ toast }) => {
                     label="Ajuste Masivo" 
                     icon="pi pi-cog" 
                     className="p-button-warning"
-                    onClick={() => router.push('/emprendedor/inventario/ajustar')}
+                    onClick={() => router.push('/administrador/inventario/ajustar')}
                 />
             </div>
         );

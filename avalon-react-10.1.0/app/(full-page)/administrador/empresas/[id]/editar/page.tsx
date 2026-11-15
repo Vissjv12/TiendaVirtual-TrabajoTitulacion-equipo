@@ -66,7 +66,7 @@ const EditarEmpresaPage: React.FC = () => {
                     detail: response.message || 'Empresa no encontrada',
                     life: 3000
                 });
-                router.push('/emprendedor/empresas');
+                router.push('/administrador/empresas');
             }
         } catch (error) {
             console.error('❌ Error cargando empresa:', error);
@@ -76,7 +76,7 @@ const EditarEmpresaPage: React.FC = () => {
                 detail: 'Error de conexión con el servidor',
                 life: 3000
             });
-            router.push('/emprendedor/empresas');
+            router.push('/administrador/empresas');
         } finally {
             setLoadingData(false);
         }
@@ -189,7 +189,7 @@ const EditarEmpresaPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/empresas');
+                    router.push('/administrador/empresas');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -214,7 +214,7 @@ const EditarEmpresaPage: React.FC = () => {
 
     // Cancelar y volver
     const handleCancel = () => {
-        router.push('/emprendedor/empresas');
+        router.push('/administrador/empresas');
     };
 
     // Renderizar esqueleto mientras carga

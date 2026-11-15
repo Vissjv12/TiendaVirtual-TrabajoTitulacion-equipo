@@ -173,7 +173,7 @@ const CategoriasPage: React.FC = () => {
                 <Button 
                     icon="pi pi-pencil" 
                     className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/categorias/${rowData.id}/editar`)}
+                    onClick={() => router.push(`/administrador/categorias/${rowData.id}/editar`)}
                     tooltip="Editar"
                 />
                 <Button 
@@ -194,7 +194,7 @@ const CategoriasPage: React.FC = () => {
                     label="Nueva Categoría" 
                     icon="pi pi-plus" 
                     className="p-button-success"
-                    onClick={() => router.push('/emprendedor/categorias/crear')}
+                    onClick={() => router.push('/administrador/categorias/crear')}
                 />
                 <Button 
                     label="Actualizar" 

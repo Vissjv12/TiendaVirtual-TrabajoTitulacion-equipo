@@ -279,7 +279,7 @@ const ProductosPage: React.FC = () => {
                 <Button 
                     icon="pi pi-pencil" 
                     className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/productos/${rowData.id}/editar`)}
+                    onClick={() => router.push(`/administrador/productos/${rowData.id}/editar`)}
                     tooltip="Editar"
                 />
                 <Button 
@@ -300,7 +300,7 @@ const ProductosPage: React.FC = () => {
                     label="Nuevo Producto" 
                     icon="pi pi-plus" 
                     className="p-button-success"
-                    onClick={() => router.push('/emprendedor/productos/crear')}
+                    onClick={() => router.push('/administrador/productos/crear')}
                 />
                 <Button 
                     label="Actualizar" 

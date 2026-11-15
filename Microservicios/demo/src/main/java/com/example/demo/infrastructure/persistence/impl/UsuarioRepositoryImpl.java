@@ -118,6 +118,11 @@ public class UsuarioRepositoryImpl implements UsuarioRepository {
     }
 
     @Override
+    public long countByRolAndActivoTrue(String rol) {
+        return jpaRepository.countByRolAndActivoTrue(rol);
+    }
+
+    @Override
     public Page<Usuario> findPaginado(String q, String rol, Boolean activo, Pageable pageable) {
         return jpaRepository.findPaginado(
                         q == null ? "" : q.trim(),

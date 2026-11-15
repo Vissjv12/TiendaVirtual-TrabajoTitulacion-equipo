@@ -220,7 +220,7 @@ const VentasPage: React.FC = () => {
                 <Button 
                     icon="pi pi-eye" 
                     className="p-button-rounded p-button-info p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/ventas/${rowData.id}`)}
+                    onClick={() => router.push(`/administrador/ventas/${rowData.id}`)}
                     tooltip="Ver detalles"
                 />
                 {rowData.estado === 'PENDIENTE' && (

@@ -31,6 +31,9 @@ public interface UsuarioJpaRepository extends JpaRepository<UsuarioEntity, Long>
     long countByActivoFalse();
     long countByRolesContaining(String rol);
 
+    @Query("SELECT COUNT(DISTINCT u) FROM UsuarioEntity u JOIN u.roles r WHERE r = :rol AND u.activo = true")
+    long countByRolAndActivoTrue(@Param("rol") String rol);
+
     @Query("SELECT u FROM UsuarioEntity u " +
            "WHERE (:activo IS NULL OR u.activo = :activo) " +
            "AND (:rol = '' OR :rol MEMBER OF u.roles) " +

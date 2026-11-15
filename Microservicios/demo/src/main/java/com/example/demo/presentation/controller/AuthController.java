@@ -21,6 +21,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -64,7 +65,7 @@ public class AuthController {
 
     @PostMapping("/auth/login")
     @Operation(summary = "Iniciar sesión")
-    public ResponseEntity<TokenResponseDto> login(@Valid @RequestBody LoginRequestDto loginRequest) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginRequest) {
         try {
             TokenResponseDto tokenResponse = authService.login(loginRequest);
 
@@ -76,8 +77,12 @@ public class AuthController {
             }
 
             return ResponseEntity.ok(tokenResponse);
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Usuario o contraseña incorrectos"));
         }
     }
 
@@ -228,7 +233,7 @@ public class AuthController {
     @PutMapping("/usuarios/{id}")
     @Operation(summary = "Actualizar usuario (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UsuarioResponseDto> actualizarUsuario(
+    public ResponseEntity<?> actualizarUsuario(
             @PathVariable Long id,
             @Valid @RequestBody ActualizarUsuarioDto actualizarDto) {
         try {
@@ -256,6 +261,8 @@ public class AuthController {
             UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioActualizado);
 
             return ResponseEntity.ok(usuarioDto);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -264,7 +271,7 @@ public class AuthController {
     @PatchMapping("/usuarios/{id}/estado")
     @Operation(summary = "Cambiar estado del usuario (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UsuarioResponseDto> cambiarEstadoUsuario(
+    public ResponseEntity<?> cambiarEstadoUsuario(
             @PathVariable Long id,
             @RequestBody CambiarEstadoDto estadoDto) {
         try {
@@ -272,6 +279,8 @@ public class AuthController {
             UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioActualizado);
 
             return ResponseEntity.ok(usuarioDto);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
@@ -280,12 +289,14 @@ public class AuthController {
     }
 
     @DeleteMapping("/usuarios/{id}")
-    @Operation(summary = "Eliminar usuario (Solo Admin)")
+    @Operation(summary = "Eliminar usuario lógicamente (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> eliminarUsuario(@PathVariable Long id) {
+    public ResponseEntity<?> eliminarUsuario(@PathVariable Long id) {
         try {
             usuarioService.eliminarUsuario(id);
             return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {

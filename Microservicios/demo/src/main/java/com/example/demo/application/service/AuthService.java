@@ -23,6 +23,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
@@ -55,9 +56,17 @@ public class AuthService {
             throw new BadCredentialsException("Contraseña incorrecta");
         }
 
+        if (!userDetails.isEnabled()) {
+            throw new DisabledException("La cuenta está desactivada. Contacte al administrador.");
+        }
+
         // Obtener usuario completo para información adicional
         Usuario usuario = usuarioService.buscarPorUsername(loginRequest.getUsername())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        if (!usuario.isActivo()) {
+            throw new DisabledException("La cuenta está desactivada. Contacte al administrador.");
+        }
 
         // Buscar empresaId si el usuario es emprendedor
         Long empresaId = null;

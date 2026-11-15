@@ -136,7 +136,7 @@ const CrearEmpresaPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/empresas');
+                    router.push('/administrador/empresas');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -161,7 +161,7 @@ const CrearEmpresaPage: React.FC = () => {
 
     // Cancelar y volver
     const handleCancel = () => {
-        router.push('/emprendedor/empresas');
+        router.push('/administrador/empresas');
     };
 
     return (

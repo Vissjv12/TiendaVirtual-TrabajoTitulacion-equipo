@@ -192,7 +192,7 @@ const EmpresasPage: React.FC = () => {
                 <Button 
                     icon="pi pi-pencil" 
                     className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/empresas/${rowData.id}/editar`)}
+                    onClick={() => router.push(`/administrador/empresas/${rowData.id}/editar`)}
                     tooltip="Editar"
                 />
                 <Button 
@@ -213,7 +213,7 @@ const EmpresasPage: React.FC = () => {
                     label="Nueva Empresa" 
                     icon="pi pi-plus" 
                     className="p-button-success"
-                    onClick={() => router.push('/emprendedor/empresas/crear')}
+                    onClick={() => router.push('/administrador/empresas/crear')}
                 />
                 <Button 
                     label="Actualizar" 

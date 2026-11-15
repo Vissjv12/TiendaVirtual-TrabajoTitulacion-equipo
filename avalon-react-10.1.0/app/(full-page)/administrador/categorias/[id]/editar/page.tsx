@@ -60,7 +60,7 @@ const EditarCategoriaPage: React.FC = () => {
                     detail: response.message || 'Categoría no encontrada',
                     life: 3000
                 });
-                router.push('/emprendedor/categorias');
+                router.push('/administrador/categorias');
             }
         } catch (error) {
             console.error('❌ Error cargando categoría:', error);
@@ -70,7 +70,7 @@ const EditarCategoriaPage: React.FC = () => {
                 detail: 'Error de conexión con el servidor',
                 life: 3000
             });
-            router.push('/emprendedor/categorias');
+            router.push('/administrador/categorias');
         } finally {
             setLoadingData(false);
         }
@@ -141,7 +141,7 @@ const EditarCategoriaPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/categorias');
+                    router.push('/administrador/categorias');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -166,7 +166,7 @@ const EditarCategoriaPage: React.FC = () => {
 
     // Cancelar y volver
     const handleCancel = () => {
-        router.push('/emprendedor/categorias');
+        router.push('/administrador/categorias');
     };
 
     // Renderizar esqueleto mientras carga

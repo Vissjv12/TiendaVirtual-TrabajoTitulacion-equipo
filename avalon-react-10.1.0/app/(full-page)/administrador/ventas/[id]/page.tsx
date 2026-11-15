@@ -47,7 +47,7 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
                     life: 3000
                 });
                 setTimeout(() => {
-                    router.push('/emprendedor/ventas');
+                    router.push('/administrador/ventas');
                 }, 2000);
             }
         } catch (error) {
@@ -59,7 +59,7 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
                 life: 3000
             });
             setTimeout(() => {
-                router.push('/emprendedor/ventas');
+                router.push('/administrador/ventas');
             }, 2000);
         } finally {
             setLoading(false);
@@ -197,7 +197,7 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
                     <Button 
                         label="Volver" 
                         icon="pi pi-arrow-left" 
-                        onClick={() => router.push('/emprendedor/ventas')}
+                        onClick={() => router.push('/administrador/ventas')}
                     />
                 </div>
             </Card>
@@ -224,7 +224,7 @@ const DetalleVentaPage: React.FC<DetalleVentaPageProps> = ({ params }) => {
                     label="Volver" 
                     icon="pi pi-arrow-left" 
                     className="p-button-outlined"
-                    onClick={() => router.push('/emprendedor/ventas')}
+                    onClick={() => router.push('/administrador/ventas')}
                 />
             </div>
 

@@ -2,6 +2,7 @@ package com.example.demo.application.service;
 
 import com.example.demo.domain.model.Usuario;
 import com.example.demo.domain.repository.UsuarioRepository;
+import com.example.demo.infrastructure.persistence.repository.EmprendedorJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -22,6 +23,9 @@ class UsuarioServiceImplTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private EmprendedorJpaRepository emprendedorRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -187,5 +191,44 @@ class UsuarioServiceImplTest {
 
         // Verify
         verify(usuarioRepository).existsByEmail(email);
+    }
+
+    @Test
+    void whenEliminarUsuarioNormal_thenBorradoLogicoSinDeleteById() {
+        Usuario cliente = Usuario.builder()
+                .id(7L)
+                .username("cmbonifaz")
+                .roles(Collections.singleton("ROLE_USER"))
+                .activo(true)
+                .build();
+
+        when(usuarioRepository.findById(7L)).thenReturn(Optional.of(cliente));
+        when(emprendedorRepository.findByUsuarioId(7L)).thenReturn(Optional.empty());
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        usuarioService.eliminarUsuario(7L);
+
+        assertFalse(cliente.isActivo());
+        verify(usuarioRepository).save(cliente);
+        verify(usuarioRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void whenEliminarUnicoAdmin_thenLanzaExcepcion() {
+        Usuario admin = Usuario.builder()
+                .id(1L)
+                .username("admin")
+                .roles(Collections.singleton("ROLE_ADMIN"))
+                .activo(true)
+                .build();
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(usuarioRepository.countByRolesContaining("ROLE_ADMIN")).thenReturn(1L);
+        when(usuarioRepository.countByRolAndActivoTrue("ROLE_ADMIN")).thenReturn(1L);
+
+        assertThrows(IllegalStateException.class, () -> usuarioService.eliminarUsuario(1L));
+        assertThrows(IllegalStateException.class, () -> usuarioService.cambiarEstado(1L, false));
+        verify(usuarioRepository, never()).save(any());
+        verify(usuarioRepository, never()).deleteById(anyLong());
     }
 }

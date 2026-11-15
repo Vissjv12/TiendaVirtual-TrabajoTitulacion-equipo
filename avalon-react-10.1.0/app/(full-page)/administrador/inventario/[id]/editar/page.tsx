@@ -105,7 +105,7 @@ const EditarInventarioPage: React.FC<EditarInventarioPageProps> = ({ params }) =
                 life: 3000
             });
             setTimeout(() => {
-                router.push('/emprendedor/inventario');
+                router.push('/administrador/inventario');
             }, 2000);
         } finally {
             setLoading(false);
@@ -155,7 +155,7 @@ const EditarInventarioPage: React.FC<EditarInventarioPageProps> = ({ params }) =
 
                 // Navegar de vuelta
                 setTimeout(() => {
-                    router.push('/emprendedor/inventario');
+                    router.push('/administrador/inventario');
                 }, 1500);
             } else {
                 throw new Error(response.message);
@@ -199,7 +199,7 @@ const EditarInventarioPage: React.FC<EditarInventarioPageProps> = ({ params }) =
                     <i className="pi pi-exclamation-triangle text-4xl text-orange-500 mb-3"></i>
                     <h3>Producto no encontrado</h3>
                     <p className="text-600 mb-3">No se pudo cargar la información del producto.</p>
-                    <Button label="Volver" icon="pi pi-arrow-left" onClick={() => router.push('/emprendedor/inventario')} />
+                    <Button label="Volver" icon="pi pi-arrow-left" onClick={() => router.push('/administrador/inventario')} />
                 </div>
             </Card>
         );
@@ -218,7 +218,7 @@ const EditarInventarioPage: React.FC<EditarInventarioPageProps> = ({ params }) =
                     </h1>
                     <p className="text-600 text-lg">Modifica el stock y ubicación del producto</p>
                 </div>
-                <Button label="Volver" icon="pi pi-arrow-left" className="p-button-outlined" onClick={() => router.push('/emprendedor/inventario')} />
+                <Button label="Volver" icon="pi pi-arrow-left" className="p-button-outlined" onClick={() => router.push('/administrador/inventario')} />
             </div>
 
             <div className="grid">
@@ -299,7 +299,7 @@ const EditarInventarioPage: React.FC<EditarInventarioPageProps> = ({ params }) =
 
                         {/* Botones de acción */}
                         <div className="flex gap-2 justify-content-end">
-                            <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined" onClick={() => router.push('/emprendedor/inventario')} disabled={saving} />
+                            <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined" onClick={() => router.push('/administrador/inventario')} disabled={saving} />
                             <Button label={saving ? 'Guardando...' : 'Guardar Cambios'} icon={saving ? 'pi pi-spin pi-spinner' : 'pi pi-check'} className="p-button-success" onClick={guardarCambios} disabled={saving || cantidad < 0} />
                         </div>
                     </Card>
