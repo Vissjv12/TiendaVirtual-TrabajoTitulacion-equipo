@@ -8,6 +8,14 @@ import { FileUpload, ItemTemplateOptions } from 'primereact/fileupload';
 import { Message } from 'primereact/message';
 import { Divider } from 'primereact/divider';
 import { Tag } from 'primereact/tag';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import cartService from '../../../../services/cartService';
+import {
+    DatosBancariosPublico,
+    formatAccountTypeLabel,
+    formatBankLabel,
+    obtenerDatosBancariosCheckout
+} from '../../../../services/pagoService';
 import {
     isValidBankAccount,
     isValidTransferReference,
@@ -36,6 +44,9 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
     const [numeroReferencia, setNumeroReferencia] = useState('');
     const [comprobante, setComprobante] = useState<File | null>(null);
     const [errors, setErrors] = useState<any>({});
+    const [cuentasBancarias, setCuentasBancarias] = useState<DatosBancariosPublico[]>([]);
+    const [loadingCuentas, setLoadingCuentas] = useState(true);
+    const [cuentasError, setCuentasError] = useState<string | null>(null);
 
     const bancos = [
         { label: 'Banco Pichincha', value: 'pichincha' },
@@ -48,11 +59,23 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
         { label: 'Otros', value: 'otros' }
     ];
 
-    // Cuentas de ejemplo para mostrar (en producción vendrían del backend)
-    const cuentasBancarias = {
-        pichincha: '2100123456',
-        guayaquil: '0123456789',
-        pacifico: '1234567890'
+    useEffect(() => {
+        cargarCuentasBancarias();
+    }, []);
+
+    const cargarCuentasBancarias = async () => {
+        setLoadingCuentas(true);
+        setCuentasError(null);
+        try {
+            const cartItems = cartService.getCart();
+            const cuentas = await obtenerDatosBancariosCheckout(cartItems);
+            setCuentasBancarias(cuentas);
+        } catch (err: any) {
+            setCuentasError(err?.message || 'No se pudieron cargar los datos bancarios del emprendedor');
+            setCuentasBancarias([]);
+        } finally {
+            setLoadingCuentas(false);
+        }
     };
 
     useEffect(() => {
@@ -152,7 +175,7 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                     className="mb-4 w-full"
                 />
 
-                {/* Información de cuentas */}
+                {/* Información de cuentas reales configuradas por el emprendedor */}
                 <div className="mb-4 p-4 border-round" style={{ backgroundColor: '#22c55e10' }}>
                     <div className="flex align-items-center mb-3">
                         <i className="pi pi-info-circle mr-2" style={{ color: '#22c55e' }}></i>
@@ -160,23 +183,56 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                             Nuestras Cuentas Bancarias
                         </span>
                     </div>
-                    <div className="grid text-sm">
-                        <div className="col-12 md:col-4">
-                            <div className="font-semibold mb-1">Banco Pichincha</div>
-                            <div className="text-600">Cuenta: {cuentasBancarias.pichincha}</div>
-                            <div className="text-600">Tipo: Ahorros</div>
+
+                    {loadingCuentas ? (
+                        <div className="flex align-items-center gap-2 text-600 text-sm">
+                            <ProgressSpinner style={{ width: '20px', height: '20px' }} strokeWidth="6" />
+                            <span>Cargando cuentas bancarias...</span>
                         </div>
-                        <div className="col-12 md:col-4">
-                            <div className="font-semibold mb-1">Banco Guayaquil</div>
-                            <div className="text-600">Cuenta: {cuentasBancarias.guayaquil}</div>
-                            <div className="text-600">Tipo: Corriente</div>
+                    ) : cuentasError ? (
+                        <Message severity="error" text={cuentasError} className="w-full" />
+                    ) : cuentasBancarias.length === 0 ? (
+                        <Message
+                            severity="warn"
+                            text="Este emprendedor aún no ha configurado sus datos bancarios para transferencia."
+                            className="w-full"
+                        />
+                    ) : (
+                        <div className="grid text-sm">
+                            {cuentasBancarias.map((cuenta, index) => (
+                                <div
+                                    key={`${cuenta.empresaId || index}-${cuenta.numeroCuenta}`}
+                                    className={cuentasBancarias.length === 1 ? 'col-12' : 'col-12 md:col-6'}
+                                >
+                                    <div className="surface-card p-3 border-round border-1 border-green-200">
+                                        {cuenta.empresaNombre && (
+                                            <div className="text-xs font-semibold text-green-700 mb-1">
+                                                {cuenta.empresaNombre}
+                                            </div>
+                                        )}
+                                        <div className="font-semibold text-900 mb-1">
+                                            {formatBankLabel(cuenta.banco)}
+                                        </div>
+                                        <div className="text-700">
+                                            Cuenta: <span className="font-semibold text-900">{cuenta.numeroCuenta}</span>
+                                        </div>
+                                        <div className="text-600">
+                                            Tipo: {formatAccountTypeLabel(cuenta.tipoCuenta)}
+                                        </div>
+                                        {cuenta.titular && (
+                                            <div className="text-600">Titular: {cuenta.titular}</div>
+                                        )}
+                                        {cuenta.cedulaRuc && (
+                                            <div className="text-600">Cédula / RUC: {cuenta.cedulaRuc}</div>
+                                        )}
+                                        {cuenta.email && (
+                                            <div className="text-600">Email: {cuenta.email}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div className="col-12 md:col-4">
-                            <div className="font-semibold mb-1">Banco del Pacífico</div>
-                            <div className="text-600">Cuenta: {cuentasBancarias.pacifico}</div>
-                            <div className="text-600">Tipo: Ahorros</div>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 <Divider />

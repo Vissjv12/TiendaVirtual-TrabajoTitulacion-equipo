@@ -1,7 +1,7 @@
-# Registro de Pulido Pre-Integración (Frontend + UX)
+# Registro de Pulido Pre-Integración (Frontend, Backend Auth y Panel Administrador)
 
 - **Rama de trabajo:** `feature/pulido-export-validaciones-404` (sin merge a `main`)
-- **Alcance:** Exportación real `.csv` en ventas, endurecimiento de validaciones de formularios, corrección del error de cliente en pantalla `404`, submenú dinámico de `Categorías` en `LandingNavbar`, control por empresa del botón `Gestionar` en vitrina `/products` y productos destacados, y diagnóstico de la latencia en primera carga del panel Emprendedor.
+- **Alcance:** Exportación real `.csv` en ventas, endurecimiento de validaciones de formularios, corrección del error de cliente en pantalla `404`, submenú dinámico de `Categorías` en `LandingNavbar`, control por empresa del botón `Gestionar` en vitrina `/products` y productos destacados, correcciones del panel Administrador (borrado lógico de usuarios, bloqueo de login a inactivos, protección del último admin, rutas `/administrador`), carga dinámica de cuentas bancarias reales en el checkout y diagnóstico de la latencia en primera carga del panel Emprendedor.
 
 ---
 
@@ -67,6 +67,10 @@
 - **Corrección de navegación dentro del layout `/administrador`:**
   - Se reemplazaron las rutas hardcoded hacia `/emprendedor/...` por `/administrador/...` en `categorias/` (`page.tsx`, `crear/page.tsx`, `[id]/editar/page.tsx`), `empresas/` (`page.tsx`, `crear/page.tsx`, `[id]/editar/page.tsx`), `inventario/` (`page.tsx`, `InventarioTab.tsx`, `ajustar/page.tsx`, `crear/page.tsx`, `[id]/editar/page.tsx`), `productos/` (`page.tsx`, `[id]/editar/page.tsx`) y `ventas/` (`page.tsx`, `[id]/page.tsx`).
 
+### 1.7 Cuentas bancarias reales en Transferencia Bancaria del Checkout
+- **`avalon-react-10.1.0/services/pagoService.ts`:** se añadieron `DatosBancariosPublico`, `formatBankLabel`, `formatAccountTypeLabel` y `obtenerDatosBancariosCheckout(cartItems)`, consultando el endpoint público existente `GET /api/emprendedor/configuracion-pagos/bancarios/{empresaId}` para cada empresa presente en el carrito.
+- **`avalon-react-10.1.0/app/(main)/checkout/components/TransferenciaBancariaForm.tsx`** y **`avalon-react-10.1.0/app/(landing)/checkout/components/TransferenciaBancariaForm.tsx`:** se reemplazaron las cuentas de ejemplo hardcoded (`Banco Pichincha: 2100123456`, `Banco Guayaquil: 0123456789`, `Banco del Pacífico: 1234567890`) por la carga dinámica de las cuentas bancarias reales configuradas por el emprendedor (mostrando banco, número de cuenta, tipo de cuenta, titular, cédula/RUC y email, o un aviso claro si aún no las ha configurado). La variante `(landing)` reexporta directamente el componente compartido de `(main)`.
+
 ---
 
 ## 2. Verificación Técnica Ejecutada
@@ -75,8 +79,8 @@
 | :--- | :--- | :--- |
 | Backend `msvc-auth` (`Microservicios/demo`: `.\mvnw.cmd test "-Dtest=AuthServiceDisabledUserTest,UsuarioServiceImplTest,UsuarioPaginationTest"`) | `UsuarioServiceImplTest` (`9`), `AuthServiceDisabledUserTest` (`1`) y `UsuarioPaginationTest` (`2`); se reubicó `UsuarioServiceImplTest.java` desde `src/main/java` a `src/test/java` para que Surefire lo ejecute (`LoginApplicationTests` excluido por requerir BD activa) | Exit code `0` (`Tests run: 12, Failures: 0, Errors: 0, Skipped: 0`) |
 | Backend `msvc-producto` (`Microservicios/msvc-producto`: `.\mvnw.cmd test "-Dtest=ProductoControllerApiAuthorizationTest,ProductoAuthorizationServiceTest,ProductoPaginationTest"`) | `ProductoAuthorizationServiceTest` (`7`), `ProductoControllerApiAuthorizationTest` (`8`) y `ProductoPaginationTest` (`4`) | Exit code `0` (`Tests run: 19, Failures: 0, Errors: 0, Skipped: 0`) |
-| TypeScript (`.\node_modules\.bin\tsc.cmd --noEmit`) | Todo `avalon-react-10.1.0` tras las últimas ediciones del panel Administrador | Exit code `0` (0 errores) |
-| Compilación de producción (`.\node_modules\.bin\next.cmd build --no-lint`) | App completa Next.js (`105` páginas generadas) tras las últimas ediciones | Exit code `0` |
+| TypeScript (`.\node_modules\.bin\tsc.cmd --noEmit`) | Todo `avalon-react-10.1.0` tras la sección 1.7 (checkout bancario real) | Exit code `0` (0 errores) |
+| Compilación de producción (`.\node_modules\.bin\next.cmd build --no-lint`) | App completa Next.js (`105` páginas generadas) tras la sección 1.7 | Exit code `0` |
 | Pruebas unitarias de helpers (`verify_helpers.js`) | `formValidations.ts` y `csvExport.ts` (ejecutado en la etapa previa de validaciones/exportación CSV) | Exit code `0` (`ALL HELPER UNIT CHECKS PASSED (22 assertions)`) |
 | Prueba en navegador headless Chrome (`repro404.js` sobre `next start -p 3099`) | Visita a `/checkout/fse` y navegación por `Ir al Inicio` (ejecutado en la etapa previa de pantalla `404`) | Exit code `0` |
 

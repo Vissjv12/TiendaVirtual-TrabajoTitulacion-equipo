@@ -32,6 +32,108 @@ export interface AprobarPagoRequest {
     observaciones?: string;
 }
 
+export interface DatosBancariosPublico {
+    empresaId?: number;
+    empresaNombre?: string;
+    banco: string;
+    tipoCuenta: string;
+    numeroCuenta: string;
+    titular: string;
+    cedulaRuc: string;
+    email?: string;
+}
+
+const BANK_LABELS: Record<string, string> = {
+    pichincha: 'Banco Pichincha',
+    pacifico: 'Banco del Pacífico',
+    guayaquil: 'Banco Guayaquil',
+    internacional: 'Banco Internacional',
+    produbanco: 'Produbanco',
+    bolivariano: 'Banco Bolivariano',
+    austro: 'Banco Austro',
+    solidario: 'Banco Solidario',
+    otros: 'Otro banco'
+};
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+    ahorros: 'Ahorros',
+    corriente: 'Corriente'
+};
+
+export const formatBankLabel = (banco?: string): string => {
+    if (!banco) return 'Banco no especificado';
+    const key = banco.trim().toLowerCase();
+    return BANK_LABELS[key] || banco;
+};
+
+export const formatAccountTypeLabel = (tipoCuenta?: string): string => {
+    if (!tipoCuenta) return 'No especificado';
+    const key = tipoCuenta.trim().toLowerCase();
+    return ACCOUNT_TYPE_LABELS[key] || tipoCuenta;
+};
+
+/**
+ * Obtiene las cuentas bancarias reales configuradas por los emprendedores de los productos del carrito.
+ */
+export const obtenerDatosBancariosCheckout = async (
+    cartItems: Array<{ producto?: any }>
+): Promise<DatosBancariosPublico[]> => {
+    const empresasMap = new Map<number, string | undefined>();
+    for (const item of cartItems || []) {
+        const producto = item?.producto;
+        const empresaId = Number(
+            producto?.empresa?.id || producto?.empresaId || producto?.emprendedorId || 0
+        );
+        if (empresaId > 0 && !empresasMap.has(empresaId)) {
+            empresasMap.set(empresaId, producto?.empresa?.nombre);
+        }
+    }
+
+    if (empresasMap.size === 0) {
+        return [];
+    }
+
+    const responses = await Promise.all(
+        Array.from(empresasMap.entries()).map(async ([empresaId, empresaNombre]) => {
+            const response = await fetch(
+                `${API_BASE_URL}/emprendedor/configuracion-pagos/bancarios/${empresaId}`
+            );
+
+            if (response.status === 404) {
+                return null;
+            }
+            if (!response.ok) {
+                throw new Error('No se pudieron cargar los datos bancarios del emprendedor');
+            }
+
+            const data = await response.json();
+            if (!data || !data.banco || !data.numeroCuenta) {
+                return null;
+            }
+
+            return {
+                empresaId,
+                empresaNombre,
+                banco: data.banco,
+                tipoCuenta: data.tipoCuenta,
+                numeroCuenta: data.numeroCuenta,
+                titular: data.titular,
+                cedulaRuc: data.cedulaRuc,
+                email: data.email
+            } as DatosBancariosPublico;
+        })
+    );
+
+    const seen = new Set<string>();
+    return responses.filter((cuenta): cuenta is DatosBancariosPublico => {
+        if (!cuenta) return false;
+        const key = `${cuenta.banco}|${cuenta.numeroCuenta}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+};
+
 export const crearPago = async (pago: PagoRequest): Promise<PagoResponse> => {
     const response = await fetch(`${API_BASE_URL}/pagos`, {
         method: 'POST',
@@ -220,5 +322,8 @@ export default {
     listarPagosPendientesPaginado,
     listarPagosPorEmprendedor,
     listarPagosPorEmprendedorPaginado,
-    procesarPagoSimulado
+    procesarPagoSimulado,
+    formatBankLabel,
+    formatAccountTypeLabel,
+    obtenerDatosBancariosCheckout
 };
