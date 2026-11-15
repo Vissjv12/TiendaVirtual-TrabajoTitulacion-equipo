@@ -16,7 +16,8 @@ services:
     container_name: gateway-feria-digital
     restart: unless-stopped
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+      # Solo el Nginx frontal del host debe acceder al Gateway.
+      - "127.0.0.1:${GATEWAY_PORT:-8080}:8080"
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./gateway/snippets:/etc/nginx/snippets:ro
@@ -32,4 +33,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-
