@@ -15,6 +15,13 @@ secrets/
 .secrets/
 config/application-secrets.properties
 *.secret
+respaldo-produccion-privado/
+**/respaldo-produccion-privado/
+backups/production/
+*.sql.gz
+*.dump
+.env.production
+.env.staging
 backups/*.sql
 backups/*.dump
 backups/*.gz
