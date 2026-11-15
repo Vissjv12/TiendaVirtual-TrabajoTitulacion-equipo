@@ -8,6 +8,7 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import payphoneService from '../../../../services/payphoneService';
 import cartService from '../../../../services/cartService';
+import { pedidoRegistrado, ventaIdDesdeClientTxId } from '../../../../services/payphoneCheckout';
 
 function PayphoneConfirmationContent() {
     const searchParams = useSearchParams();
@@ -23,27 +24,20 @@ function PayphoneConfirmationContent() {
     const confirmAttempted = useRef(false);
 
     useEffect(() => {
-        const id = searchParams.get('id');
+        const id = Number(searchParams.get('id'));
         const clientTxId = searchParams.get('clientTransactionId');
-        const emprendedorIdRaw = searchParams.get('emprendedorId');
-        
-        // Limpiar el ID en caso de que Payphone haya concatenado mal los parámetros
-        let emprendedorId = emprendedorIdRaw?.split('?')[0];
 
-        // FALLBACK: Si no viene en la URL, intentar obtenerlo del carrito actual
-        if (!emprendedorId) {
-            const summary = cartService.getCartSummary();
-            if (summary.items.length > 0) {
-                emprendedorId = summary.items[0].producto.empresa?.id?.toString();
-                console.log('[Payphone] emprendedorId recuperado del carrito (fallback):', emprendedorId);
-            }
+        if (!Number.isInteger(id) || id <= 0 || !clientTxId) {
+            setStatus('error');
+            setErrorMessage('Faltan parámetros de transacción en la URL.');
+            setLoading(false);
+            return;
         }
 
-        console.log('[Payphone] Parámetros de URL finales:', { id, clientTxId, emprendedorId });
-
-        if (!id || !clientTxId) {
-            console.error('[Payphone] Faltan parámetros requeridos:', { id, clientTxId });
-            setErrorMessage('Faltan parámetros de transacción en la URL.');
+        // Solo se confirman transacciones generadas por esta tienda (FD-{ventaId}-...)
+        if (ventaIdDesdeClientTxId(clientTxId) === null) {
+            setStatus('error');
+            setErrorMessage('No se pudo validar la transacción de Payphone. Si se realizó un cobro, contacta a soporte.');
             setLoading(false);
             return;
         }
@@ -53,74 +47,40 @@ function PayphoneConfirmationContent() {
 
         const confirmar = async () => {
             try {
-                console.log('[Payphone] Iniciando confirmación con emprendedorId:', emprendedorId);
-                const result = await payphoneService.confirmarPago({ 
-                    id, 
-                    clientTxId, 
-                    emprendedorId: emprendedorId || undefined 
-                });
+                // El backend verifica el cobro con Payphone y finaliza la venta creada antes
+                // del pago (monto autoritativo, stock idempotente). Aquí no se crea ni completa nada.
+                const result = await payphoneService.confirmarPago(id, clientTxId);
                 setPaymentDetails(result);
 
-                if (result.statusCode === 3) {
+                if (pedidoRegistrado(result)) {
                     setStatus('success');
-                    
-                    // 🚨 AQUI CREAMOS LA VENTA EN EL BACKEND PARA PAYPHONE 🚨
-                    try {
-                        console.log('📝 Iniciando creación de venta post-pago Payphone...');
-                        console.log('💳 ID Transacción:', result.transactionId);
-                        
-                        // Como es Payphone, pasamos método como TARJETA y el transactionId como comprobante
-                        const checkoutRes = await cartService.processCheckout(
-                            undefined,
-                            'TARJETA',
-                            result.transactionId ? String(result.transactionId) : undefined
-                        );
-                        
-                        if (checkoutRes.success && checkoutRes.data?.ventaId) {
-                            console.log('✅ Venta creada exitosamente. ID Venta:', checkoutRes.data.ventaId);
-                            
-                            // Intentar completar la venta para actualizar stock y estado
-                            try {
-                                console.log('🔄 Completando estado de venta para:', checkoutRes.data.orderId);
-                                await cartService.completarVenta(checkoutRes.data.orderId);
-                                console.log('✅ Proceso de venta finalizado correctamente');
-                            } catch (errorComp) {
-                                console.warn('⚠️ Nota: La venta se creó pero el paso de "completar" falló o ya estaba completada:', errorComp);
-                            }
-                        } else {
-                            console.error('❌ La creación de la venta falló en el backend:', checkoutRes.message);
-                            throw new Error(checkoutRes.message || 'Error desconocido al crear la venta');
-                        }
-                    } catch (e: any) {
-                        console.error('❌ ERROR CRÍTICO creando la venta en el backend:', e);
-                        toast.current?.show({
-                            severity: 'error',
-                            summary: 'Error de Sincronización',
-                            detail: 'Tu pago fue exitoso pero no pudimos registrar tu orden automáticamente. Por favor captura tu ID de transacción y contacta a soporte.',
-                            life: 15000
-                        });
-                    }
-
                     cartService.clearCart();
+                    payphoneService.limpiarPagoPendiente();
+                    if (result.resultadoVenta === 'STOCK_PENDIENTE') {
+                        setErrorMessage('Tu pago fue registrado. El emprendedor confirmará la disponibilidad del stock.');
+                    }
+                } else if (result.statusCode === 3) {
+                    // Cobro aprobado pero la venta no pudo registrarlo (monto distinto, venta cancelada...)
+                    setStatus('error');
+                    setErrorMessage(
+                        `Tu pago fue recibido pero requiere revisión. No vuelvas a pagar; contacta a soporte ` +
+                            `indicando la transacción ${clientTxId}.`
+                    );
                 } else if (result.statusCode === 2) {
+                    // Se conserva la venta pendiente para reintentar con el mismo carrito
                     setStatus('cancelled');
                 } else {
                     setStatus('error');
                     setErrorMessage('El pago no fue aprobado. Código: ' + result.statusCode);
                 }
             } catch (error: any) {
-                console.error('Error procesando la confirmación de Payphone', error);
-
-                // El error "timeout_confirmacion" significa que Payphone SÍ procesó el pago
-                // pero el servidor no pudo confirmar por conectividad. El pago es válido.
-                if (error.message?.includes('timeout_confirmacion') || error.message?.includes('503')) {
-                    setStatus('success');
-                    cartService.clearCart();
-                    setErrorMessage('Nota: La confirmación automática falló por un problema de red, pero el pago fue procesado por Payphone. Verifica tu portal de Payphone Developer.');
-                } else {
-                    setStatus('error');
-                    setErrorMessage(error.message || 'Error de comunicación con el servidor.');
-                }
+                // Falla cerrado: si no se pudo confirmar con Payphone NO se da el pago por exitoso
+                // ni se vacía el carrito (antes un 503 marcaba éxito sin confirmación).
+                setStatus('error');
+                setErrorMessage(
+                    `${error?.message || 'No se pudo confirmar el pago.'} No vuelvas a pagar: si se realizó un cobro, ` +
+                        `contacta a soporte indicando la transacción ${clientTxId}.`
+                );
             } finally {
                 setLoading(false);
             }
@@ -153,6 +113,10 @@ function PayphoneConfirmationContent() {
                                 </div>
                                 <h2 className="text-3xl font-bold mb-3 text-900">¡Pago Exitoso!</h2>
                                 <p className="text-600 mb-4 text-lg">Tu transacción ha sido procesada y confirmada correctamente.</p>
+                                {paymentDetails?.numeroFactura && (
+                                    <p className="text-700 mb-3">Pedido: <strong>{paymentDetails.numeroFactura}</strong></p>
+                                )}
+                                {errorMessage && <p className="text-orange-600 font-medium mb-4">{errorMessage}</p>}
                                 
                                 {paymentDetails?.transactionId && (
                                     <div className="p-4 border-round mb-5 inline-block text-left" style={{ backgroundColor: `${primaryColor}10` }}>

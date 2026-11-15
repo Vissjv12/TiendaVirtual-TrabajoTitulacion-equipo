@@ -13,4 +13,6 @@ public interface EmpresaRepository {
     List<Empresa> findAll();
     Page<Empresa> findPaginado(String q, Pageable pageable);
     void deleteById(Long id);
+    /** true si otra empresa (distinta de idExcluido; null = ninguna) ya usa ese RUC. */
+    boolean existeRucEnOtraEmpresa(String ruc, Long idExcluido);
 }

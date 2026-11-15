@@ -18,6 +18,7 @@ import CheckoutClienteForm from './components/CheckoutClienteForm';
 import PaymentMethodSelector from './components/PaymentMethodSelector';
 import TransferenciaBancariaForm from './components/TransferenciaBancariaForm';
 import DeunaTransferenciaForm from './components/DeunaTransferenciaForm';
+import { verificarDisponibilidadDeuna, verificarDisponibilidadTransferencia } from '../../../services/pagoService';
 import StripeCheckoutForm from './components/StripeCheckoutForm';
 import { crearPaymentIntent, confirmarPago } from '../../../services/stripeService';
 
@@ -55,6 +56,46 @@ const CheckoutPage: React.FC = () => {
     const [showStripeForm, setShowStripeForm] = useState(false);
 
     const primaryColor = 'var(--primary-color)';
+
+    // Transferencia y Deuna exigen que todo el carrito sea de UNA empresa identificable con su
+    // configuración propia; si no, se deshabilitan sin consultar datos de pago (hallazgo C-01)
+    const [metodosNoDisponibles, setMetodosNoDisponibles] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (!cartSummary || cartSummary.items.length === 0) return;
+        let cancelado = false;
+        const motivoDe = async (verificar: () => Promise<{ disponible: boolean; motivo?: string }>, motivoError: string) => {
+            try {
+                const resultado = await verificar();
+                return resultado.disponible ? undefined : resultado.motivo || motivoError;
+            } catch {
+                return motivoError;
+            }
+        };
+        Promise.all([
+            motivoDe(() => verificarDisponibilidadTransferencia(cartSummary.items), 'No se pudo verificar la cuenta bancaria'),
+            motivoDe(() => verificarDisponibilidadDeuna(cartSummary.items), 'No se pudo verificar la configuración de Deuna')
+        ]).then(([transferencia, deuna]) => {
+            if (cancelado) return;
+            const bloqueados: Record<string, string> = {};
+            if (transferencia) bloqueados.transferencia = transferencia;
+            if (deuna) bloqueados.deuna = deuna;
+            setMetodosNoDisponibles(bloqueados);
+        });
+        return () => {
+            cancelado = true;
+        };
+    }, [cartSummary]);
+
+    useEffect(() => {
+        if (!metodosNoDisponibles[selectedPaymentMethod]) return;
+        const alternativa = ['transferencia', 'deuna'].find((metodo) => !metodosNoDisponibles[metodo]);
+        if (alternativa) {
+            setSelectedPaymentMethod(alternativa);
+        }
+        setPaymentFormValid(false);
+        setPaymentFormData(null);
+    }, [metodosNoDisponibles, selectedPaymentMethod]);
 
     // Pasos del checkout con íconos
     const steps = [
@@ -576,6 +617,7 @@ const CheckoutPage: React.FC = () => {
                             setPaymentFormData(data);
                         }}
                         primaryColor={primaryColor}
+                        disabledMethods={metodosNoDisponibles}
                     />
                 </>
             )}

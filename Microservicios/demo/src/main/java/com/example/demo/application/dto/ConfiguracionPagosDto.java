@@ -14,6 +14,7 @@ public class ConfiguracionPagosDto {
     private Long emprendedorId;
     private DatosBancariosDto datosBancarios;
     private String qrDeunaUrl;
-    private PayphoneDto payphone;
+    /** Solo estado (App ID y si hay token). El token nunca se devuelve (hallazgo C-02). */
+    private PayphoneEstadoDto payphone;
     private BigDecimal costoEnvio;
 }

@@ -40,6 +40,7 @@ public class VentaServiceImpl implements VentaService {
     private final DetalleVentaRepository detalleVentaRepository;
     private final ClienteService clienteService;
     private final PagoRepository pagoRepository;
+    private final com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRepository ventaJpaRepository;
     private final SeguimientoLogisticaService seguimientoLogisticaService;
     private final FacturaService facturaService;
     @Qualifier("com.example.msvc_ventas.application.client.ProductoClient")
@@ -200,6 +201,9 @@ public class VentaServiceImpl implements VentaService {
     @Override
     @Transactional
     public Venta completarVenta(Long id) {
+        // Bloqueo de fila: evita que esta finalización y la de la pasarela descuenten stock dos veces
+        ventaJpaRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NoSuchElementException("Venta no encontrada con ID: " + id));
         Venta venta = obtenerVentaPorId(id);
 
         // Verificar que la venta está en estado pendiente

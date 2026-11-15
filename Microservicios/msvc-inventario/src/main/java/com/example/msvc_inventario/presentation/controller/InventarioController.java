@@ -45,7 +45,8 @@ public class InventarioController {
     }
 
     @PostMapping
-    @Operation(summary = "Crear un nuevo registro de inventario")
+    @Operation(summary = "Crear el inventario inicial de un producto (no sobrescribe stock existente)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageProduct(authentication, #requestDto.productoId))")
     public ResponseEntity<InventarioResponseDto> crearInventario(@Valid @RequestBody InventarioRequestDto requestDto) {
         Inventario inventario = inventarioMapper.toEntity(requestDto);
         Inventario inventarioGuardado = inventarioService.registrarInventario(inventario);
@@ -67,6 +68,7 @@ public class InventarioController {
 
     @PostMapping("/producto/{productoId}")
     @Operation(summary = "Crear inventario para un producto específico")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageProduct(authentication, #productoId))")
     public ResponseEntity<InventarioResponseDto> crearInventarioParaProducto(
             @PathVariable Long productoId,
             @RequestParam Integer stock) {
@@ -81,6 +83,7 @@ public class InventarioController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar un registro de inventario existente")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #id))")
     public ResponseEntity<InventarioResponseDto> actualizarInventario(
             @PathVariable Long id,
             @Valid @RequestBody InventarioRequestDto requestDto) {
@@ -221,6 +224,7 @@ public class InventarioController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar un registro de inventario")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #id))")
     public ResponseEntity<Void> eliminarInventario(@PathVariable Long id) {
         inventarioService.eliminar(id);
         return ResponseEntity.noContent().build();
@@ -228,7 +232,7 @@ public class InventarioController {
 
     @PostMapping("/salida-lote")
     @Operation(summary = "Procesar una salida de inventario en lote")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageSalidaLote(authentication, #requestDto))")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @inventarioAuthorizationService.isServicioPagos(authentication) or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageSalidaLote(authentication, #requestDto))")
     public ResponseEntity<List<InventarioResponseDto>> procesarSalidaLote(
             @Valid @RequestBody SalidaInventarioLoteRequestDto requestDto) {
 

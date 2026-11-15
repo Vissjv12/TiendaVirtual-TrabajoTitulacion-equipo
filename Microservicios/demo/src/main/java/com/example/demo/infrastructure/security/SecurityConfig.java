@@ -45,7 +45,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/recuperar-password/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         // Endpoints públicos para clientes en el checkout y recursos de QR Deuna
-                        .requestMatchers("/api/emprendedor/configuracion-pagos/payphone/*").permitAll()
+                        // Solo la disponibilidad (GET) y la notificación de Payphone son públicas;
+                        // preparar y confirmar exigen usuario autenticado (C-02 / A-03)
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/emprendedor/configuracion-pagos/payphone/notificacion").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/emprendedor/configuracion-pagos/payphone/*").permitAll()
                         .requestMatchers("/api/emprendedor/configuracion-pagos/bancarios/*").permitAll()
                         .requestMatchers("/api/emprendedor/configuracion-pagos/deuna-qr/*").permitAll()
                         .requestMatchers("/api/emprendedor/configuracion-pagos/costo-envio/*").permitAll()

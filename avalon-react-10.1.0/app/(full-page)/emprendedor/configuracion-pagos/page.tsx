@@ -32,9 +32,10 @@ interface DatosBancarios {
     email: string;
 }
 
+// El backend nunca devuelve el token de Payphone, solo si está configurado (hallazgo C-02)
 interface PayphoneConfig {
-    payphoneAppId: string;
-    payphoneToken: string;
+    payphoneAppId?: string;
+    tokenConfigurado: boolean;
 }
 
 interface ConfiguracionPagos {
@@ -83,6 +84,7 @@ export default function ConfiguracionMetodosPago() {
     // Payphone
     const [payphoneAppId, setPayphoneAppId] = useState('');
     const [payphoneToken, setPayphoneToken] = useState('');
+    const [payphoneTokenConfigurado, setPayphoneTokenConfigurado] = useState(false);
 
     // Costo de envío (cuota fija, por defecto $5.00)
     const [costoEnvio, setCostoEnvio] = useState<number>(5);
@@ -118,8 +120,8 @@ export default function ConfiguracionMetodosPago() {
                 }
 
                 if (data.payphone) {
-                    setPayphoneAppId(data.payphone.payphoneAppId);
-                    setPayphoneToken(data.payphone.payphoneToken);
+                    setPayphoneAppId(data.payphone.payphoneAppId || '');
+                    setPayphoneTokenConfigurado(Boolean(data.payphone.tokenConfigurado));
                 }
 
                 if (data.costoEnvio !== undefined && data.costoEnvio !== null) {
@@ -336,11 +338,13 @@ export default function ConfiguracionMetodosPago() {
     const guardarPayphone = async () => {
         const cleanAppId = payphoneAppId.trim();
         const cleanToken = payphoneToken.trim();
-        if (!cleanAppId || cleanAppId.length < 6 || !cleanToken || cleanToken.length < 6) {
+        // El token es obligatorio solo la primera vez; vacío = conservar el ya guardado
+        const tokenInvalido = cleanToken ? cleanToken.length < 6 : !payphoneTokenConfigurado;
+        if (tokenInvalido) {
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'Por favor completa el App ID y el Token válidos (mínimo 6 caracteres)',
+                detail: 'Ingresa un Token de Payphone válido (mínimo 6 caracteres)',
                 life: 3000
             });
             return;
@@ -363,6 +367,9 @@ export default function ConfiguracionMetodosPago() {
             });
 
             if (response.ok) {
+                // No se conserva el token en memoria del navegador tras guardarlo
+                setPayphoneToken('');
+                setPayphoneTokenConfigurado(true);
                 toast.current?.show({
                     severity: 'success',
                     summary: 'Éxito',
@@ -555,16 +562,29 @@ export default function ConfiguracionMetodosPago() {
 
                             <div className="col-12 md:col-6">
                                 <label htmlFor="payphoneAppId" className="block font-semibold mb-2">
-                                    Payphone App ID *
+                                    Payphone App ID (opcional)
                                 </label>
                                 <InputText id="payphoneAppId" value={payphoneAppId} onChange={(e) => setPayphoneAppId(e.target.value)} placeholder="Ej: qB7M528y26Y6Qk7673924v" />
                             </div>
 
                             <div className="col-12 md:col-6">
                                 <label htmlFor="payphoneToken" className="block font-semibold mb-2">
-                                    Payphone Token *
+                                    Payphone Token {payphoneTokenConfigurado ? '' : '*'}
                                 </label>
-                                <InputText id="payphoneToken" value={payphoneToken} onChange={(e) => setPayphoneToken(e.target.value)} placeholder="Ingresa tu token de autorización" type="password" />
+                                <InputText
+                                    id="payphoneToken"
+                                    value={payphoneToken}
+                                    onChange={(e) => setPayphoneToken(e.target.value)}
+                                    placeholder={payphoneTokenConfigurado ? 'Token guardado. Escribe uno nuevo solo para reemplazarlo' : 'Ingresa tu token de autorización'}
+                                    type="password"
+                                    autoComplete="new-password"
+                                />
+                                <small className={payphoneTokenConfigurado ? 'text-green-600' : 'text-600'}>
+                                    <i className={`pi ${payphoneTokenConfigurado ? 'pi-check-circle' : 'pi-lock'} mr-1`}></i>
+                                    {payphoneTokenConfigurado
+                                        ? 'Token configurado. Por seguridad no se muestra.'
+                                        : 'Por seguridad, una vez guardado el token no se vuelve a mostrar.'}
+                                </small>
                             </div>
 
                             <div className="col-12">

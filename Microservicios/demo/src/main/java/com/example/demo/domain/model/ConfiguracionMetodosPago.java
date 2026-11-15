@@ -53,6 +53,9 @@ public class ConfiguracionMetodosPago {
     @Column(name = "payphone_app_id", length = 255)
     private String payphoneAppId;
 
+    // Secreto: excluido de toString() (C-02) y cifrado en reposo con AES-256-GCM
+    @lombok.ToString.Exclude
+    @Convert(converter = com.example.demo.infrastructure.security.PayphoneTokenCifradoConverter.class)
     @Column(name = "payphone_token", columnDefinition = "TEXT")
     private String payphoneToken;
 

@@ -7,7 +7,8 @@ import { Image } from 'primereact/image';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
 import cartService from '../../../../services/cartService';
-import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
+import { resolveGatewayAssetUrl } from '../../../../services/apiConfig';
+import { verificarDisponibilidadDeuna } from '../../../../services/pagoService';
 
 export interface DeunaData {
     qrImageUrl: string;
@@ -43,25 +44,14 @@ const DeunaForm: React.FC<DeunaFormProps> = ({
         setError(null);
 
         try {
-            // Llamada al API Gateway para obtener el QR del emprendedor (mitiga O-06)
-            const cartItems = cartService.getCart();
-            const firstProduct: any = cartItems.length > 0 ? cartItems[0].producto : null;
-            const empresaId = firstProduct?.empresa?.id || firstProduct?.empresaId || firstProduct?.emprendedorId || 1;
-            const response = await fetch(`${GATEWAY_BASE_URL}/api/emprendedor/configuracion-pagos/deuna-qr/${empresaId}`);
+            // QR resuelto solo por la empresa del carrito; sin fallback a otro id (hallazgo C-01)
+            const disponibilidad = await verificarDisponibilidadDeuna(cartService.getCart());
 
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('El emprendedor aún no ha configurado su código QR de Deuna');
-                }
-                throw new Error('No se pudo cargar el código QR de Deuna');
-            }
-
-            const data = await response.json();
-            
-            if (data.qrUrl) {
-                setQrImageUrl(resolveGatewayAssetUrl(data.qrUrl));
+            if (disponibilidad.disponible && disponibilidad.datos) {
+                setQrImageUrl(resolveGatewayAssetUrl(disponibilidad.datos));
             } else {
-                setError('El emprendedor no ha configurado su código QR de Deuna');
+                setQrImageUrl(null);
+                setError(disponibilidad.motivo || 'El emprendedor no ha configurado su código QR de Deuna');
             }
         } catch (err: any) {
             setError(err.message || 'Error al cargar el código QR');

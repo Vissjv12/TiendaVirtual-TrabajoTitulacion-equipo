@@ -32,6 +32,16 @@ public class EmpresaRepositoryImpl implements EmpresaRepository {
     }
 
     @Override
+    public boolean existeRucEnOtraEmpresa(String ruc, Long idExcluido) {
+        if (ruc == null || ruc.isBlank()) {
+            return false;
+        }
+        return idExcluido == null
+                ? empresaJpaRepository.existsByRuc(ruc.trim())
+                : empresaJpaRepository.existsByRucAndIdNot(ruc.trim(), idExcluido);
+    }
+
+    @Override
     public Optional<Empresa> findById(Long id) {
         return empresaJpaRepository.findById(id)
                 .map(empresaEntityMapper::toDomain);

@@ -45,10 +45,14 @@ public class PagoService {
         VentaEntity venta = ventaJpaRepository.findById(ventaId)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada: " + ventaId));
 
-        // Determinar estado inicial según método de pago
-        PagoEntity.EstadoPago estadoInicial = (metodoPago == PagoEntity.MetodoPago.TARJETA) 
-                ? PagoEntity.EstadoPago.APROBADO 
-                : PagoEntity.EstadoPago.PENDIENTE;
+        // Todo pago nace PENDIENTE. Antes TARJETA se aprobaba y completaba la venta al crearla,
+        // sin cobro verificado ni descuento de stock (A-03/A-04). Ahora un pago con tarjeta solo
+        // se aprueba cuando la pasarela lo confirma en el servidor (PagoPasarelaService).
+        if (pagoRepository.findByVentaId(ventaId).isPresent()) {
+            log.info("La venta {} ya tiene un pago registrado; no se crea otro", ventaId);
+            return pagoRepository.findByVentaId(ventaId).get();
+        }
+        PagoEntity.EstadoPago estadoInicial = PagoEntity.EstadoPago.PENDIENTE;
 
         PagoEntity pago = PagoEntity.builder()
                 .venta(venta)
@@ -60,33 +64,8 @@ public class PagoService {
                 .fechaActualizacion(LocalDateTime.now())
                 .build();
 
-        // Si es pago con tarjeta, establecer fecha de pago inmediata
-        if (metodoPago == PagoEntity.MetodoPago.TARJETA) {
-            pago.setFechaPago(LocalDateTime.now());
-        }
-
         PagoEntity pagoGuardado = pagoRepository.save(pago);
         log.info("Pago creado con ID: {} en estado {}", pagoGuardado.getId(), estadoInicial);
-        
-        // Si es pago con tarjeta, actualizar venta a COMPLETADA y APROBADO automáticamente
-        if (metodoPago == PagoEntity.MetodoPago.TARJETA) {
-            venta.setEstado(VentaEntity.EstadoVenta.COMPLETADA);
-            venta.setEstadoPago(VentaEntity.EstadoPago.APROBADO);
-            venta.setFechaActualizacion(LocalDateTime.now());
-            ventaJpaRepository.save(venta);
-            
-            // Inicializar seguimiento logístico automáticamente
-            try {
-                seguimientoLogisticaService.inicializarSeguimientoPorPagoAprobado(
-                        venta.getId(), 
-                        "Pago automático con tarjeta"
-                );
-                log.info("Seguimiento logístico inicializado automáticamente para venta ID: {}", venta.getId());
-            } catch (Exception e) {
-                log.error("Error al inicializar seguimiento logístico para venta ID: {}", venta.getId(), e);
-            }
-        }
-        
         return pagoGuardado;
     }
 
@@ -295,18 +274,18 @@ public class PagoService {
         VentaEntity venta = ventaJpaRepository.findById(ventaId)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada: " + ventaId));
 
-        // Crear pago directamente APROBADO
-        PagoEntity pago = PagoEntity.builder()
+        // Reutilizar el pago PENDIENTE creado con la venta para no duplicar filas de pago
+        PagoEntity pago = pagoRepository.findByVentaId(ventaId).orElseGet(() -> PagoEntity.builder()
                 .venta(venta)
-                .monto(venta.getTotal())
                 .metodoPago(PagoEntity.MetodoPago.TARJETA)
-                .estadoPago(PagoEntity.EstadoPago.APROBADO)
-                .referenciaTransaccion(referenciaTransaccion)
-                .comprobanteUrl(comprobanteUrl)
-                .fechaPago(LocalDateTime.now())
                 .fechaCreacion(LocalDateTime.now())
-                .fechaActualizacion(LocalDateTime.now())
-                .build();
+                .build());
+        pago.setMonto(venta.getTotal());
+        pago.setEstadoPago(PagoEntity.EstadoPago.APROBADO);
+        pago.setReferenciaTransaccion(referenciaTransaccion);
+        pago.setComprobanteUrl(comprobanteUrl);
+        pago.setFechaPago(LocalDateTime.now());
+        pago.setFechaActualizacion(LocalDateTime.now());
 
         PagoEntity pagoGuardado = pagoRepository.save(pago);
         

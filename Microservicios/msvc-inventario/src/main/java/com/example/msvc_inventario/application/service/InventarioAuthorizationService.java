@@ -4,6 +4,7 @@ import com.example.msvc_inventario.application.client.ProductoClient;
 import com.example.msvc_inventario.application.dto.ProductoDto;
 import com.example.msvc_inventario.application.dto.SalidaInventarioItemDto;
 import com.example.msvc_inventario.application.dto.SalidaInventarioLoteRequestDto;
+import com.example.msvc_inventario.domain.repository.InventarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,6 +24,7 @@ public class InventarioAuthorizationService {
     private static final String ROLE_EMP = "ROLE_EMP";
 
     private final ProductoClient productoClient;
+    private final InventarioRepository inventarioRepository;
 
     public boolean isAdmin(Authentication authentication) {
         return hasAuthority(authentication, ROLE_ADMIN);
@@ -30,6 +32,20 @@ public class InventarioAuthorizationService {
 
     public boolean isEmprendedor(Authentication authentication) {
         return hasAuthority(authentication, ROLE_EMP);
+    }
+
+    /**
+     * Credencial interna de servicio de pagos (auth-service -> msvc-ventas -> inventario) para
+     * descontar el stock de una venta pagada por pasarela (A-04). Exige el rol de servicio y el
+     * claim tipo=servicio, que los tokens de usuario nunca contienen.
+     */
+    public boolean isServicioPagos(Authentication authentication) {
+        if (!hasAuthority(authentication, "ROLE_SERVICIO_PAGOS")
+                || !(authentication instanceof JwtAuthenticationToken jwtToken)) {
+            return false;
+        }
+        Object tipo = jwtToken.getToken().getClaims().get("tipo");
+        return "servicio".equals(tipo);
     }
 
     public boolean canManageProduct(Authentication authentication, Long productoId) {
@@ -52,6 +68,23 @@ public class InventarioAuthorizationService {
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    /**
+     * Operaciones por inventarioId (PUT/DELETE /api/inventarios/{id}, POST /api/movimientos):
+     * se resuelve el producto REAL del inventario guardado y se valida su empresa contra el JWT.
+     * Nunca se confía en el productoId del cuerpo de la petición (A-01).
+     */
+    public boolean canManageInventario(Authentication authentication, Long inventarioId) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+        if (!isEmprendedor(authentication) || inventarioId == null) {
+            return false;
+        }
+        return inventarioRepository.findById(inventarioId)
+                .map(inventario -> canManageProduct(authentication, inventario.getProductoId()))
+                .orElse(false);
     }
 
     public boolean canManageSalidaLote(Authentication authentication, SalidaInventarioLoteRequestDto requestDto) {

@@ -1,5 +1,6 @@
 package com.example.demo.presentation.controller;
 
+import com.example.demo.infrastructure.payphone.PayphoneIntegracionException;
 import com.example.demo.presentation.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNoSuchElementException(NoSuchElementException ex) {
         ErrorResponse error = new ErrorResponse("NOT_FOUND", ex.getMessage(), LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(PayphoneIntegracionException.class)
+    public ResponseEntity<ErrorResponse> handlePayphoneIntegracionException(PayphoneIntegracionException ex) {
+        // Mensaje ya saneado: no contiene token ni la respuesta cruda de Payphone
+        ErrorResponse error = new ErrorResponse("PAYMENT_GATEWAY_ERROR", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.BAD_GATEWAY);
+    }
+
+    @ExceptionHandler(com.example.demo.infrastructure.ventas.VentasNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> handleVentasNoDisponible(
+            com.example.demo.infrastructure.ventas.VentasNoDisponibleException ex) {
+        // Reintentable: la notificación de Payphone recibe 503 y vuelve a intentarlo
+        ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -58,6 +74,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         ErrorResponse error = new ErrorResponse("BAD_REQUEST", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleCuerpoIlegible(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        // Cuerpo JSON inválido: 400 (no 500), así una notificación malformada no se reintenta sin fin
+        ErrorResponse error = new ErrorResponse("BAD_REQUEST", "Cuerpo de la solicitud inválido", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
