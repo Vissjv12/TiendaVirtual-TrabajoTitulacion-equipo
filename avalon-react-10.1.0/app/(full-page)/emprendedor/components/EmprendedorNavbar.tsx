@@ -59,8 +59,10 @@ export default function EmprendedorNavbar({ layoutConfig, setLayoutConfig }: Emp
     return (
         <>
             <div 
-                className="layout-topbar shadow-2"
+                className="emprendedor-navbar-inner w-full flex align-items-center shadow-2"
                 style={{
+                    position: 'relative',
+                    width: '100%',
                     backgroundColor: 'var(--surface-card)',
                     borderBottom: '1px solid var(--surface-border)',
                     height: '70px',

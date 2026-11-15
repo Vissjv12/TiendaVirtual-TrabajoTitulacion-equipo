@@ -63,13 +63,15 @@ export default function AdminHeader() {
     ];
 
     if (!mounted) {
-        return <div className="h-4rem"></div>;
+        return <div style={{ height: '70px' }}></div>;
     }
 
     return (
         <div 
-            className="layout-topbar shadow-2"
+            className="admin-navbar-inner w-full flex align-items-center shadow-2"
             style={{
+                position: 'relative',
+                width: '100%',
                 backgroundColor: 'var(--surface-card)',
                 borderBottom: '1px solid var(--surface-border)',
                 height: '70px',
