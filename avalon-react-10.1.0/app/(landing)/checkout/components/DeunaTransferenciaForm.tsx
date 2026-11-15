@@ -11,6 +11,12 @@ import { Divider } from 'primereact/divider';
 import { Tag } from 'primereact/tag';
 import cartService from '../../../../services/cartService';
 import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
+import {
+    isValidBankAccount,
+    isValidTransferReference,
+    onlyDigits,
+    sanitizeReferenceCode
+} from '../../../../services/formValidations';
 
 export interface DeunaTransferenciaData {
     qrImageUrl: string;
@@ -49,13 +55,13 @@ const DeunaTransferenciaForm: React.FC<DeunaTransferenciaFormProps> = ({
         const newErrors: Record<string, string> = {};
         let isValid = Boolean(qrImageUrl);
 
-        if (!numeroCuenta || numeroCuenta.trim().length < 10) {
-            newErrors.numeroCuenta = 'Ingresa un número de cuenta válido (mínimo 10 dígitos)';
+        if (!numeroCuenta || !isValidBankAccount(numeroCuenta)) {
+            newErrors.numeroCuenta = 'Ingresa un número de cuenta numérico válido (10 a 20 dígitos)';
             isValid = false;
         }
 
-        if (!numeroReferencia || numeroReferencia.trim().length < 6) {
-            newErrors.numeroReferencia = 'Ingresa el número de referencia o comprobante de Deuna';
+        if (!numeroReferencia || !isValidTransferReference(numeroReferencia)) {
+            newErrors.numeroReferencia = 'Ingresa una referencia alfanumérica válida (mínimo 6 caracteres, debe incluir números)';
             isValid = false;
         }
 
@@ -254,7 +260,9 @@ const DeunaTransferenciaForm: React.FC<DeunaTransferenciaFormProps> = ({
                                 <InputText
                                     id="deunaNumeroCuenta"
                                     value={numeroCuenta}
-                                    onChange={(e) => setNumeroCuenta(e.target.value)}
+                                    onChange={(e) => setNumeroCuenta(onlyDigits(e.target.value, 20))}
+                                    keyfilter="pint"
+                                    inputMode="numeric"
                                     placeholder="Ej: 2100123456"
                                     className={`w-full ${errors.numeroCuenta ? 'p-invalid' : ''}`}
                                     maxLength={20}
@@ -276,7 +284,8 @@ const DeunaTransferenciaForm: React.FC<DeunaTransferenciaFormProps> = ({
                                 <InputText
                                     id="deunaNumeroReferencia"
                                     value={numeroReferencia}
-                                    onChange={(e) => setNumeroReferencia(e.target.value)}
+                                    onChange={(e) => setNumeroReferencia(sanitizeReferenceCode(e.target.value, 50))}
+                                    keyfilter={/[A-Za-z0-9-]/}
                                     placeholder="Ej: DU123456789"
                                     className={`w-full ${errors.numeroReferencia ? 'p-invalid' : ''}`}
                                     maxLength={50}

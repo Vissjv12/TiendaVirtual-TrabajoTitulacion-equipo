@@ -10,6 +10,7 @@ import { Sidebar } from 'primereact/sidebar';
 import { LayoutContext } from '../../../layout/context/layoutcontext';
 import authService from '../../../services/authService';
 import cartService from '../../../services/cartService';
+import productService, { Categoria } from '../../../services/productService';
 import RegistroModal from './RegistroModal';
 import MiCuentaModal from './MiCuentaModal'; // ✅ NUEVO
 
@@ -24,10 +25,29 @@ const LandingNavbar: React.FC = () => {
     const [cartItemCount, setCartItemCount] = useState(0);
     const [mounted, setMounted] = useState(false);
     const [miCuentaModalVisible, setMiCuentaModalVisible] = useState(false); // ✅ NUEVO
+    const [categorias, setCategorias] = useState<Categoria[]>([]);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+        let active = true;
+        productService
+            .obtenerCategorias()
+            .then((res) => {
+                if (active && res.success && res.data) {
+                    setCategorias(res.data);
+                }
+            })
+            .catch(() => {
+                // Silencioso en navbar público
+            });
+        return () => {
+            active = false;
+        };
+    }, [mounted]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -174,7 +194,20 @@ const LandingNavbar: React.FC = () => {
                 {
                     label: 'Categorías',
                     icon: 'pi pi-tags',
-                    command: () => router.push('/products?categories=true')
+                    items:
+                        categorias.length > 0
+                            ? categorias.map((cat) => ({
+                                  label: cat.nombre,
+                                  icon: 'pi pi-tag',
+                                  command: () => router.push(`/products?categoria=${encodeURIComponent(cat.nombre)}`)
+                              }))
+                            : [
+                                  {
+                                      label: 'Ver catálogo',
+                                      icon: 'pi pi-eye',
+                                      command: () => router.push('/products')
+                                  }
+                              ]
                 }
             ]
         },
@@ -531,14 +564,16 @@ const LandingNavbar: React.FC = () => {
 
                         {/* Navegación en móvil */}
                         {navigationItems.map((item, index) => (
-                            <div key={index}>
+                            <div key={index} className="flex flex-column gap-1">
                                 <Button
                                     label={item.label}
                                     icon={item.icon}
                                     className="w-full p-button-text justify-content-start mobile-nav-btn"
                                     onClick={() => {
-                                        setMobileMenuVisible(false);
-                                        if (item.command) item.command();
+                                        if (item.command) {
+                                            setMobileMenuVisible(false);
+                                            item.command();
+                                        }
                                     }}
                                     style={{ 
                                         color: 'var(--text-color)',
@@ -547,6 +582,46 @@ const LandingNavbar: React.FC = () => {
                                         padding: '12px'
                                     }}
                                 />
+                                {item.items && (
+                                    <div className="pl-3 flex flex-column gap-1">
+                                        {item.items.map((sub: any, subIdx: number) => (
+                                            <div key={subIdx} className="flex flex-column gap-1">
+                                                {sub.command ? (
+                                                    <Button
+                                                        label={sub.label}
+                                                        icon={sub.icon}
+                                                        className="w-full p-button-text p-button-sm justify-content-start"
+                                                        onClick={() => {
+                                                            setMobileMenuVisible(false);
+                                                            sub.command();
+                                                        }}
+                                                        style={{ color: 'var(--text-color-secondary)', textAlign: 'left', borderRadius: '8px' }}
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <div className="px-3 py-1 text-xs font-semibold text-600 flex align-items-center gap-2">
+                                                            <i className={sub.icon}></i>
+                                                            <span>{sub.label}</span>
+                                                        </div>
+                                                        {sub.items?.map((catItem: any, catIdx: number) => (
+                                                            <Button
+                                                                key={catIdx}
+                                                                label={catItem.label}
+                                                                icon={catItem.icon}
+                                                                className="w-full p-button-text p-button-sm justify-content-start pl-4"
+                                                                onClick={() => {
+                                                                    setMobileMenuVisible(false);
+                                                                    catItem.command?.();
+                                                                }}
+                                                                style={{ color: 'var(--text-color-secondary)', textAlign: 'left', borderRadius: '8px' }}
+                                                            />
+                                                        ))}
+                                                    </>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
 

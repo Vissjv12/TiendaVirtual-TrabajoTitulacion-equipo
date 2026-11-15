@@ -14,6 +14,7 @@ import { InputText } from 'primereact/inputtext';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import { toApiSortParam } from '../../../../services/apiConfig';
 import ventasService, { VentaResponse } from '../../../../services/ventasService';
+import { exportVentasToCsv, fetchAllPaginatedRecords } from '../../../../services/csvExport';
 
 const VentasPage: React.FC = () => {
     const router = useRouter();
@@ -29,6 +30,7 @@ const VentasPage: React.FC = () => {
     const [totalRecords, setTotalRecords] = useState<number>(0);
     const [sortField, setSortField] = useState<string>('fechaVenta');
     const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
+    const [exporting, setExporting] = useState<boolean>(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -241,6 +243,59 @@ const VentasPage: React.FC = () => {
         );
     };
 
+    const exportarVentas = async () => {
+        setExporting(true);
+        try {
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaVenta,desc');
+            const result = await fetchAllPaginatedRecords((page, size) =>
+                ventasService.listarVentasPaginado({
+                    page,
+                    size,
+                    sort,
+                    q: debouncedSearch.trim() || undefined
+                })
+            );
+
+            if (!result.success) {
+                toast.current?.show({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: result.message || 'No se pudieron obtener las ventas para exportar',
+                    life: 4000
+                });
+                return;
+            }
+
+            if (result.items.length === 0) {
+                toast.current?.show({
+                    severity: 'info',
+                    summary: 'Sin datos',
+                    detail: 'No hay ventas que coincidan con el filtro actual para exportar',
+                    life: 3000
+                });
+                return;
+            }
+
+            const filename = exportVentasToCsv(result.items, 'ventas_admin');
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Exportación completada',
+                detail: `Se exportaron ${result.items.length} ventas a ${filename}`,
+                life: 3500
+            });
+        } catch (error) {
+            console.error('❌ Error exportando ventas:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Ocurrió un error al generar el archivo CSV',
+                life: 4000
+            });
+        } finally {
+            setExporting(false);
+        }
+    };
+
     // Toolbar del listado
     const leftToolbarTemplate = () => {
         return (
@@ -250,17 +305,14 @@ const VentasPage: React.FC = () => {
                     icon="pi pi-refresh" 
                     className="p-button-outlined"
                     onClick={cargarVentas}
+                    disabled={loading || exporting}
                 />
                 <Button 
-                    label="Exportar" 
-                    icon="pi pi-download" 
+                    label={exporting ? 'Exportando...' : 'Exportar CSV'} 
+                    icon={exporting ? 'pi pi-spin pi-spinner' : 'pi pi-download'} 
                     className="p-button-help"
-                    onClick={() => toast.current?.show({
-                        severity: 'info',
-                        summary: 'En desarrollo',
-                        detail: 'Función de exportación próximamente',
-                        life: 3000
-                    })}
+                    onClick={exportarVentas}
+                    disabled={loading || exporting}
                 />
             </div>
         );

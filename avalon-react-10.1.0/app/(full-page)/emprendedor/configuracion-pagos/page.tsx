@@ -14,6 +14,14 @@ import { Image } from 'primereact/image';
 import { Toast } from 'primereact/toast';
 import { useRef } from 'react';
 import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
+import {
+    EMAIL_REGEX,
+    isValidBankAccount,
+    isValidCedulaOrRucFormat,
+    isValidPersonName,
+    onlyDigits,
+    sanitizePersonName
+} from '../../../../services/formValidations';
 
 interface DatosBancarios {
     banco: string;
@@ -139,22 +147,22 @@ export default function ConfiguracionMetodosPago() {
             isValid = false;
         }
 
-        if (!numeroCuenta || numeroCuenta.length < 10) {
-            newErrors.numeroCuenta = 'Número de cuenta inválido (mínimo 10 dígitos)';
+        if (!numeroCuenta || !isValidBankAccount(numeroCuenta)) {
+            newErrors.numeroCuenta = 'Número de cuenta inválido (10 a 20 dígitos numéricos)';
             isValid = false;
         }
 
-        if (!titular || titular.trim().length < 3) {
-            newErrors.titular = 'Ingresa el nombre del titular';
+        if (!titular || !isValidPersonName(titular, 3)) {
+            newErrors.titular = 'Ingresa un nombre de titular válido (solo letras, mínimo 3 caracteres)';
             isValid = false;
         }
 
-        if (!cedulaRuc || cedulaRuc.length < 10) {
-            newErrors.cedulaRuc = 'Cédula o RUC inválido';
+        if (!cedulaRuc || !isValidCedulaOrRucFormat(cedulaRuc)) {
+            newErrors.cedulaRuc = 'Cédula o RUC inválido (10 o 13 dígitos numéricos)';
             isValid = false;
         }
 
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (!email || !EMAIL_REGEX.test(email.trim())) {
             newErrors.email = 'Email inválido';
             isValid = false;
         }
@@ -326,11 +334,13 @@ export default function ConfiguracionMetodosPago() {
     };
 
     const guardarPayphone = async () => {
-        if (!payphoneAppId || !payphoneToken) {
+        const cleanAppId = payphoneAppId.trim();
+        const cleanToken = payphoneToken.trim();
+        if (!cleanAppId || cleanAppId.length < 6 || !cleanToken || cleanToken.length < 6) {
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'Por favor completa el App ID y el Token',
+                detail: 'Por favor completa el App ID y el Token válidos (mínimo 6 caracteres)',
                 life: 3000
             });
             return;
@@ -347,8 +357,8 @@ export default function ConfiguracionMetodosPago() {
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    payphoneAppId,
-                    payphoneToken
+                    payphoneAppId: cleanAppId,
+                    payphoneToken: cleanToken
                 })
             });
 
@@ -459,7 +469,7 @@ export default function ConfiguracionMetodosPago() {
                                 <label htmlFor="numeroCuenta" className="block font-semibold mb-2">
                                     Número de Cuenta *
                                 </label>
-                                <InputText id="numeroCuenta" value={numeroCuenta} onChange={(e) => setNumeroCuenta(e.target.value)} placeholder="1234567890" className={errors.numeroCuenta ? 'p-invalid' : ''} />
+                                <InputText id="numeroCuenta" value={numeroCuenta} onChange={(e) => setNumeroCuenta(onlyDigits(e.target.value, 20))} keyfilter="pint" inputMode="numeric" maxLength={20} placeholder="1234567890" className={errors.numeroCuenta ? 'p-invalid' : ''} />
                                 {errors.numeroCuenta && <small className="p-error">{errors.numeroCuenta}</small>}
                             </div>
 
@@ -467,7 +477,7 @@ export default function ConfiguracionMetodosPago() {
                                 <label htmlFor="titular" className="block font-semibold mb-2">
                                     Titular de la Cuenta *
                                 </label>
-                                <InputText id="titular" value={titular} onChange={(e) => setTitular(e.target.value)} placeholder="Juan Pérez" className={errors.titular ? 'p-invalid' : ''} />
+                                <InputText id="titular" value={titular} onChange={(e) => setTitular(sanitizePersonName(e.target.value, 80))} maxLength={80} placeholder="Juan Pérez" className={errors.titular ? 'p-invalid' : ''} />
                                 {errors.titular && <small className="p-error">{errors.titular}</small>}
                             </div>
 
@@ -475,7 +485,7 @@ export default function ConfiguracionMetodosPago() {
                                 <label htmlFor="cedulaRuc" className="block font-semibold mb-2">
                                     Cédula o RUC *
                                 </label>
-                                <InputText id="cedulaRuc" value={cedulaRuc} onChange={(e) => setCedulaRuc(e.target.value)} placeholder="1234567890" className={errors.cedulaRuc ? 'p-invalid' : ''} />
+                                <InputText id="cedulaRuc" value={cedulaRuc} onChange={(e) => setCedulaRuc(onlyDigits(e.target.value, 13))} keyfilter="pint" inputMode="numeric" maxLength={13} placeholder="1234567890" className={errors.cedulaRuc ? 'p-invalid' : ''} />
                                 {errors.cedulaRuc && <small className="p-error">{errors.cedulaRuc}</small>}
                             </div>
 

@@ -8,6 +8,13 @@ import { Message } from 'primereact/message';
 import { Divider } from 'primereact/divider';
 import clientesService, { ClienteRequest } from '../../../../services/clientesService';
 import authService from '../../../../services/authService';
+import {
+    EMAIL_REGEX,
+    isValidEcuadorianID,
+    isValidEcuadorianPhone,
+    isValidPersonName,
+    sanitizePersonName
+} from '../../../../services/formValidations';
 
 interface CheckoutClienteFormProps {
     onClienteData: (data: ClienteRequest) => void;
@@ -69,24 +76,32 @@ const CheckoutClienteForm: React.FC<CheckoutClienteFormProps> = ({ onClienteData
 
         if (!formData.nombre.trim()) {
             newErrors.nombre = 'El nombre es requerido';
+        } else if (!isValidPersonName(formData.nombre)) {
+            newErrors.nombre = 'Ingresa un nombre válido (solo letras, mínimo 2 caracteres)';
         }
 
         if (!formData.apellido.trim()) {
             newErrors.apellido = 'El apellido es requerido';
+        } else if (!isValidPersonName(formData.apellido)) {
+            newErrors.apellido = 'Ingresa un apellido válido (solo letras, mínimo 2 caracteres)';
         }
 
         if (!formData.email.trim()) {
             newErrors.email = 'El email es requerido';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        } else if (!EMAIL_REGEX.test(formData.email.trim())) {
             newErrors.email = 'Email inválido';
         }
 
         if (!formData.telefono.trim()) {
             newErrors.telefono = 'El teléfono es requerido';
+        } else if (!isValidEcuadorianPhone(formData.telefono)) {
+            newErrors.telefono = 'Teléfono inválido (10 dígitos iniciando con 0, ej. 0999999999)';
         }
 
         if (!formData.direccion.trim()) {
             newErrors.direccion = 'La dirección es requerida';
+        } else if (formData.direccion.trim().length < 5) {
+            newErrors.direccion = 'Ingresa una dirección más detallada (mínimo 5 caracteres)';
         }
 
         // Validación del documento (cédula ecuatoriana)
@@ -107,33 +122,6 @@ const CheckoutClienteForm: React.FC<CheckoutClienteFormProps> = ({ onClienteData
             clientesService.guardarDatosClienteLocal(formData);
             onClienteData(formData);
         }
-    };
-
-    // Función para validar cédula ecuatoriana
-    const isValidEcuadorianID = (cedula: string): boolean => {
-        if (cedula.length !== 10) return false;
-        
-        const digits = cedula.split('').map(Number);
-        const provinceCode = parseInt(cedula.substring(0, 2));
-        
-        // Verificar que el código de provincia sea válido (01-24)
-        if (provinceCode < 1 || provinceCode > 24) return false;
-        
-        // Algoritmo de verificación de cédula ecuatoriana
-        const checkDigit = digits[9];
-        let sum = 0;
-        
-        for (let i = 0; i < 9; i++) {
-            let value = digits[i];
-            if (i % 2 === 0) {
-                value *= 2;
-                if (value > 9) value -= 9;
-            }
-            sum += value;
-        }
-        
-        const expectedCheckDigit = sum % 10 === 0 ? 0 : 10 - (sum % 10);
-        return checkDigit === expectedCheckDigit;
     };
 
     const handleChange = (field: keyof ClienteRequest, value: string) => {
@@ -199,9 +187,10 @@ const CheckoutClienteForm: React.FC<CheckoutClienteFormProps> = ({ onClienteData
                             <InputText
                                 id="nombre"
                                 value={formData.nombre}
-                                onChange={(e) => handleChange('nombre', e.target.value)}
+                                onChange={(e) => handleChange('nombre', sanitizePersonName(e.target.value, 80))}
                                 onBlur={() => handleBlur('nombre')}
                                 placeholder="Ingresa tu nombre"
+                                maxLength={80}
                                 className={`w-full ${getFieldError('nombre') ? 'p-invalid' : ''}`}
                             />
                             {getFieldError('nombre') && (
@@ -222,9 +211,10 @@ const CheckoutClienteForm: React.FC<CheckoutClienteFormProps> = ({ onClienteData
                             <InputText
                                 id="apellido"
                                 value={formData.apellido}
-                                onChange={(e) => handleChange('apellido', e.target.value)}
+                                onChange={(e) => handleChange('apellido', sanitizePersonName(e.target.value, 80))}
                                 onBlur={() => handleBlur('apellido')}
                                 placeholder="Ingresa tu apellido"
+                                maxLength={80}
                                 className={`w-full ${getFieldError('apellido') ? 'p-invalid' : ''}`}
                             />
                             {getFieldError('apellido') && (
