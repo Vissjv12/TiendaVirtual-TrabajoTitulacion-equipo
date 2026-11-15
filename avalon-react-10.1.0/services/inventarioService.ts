@@ -91,10 +91,22 @@ class InventarioService {
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
+                const clonedResponse = response.clone();
+                let errorMessage = await authService.extractErrorMessage(
+                    response,
+                    `Error ${response.status}: Error desconocido`
+                );
+                try {
+                    const errorJson = await clonedResponse.json();
+                    if (typeof errorJson?.mensaje === 'string' && errorJson.mensaje.trim()) {
+                        errorMessage = errorJson.mensaje;
+                    }
+                } catch {
+                    // Respuesta no JSON o sin campo mensaje; conservar errorMessage extraído
+                }
                 return {
                     success: false,
-                    message: `Error ${response.status}: ${errorData || 'Error desconocido'}`
+                    message: errorMessage
                 };
             }
 

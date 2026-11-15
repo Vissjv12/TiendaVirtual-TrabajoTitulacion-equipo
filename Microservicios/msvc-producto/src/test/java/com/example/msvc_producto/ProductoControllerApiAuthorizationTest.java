@@ -1,13 +1,23 @@
 package com.example.msvc_producto;
 
 import com.example.msvc_producto.application.client.InventarioClient;
+import com.example.msvc_producto.application.dto.CategoriaResponseDto;
+import com.example.msvc_producto.application.dto.EmpresaResponseDto;
+import com.example.msvc_producto.application.mapper.CategoriaMapper;
+import com.example.msvc_producto.application.mapper.EmpresaMapper;
 import com.example.msvc_producto.application.mapper.ProductoMapper;
+import com.example.msvc_producto.application.service.CategoriaCatalogoQueryService;
 import com.example.msvc_producto.application.service.ProductoAuthorizationService;
+import com.example.msvc_producto.domain.model.Categoria;
+import com.example.msvc_producto.domain.model.Empresa;
 import com.example.msvc_producto.domain.service.CategoriaService;
 import com.example.msvc_producto.domain.service.EmpresaService;
 import com.example.msvc_producto.domain.service.ProductoService;
 import com.example.msvc_producto.infrastructure.config.SecurityConfig;
+import com.example.msvc_producto.presentation.controller.CategoriaController;
+import com.example.msvc_producto.presentation.controller.EmpresaController;
 import com.example.msvc_producto.presentation.controller.GlobalExceptionHandler;
+import com.example.msvc_producto.presentation.controller.ProductoController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -31,7 +41,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = com.example.msvc_producto.presentation.controller.ProductoController.class)
+@WebMvcTest(controllers = {
+        ProductoController.class,
+        CategoriaController.class,
+        EmpresaController.class
+})
 @Import({SecurityConfig.class, GlobalExceptionHandler.class})
 class ProductoControllerApiAuthorizationTest {
 
@@ -43,6 +57,25 @@ class ProductoControllerApiAuthorizationTest {
               "activo": true,
               "empresaId": 10,
               "categoriaId": 1
+            }
+            """;
+
+    private static final String CATEGORIA_VALIDA = """
+            {
+              "nombre": "Categoria emprendedor",
+              "descripcion": "Categoria creada en prueba de autorizacion",
+              "activo": true
+            }
+            """;
+
+    private static final String EMPRESA_VALIDA = """
+            {
+              "nombre": "Sigcholac",
+              "ruc": "1212154849868",
+              "direccion": "Produccion de lacteos artesanales",
+              "telefono": "0992000198",
+              "email": "sigcholac@gmail.com",
+              "activo": true
             }
             """;
 
@@ -60,6 +93,15 @@ class ProductoControllerApiAuthorizationTest {
 
     @MockitoBean
     private ProductoMapper productoMapper;
+
+    @MockitoBean
+    private CategoriaMapper categoriaMapper;
+
+    @MockitoBean
+    private CategoriaCatalogoQueryService categoriaCatalogoQueryService;
+
+    @MockitoBean
+    private EmpresaMapper empresaMapper;
 
     @MockitoBean
     private InventarioClient inventarioClient;
@@ -125,5 +167,52 @@ class ProductoControllerApiAuthorizationTest {
 
         mockMvc.perform(get("/api/productos"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void emprendedorPuedeCrearCategoria() throws Exception {
+        Categoria categoria = new Categoria();
+        categoria.setId(15L);
+        when(categoriaMapper.toEntity(any())).thenReturn(categoria);
+        when(categoriaService.crearCategoria(any())).thenReturn(categoria);
+        when(categoriaMapper.toDto(any())).thenReturn(new CategoriaResponseDto());
+
+        mockMvc.perform(post("/api/categorias")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CATEGORIA_VALIDA))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void emprendedorPuedeActualizarSuPropiaEmpresa() throws Exception {
+        Empresa empresa = new Empresa();
+        empresa.setId(2L);
+        when(productoAuthorizationService.canManageCompany(any(), eq(2L))).thenReturn(true);
+        when(empresaMapper.toEntity(any(), eq(2L))).thenReturn(empresa);
+        when(empresaService.actualizarEmpresa(eq(2L), any())).thenReturn(empresa);
+        when(empresaMapper.toDto(any())).thenReturn(new EmpresaResponseDto());
+
+        mockMvc.perform(put("/api/empresas/2")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EMPRESA_VALIDA))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void emprendedorNoPuedeActualizarOtraEmpresa() throws Exception {
+        when(productoAuthorizationService.canManageCompany(any(), eq(1L))).thenReturn(false);
+
+        mockMvc.perform(put("/api/empresas/1")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EMPRESA_VALIDA))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(empresaService);
     }
 }

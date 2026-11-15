@@ -49,11 +49,32 @@ public class InventarioServiceImpl implements InventarioService {
             System.out.println("Error al verificar el producto, creando inventario de todas formas: " + e.getMessage());
         }
 
-        // Verificar si ya existe un inventario para este producto
-        inventarioRepository.findByProductoId(inventario.getProductoId())
-                .ifPresent(inv -> {
-                    throw new IllegalArgumentException("Ya existe un inventario para este producto");
-                });
+        // Verificar si ya existe un inventario para este producto (por ejemplo, el creado automáticamente con stock 0)
+        Optional<Inventario> existenteOpt = inventarioRepository.findByProductoId(inventario.getProductoId());
+        if (existenteOpt.isPresent()) {
+            Inventario existente = existenteOpt.get();
+            existente.setCantidad(inventario.getCantidad());
+            if (inventario.getUbicacion() != null && !inventario.getUbicacion().isBlank()) {
+                existente.setUbicacion(inventario.getUbicacion());
+            }
+            existente.setActivo(true);
+            existente.setFechaActualizacion(LocalDateTime.now());
+
+            Inventario guardado = inventarioRepository.save(existente);
+
+            MovimientoInventario movimiento = new MovimientoInventario();
+            movimiento.setInventarioId(guardado.getId());
+            movimiento.setTipoMovimiento(MovimientoInventario.TipoMovimiento.ENTRADA);
+            movimiento.setCantidad(guardado.getCantidad());
+            movimiento.setMotivo("Registro inicial de inventario");
+            movimiento.setFechaMovimiento(LocalDateTime.now());
+            movimiento.setUsuarioId(1L);
+            movimientoRepository.save(movimiento);
+
+            notificarStockProductoAsync(guardado.getProductoId(), guardado.getCantidad());
+
+            return guardado;
+        }
 
         inventario.setFechaCreacion(LocalDateTime.now());
         inventario.setFechaActualizacion(LocalDateTime.now());
@@ -86,13 +107,7 @@ public class InventarioServiceImpl implements InventarioService {
         inventario.setFechaActualizacion(LocalDateTime.now());
 
         // Actualizar también el stock en el microservicio de productos (no bloqueante)
-        CompletableFuture.runAsync(() -> {
-            try {
-                productoClient.actualizarStockProducto(inventario.getProductoId(), inventario.getCantidad());
-            } catch (FeignException e) {
-                System.out.println("Error al actualizar stock en productos: " + e.getMessage());
-            }
-        });
+        notificarStockProductoAsync(inventario.getProductoId(), inventario.getCantidad());
 
         return inventarioRepository.save(inventario);
     }
@@ -152,13 +167,7 @@ public class InventarioServiceImpl implements InventarioService {
         inventario.setFechaActualizacion(LocalDateTime.now());
 
         // Actualizar también el stock en el microservicio de productos (no bloqueante)
-        CompletableFuture.runAsync(() -> {
-            try {
-                productoClient.actualizarStockProducto(inventario.getProductoId(), nuevaCantidad);
-            } catch (FeignException e) {
-                System.out.println("Error al actualizar stock en productos: " + e.getMessage());
-            }
-        });
+        notificarStockProductoAsync(inventario.getProductoId(), nuevaCantidad);
 
         return inventarioRepository.save(inventario);
     }
@@ -228,5 +237,15 @@ public class InventarioServiceImpl implements InventarioService {
             default:
                 throw new IllegalArgumentException("Tipo de movimiento no válido");
         }
+    }
+
+    private void notificarStockProductoAsync(Long productoId, Integer cantidad) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                productoClient.actualizarStockProducto(productoId, cantidad);
+            } catch (FeignException e) {
+                System.out.println("Error al actualizar stock en productos: " + e.getMessage());
+            }
+        });
     }
 }

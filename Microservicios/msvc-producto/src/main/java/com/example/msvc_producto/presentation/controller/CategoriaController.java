@@ -32,7 +32,7 @@ public class CategoriaController {
 
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
     @Operation(summary = "Crear una nueva categoría")
     public ResponseEntity<CategoriaResponseDto> crearCategoria(@Valid @RequestBody CategoriaRequestDto requestDto) {
         Categoria categoria = categoriaMapper.toEntity(requestDto);

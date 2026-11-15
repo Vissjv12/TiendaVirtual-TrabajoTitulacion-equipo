@@ -3,12 +3,15 @@ package com.example.msvc_producto.presentation.controller;
 import com.example.msvc_producto.application.dto.EmpresaRequestDto;
 import com.example.msvc_producto.application.dto.EmpresaResponseDto;
 import com.example.msvc_producto.application.mapper.EmpresaMapper;
+import com.example.msvc_producto.application.service.ProductoAuthorizationService;
 import com.example.msvc_producto.domain.model.Empresa;
 import com.example.msvc_producto.domain.service.EmpresaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,10 +26,15 @@ public class EmpresaController {
 
     private final EmpresaService empresaService;
     private final EmpresaMapper empresaMapper;
+    private final ProductoAuthorizationService productoAuthorizationService;
 
-    public EmpresaController(EmpresaService empresaService, EmpresaMapper empresaMapper) {
+    public EmpresaController(
+            EmpresaService empresaService,
+            EmpresaMapper empresaMapper,
+            ProductoAuthorizationService productoAuthorizationService) {
         this.empresaService = empresaService;
         this.empresaMapper = empresaMapper;
+        this.productoAuthorizationService = productoAuthorizationService;
     }
 
     @PostMapping
@@ -39,11 +47,15 @@ public class EmpresaController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
     @Operation(summary = "Actualizar una empresa existente")
     public ResponseEntity<EmpresaResponseDto> actualizarEmpresa(
             @PathVariable Long id,
-            @Valid @RequestBody EmpresaRequestDto requestDto) {
+            @Valid @RequestBody EmpresaRequestDto requestDto,
+            Authentication authentication) {
+        if (!productoAuthorizationService.canManageCompany(authentication, id)) {
+            throw new AccessDeniedException("El usuario no puede operar sobre esta empresa");
+        }
         Empresa empresa = empresaMapper.toEntity(requestDto, id);
         Empresa empresaActualizada = empresaService.actualizarEmpresa(id, empresa);
         return ResponseEntity.ok(empresaMapper.toDto(empresaActualizada));

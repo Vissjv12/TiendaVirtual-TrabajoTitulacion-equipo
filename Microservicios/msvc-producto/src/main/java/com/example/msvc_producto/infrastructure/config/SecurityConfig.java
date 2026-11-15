@@ -40,9 +40,9 @@ public class SecurityConfig {
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/actuator/**").denyAll()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/productos").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/productos/*").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/productos/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/productos", "/api/categorias", "/api/empresas").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/productos/*", "/api/categorias/*", "/api/empresas/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/productos/*", "/api/categorias/*", "/api/empresas/*").authenticated()
                         .anyRequest().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
