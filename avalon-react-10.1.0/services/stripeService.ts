@@ -1,5 +1,6 @@
 // services/stripeService.ts
 import { GATEWAY_API_URL } from './apiConfig';
+import authService from './authService';
 const API_BASE_URL = GATEWAY_API_URL;
 
 export interface CreatePaymentIntentRequest {
@@ -25,6 +26,7 @@ export const crearPaymentIntent = async (request: CreatePaymentIntentRequest): P
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(request),
     });
@@ -41,6 +43,7 @@ export const confirmarPago = async (request: ConfirmPaymentRequest): Promise<any
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(request),
     });
@@ -53,7 +56,11 @@ export const confirmarPago = async (request: ConfirmPaymentRequest): Promise<any
 };
 
 export const obtenerEstadoPago = async (paymentIntentId: string): Promise<any> => {
-    const response = await fetch(`${API_BASE_URL}/stripe/payment-intent/${paymentIntentId}`);
+    const response = await fetch(`${API_BASE_URL}/stripe/payment-intent/${paymentIntentId}`, {
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
 
     if (!response.ok) {
         throw new Error('Error al obtener estado del pago');

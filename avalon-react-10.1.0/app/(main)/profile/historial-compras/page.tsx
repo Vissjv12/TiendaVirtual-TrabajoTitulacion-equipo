@@ -20,6 +20,7 @@ import {
     getEstadoIcon
 } from '../../../../services/logisticaService';
 import ventasService from '../../../../services/ventasService';
+import authService from '../../../../services/authService';
 import { GATEWAY_BASE_URL, PageResponse } from '../../../../services/apiConfig';
 
 interface DetalleVenta {
@@ -77,10 +78,15 @@ export default function HistorialCompras() {
 
                 const user = JSON.parse(userInfo);
                 const apiBase = GATEWAY_BASE_URL;
-                let clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.email || user.username)}`);
+                const authHeaders = authService.getAuthHeaders();
+                let clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.email || user.username)}`, {
+                    headers: authHeaders
+                });
 
                 if (!clienteResponse.ok && user.username) {
-                    clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.username)}`);
+                    clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.username)}`, {
+                        headers: authHeaders
+                    });
                 }
 
                 if (!clienteResponse.ok) {

@@ -24,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
@@ -46,6 +47,7 @@ public class VentaController {
 
     @PostMapping
     @Operation(summary = "Crear una nueva venta")
+    @PreAuthorize("hasAnyAuthority('ROLE_USER', 'ROLE_CLIENTE', 'ROLE_EMP', 'ROLE_ADMIN') and (#requestDto.clienteId == null or @ventaAuthorizationService.canAccessCliente(authentication, #requestDto.clienteId))")
     public ResponseEntity<VentaResponseDto> crearVenta(@Valid @RequestBody VentaRequestDto requestDto) {
         // Delegamos la lógica de creación al servicio de aplicación que manejará
         // la comunicación con otros microservicios (productos e inventario)
@@ -55,6 +57,7 @@ public class VentaController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener una venta por su ID")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #id)")
     public ResponseEntity<VentaResponseDto> obtenerVenta(@PathVariable Long id) {
         Venta venta = ventaService.obtenerVentaPorId(id);
         return ResponseEntity.ok(ventaMapper.toDto(venta));
@@ -62,6 +65,7 @@ public class VentaController {
 
     @GetMapping("/factura/{numeroFactura}")
     @Operation(summary = "Obtener una venta por su número de factura")
+    @PreAuthorize("@ventaAuthorizationService.canViewVentaByFactura(authentication, #numeroFactura)")
     public ResponseEntity<VentaResponseDto> obtenerVentaPorNumeroFactura(@PathVariable String numeroFactura) {
         Venta venta = ventaService.obtenerVentaPorNumeroFactura(numeroFactura);
         return ResponseEntity.ok(ventaMapper.toDto(venta));
@@ -69,6 +73,7 @@ public class VentaController {
 
     @GetMapping("/cliente/{clienteId}")
     @Operation(summary = "Listar todas las ventas de un cliente")
+    @PreAuthorize("@ventaAuthorizationService.canAccessCliente(authentication, #clienteId)")
     public ResponseEntity<List<VentaResponseDto>> listarVentasPorCliente(@PathVariable Long clienteId) {
         List<Venta> ventas = ventaService.listarVentasPorCliente(clienteId);
         List<VentaResponseDto> ventasDto = ventas.stream()
@@ -79,6 +84,7 @@ public class VentaController {
 
     @GetMapping("/emprendedor/{emprendedorId}")
     @Operation(summary = "Listar todas las ventas de un emprendedor")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<List<VentaResponseDto>> listarVentasPorEmprendedor(@PathVariable Long emprendedorId) {
         List<Venta> ventas = ventaService.listarVentasPorEmprendedor(emprendedorId);
         List<VentaResponseDto> ventasDto = ventas.stream()
@@ -98,6 +104,7 @@ public class VentaController {
 
     @GetMapping("/paginado")
     @Operation(summary = "Listar ventas paginadas (contrato A-19)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<PageResponseDto<VentaResponseDto>> listarVentasPaginado(
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
@@ -118,6 +125,7 @@ public class VentaController {
 
     @GetMapping("/cliente/{clienteId}/paginado")
     @Operation(summary = "Listar ventas de un cliente paginadas (contrato A-19)")
+    @PreAuthorize("@ventaAuthorizationService.canAccessCliente(authentication, #clienteId)")
     public ResponseEntity<PageResponseDto<VentaResponseDto>> listarVentasPorClientePaginado(
             @PathVariable Long clienteId,
             @RequestParam(defaultValue = "0") Integer page,
@@ -133,6 +141,7 @@ public class VentaController {
 
     @GetMapping("/emprendedor/{emprendedorId}/paginado")
     @Operation(summary = "Listar ventas de un emprendedor paginadas (contrato A-19)")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<PageResponseDto<VentaResponseDto>> listarVentasPorEmprendedorPaginado(
             @PathVariable Long emprendedorId,
             @RequestParam(defaultValue = "0") Integer page,
@@ -166,6 +175,7 @@ public class VentaController {
 
     @GetMapping
     @Operation(summary = "Listar todas las ventas")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<VentaResponseDto>> listarVentas() {
         List<Venta> ventas = ventaService.listarVentas();
         List<VentaResponseDto> ventasDto = ventas.stream()
@@ -176,6 +186,7 @@ public class VentaController {
 
     @PutMapping("/{id}/completar")
     @Operation(summary = "Completar una venta (actualiza el inventario)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #id)")
     public ResponseEntity<VentaResponseDto> completarVenta(@PathVariable Long id) {
         Venta venta = ventaService.completarVenta(id);
         return ResponseEntity.ok(ventaMapper.toDto(venta));
@@ -183,6 +194,7 @@ public class VentaController {
 
     @PutMapping("/{id}/cancelar")
     @Operation(summary = "Cancelar una venta")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #id)")
     public ResponseEntity<VentaResponseDto> cancelarVenta(@PathVariable Long id) {
         Venta venta = ventaService.cancelarVenta(id);
         return ResponseEntity.ok(ventaMapper.toDto(venta));
@@ -190,6 +202,7 @@ public class VentaController {
 
     @GetMapping("/{id}/factura")
     @Operation(summary = "Descargar factura en PDF de una venta")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #id)")
     public ResponseEntity<Resource> descargarFactura(@PathVariable Long id) {
         try {
             File facturaPdf = facturaService.obtenerFacturaPDF(id);
@@ -212,6 +225,7 @@ public class VentaController {
 
     @PostMapping("/{id}/factura/generar")
     @Operation(summary = "Generar factura en PDF para una venta")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #id)")
     public ResponseEntity<String> generarFactura(@PathVariable Long id) {
         try {
             String rutaArchivo = facturaService.generarFacturaPDF(id);

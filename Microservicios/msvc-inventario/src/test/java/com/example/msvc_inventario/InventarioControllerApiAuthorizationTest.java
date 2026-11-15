@@ -1,7 +1,11 @@
 package com.example.msvc_inventario;
 
 import com.example.msvc_inventario.application.client.ProductoClient;
+import com.example.msvc_inventario.application.dto.InventarioResponseDto;
+import com.example.msvc_inventario.application.dto.ProductoDto;
 import com.example.msvc_inventario.application.mapper.InventarioMapper;
+import com.example.msvc_inventario.application.service.InventarioAuthorizationService;
+import com.example.msvc_inventario.domain.model.Inventario;
 import com.example.msvc_inventario.domain.repository.InventarioRepository;
 import com.example.msvc_inventario.domain.service.InventarioService;
 import com.example.msvc_inventario.infrastructure.config.SecurityConfig;
@@ -19,6 +23,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -30,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = com.example.msvc_inventario.presentation.controller.InventarioController.class,
         properties = "jwt.secret=local-test-secret-for-inventory")
-@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, GlobalExceptionHandler.class, InventarioAuthorizationService.class})
 class InventarioControllerApiAuthorizationTest {
 
     private static final String INVENTARIO_VALIDO = """
@@ -140,6 +148,107 @@ class InventarioControllerApiAuthorizationTest {
         when(inventarioService.listarTodos()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/inventarios"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void salidaDeInventarioConRolClienteEsRechazada() throws Exception {
+        mockMvc.perform(post("/api/inventarios/salida-lote")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SALIDA_VALIDA))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void salidaDeInventarioDeEmpresaAjenaEsRechazada() throws Exception {
+        ProductoDto producto = new ProductoDto();
+        producto.setId(1L);
+        producto.setEmpresa(new ProductoDto.EmpresaDto(99L));
+        when(productoClient.obtenerProducto(1L)).thenReturn(producto);
+
+        mockMvc.perform(post("/api/inventarios/salida-lote")
+                        .with(jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(token -> token.claim("empresaId", 1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SALIDA_VALIDA))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void salidaDeInventarioDeEmpresaPropiaEsPermitida() throws Exception {
+        ProductoDto producto = new ProductoDto();
+        producto.setId(1L);
+        producto.setEmpresa(new ProductoDto.EmpresaDto(1L));
+        when(productoClient.obtenerProducto(1L)).thenReturn(producto);
+        when(inventarioService.procesarSalidaLote(any(), any())).thenReturn(List.of());
+
+        mockMvc.perform(post("/api/inventarios/salida-lote")
+                        .with(jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(token -> token.claim("empresaId", 1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SALIDA_VALIDA))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void actualizarStockConRolClienteEsRechazado() throws Exception {
+        mockMvc.perform(put("/api/inventarios/producto/1/stock")
+                        .param("cantidad", "5")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void actualizarStockDeEmpresaAjenaEsRechazado() throws Exception {
+        ProductoDto producto = new ProductoDto();
+        producto.setId(1L);
+        producto.setEmpresa(new ProductoDto.EmpresaDto(99L));
+        when(productoClient.obtenerProducto(1L)).thenReturn(producto);
+
+        mockMvc.perform(put("/api/inventarios/producto/1/stock")
+                        .param("cantidad", "5")
+                        .with(jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(token -> token.claim("empresaId", 1L))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void actualizarStockDeEmpresaPropiaEsPermitido() throws Exception {
+        ProductoDto producto = new ProductoDto();
+        producto.setId(1L);
+        producto.setEmpresa(new ProductoDto.EmpresaDto(1L));
+        when(productoClient.obtenerProducto(1L)).thenReturn(producto);
+
+        Inventario inventario = new Inventario();
+        inventario.setProductoId(1L);
+        when(inventarioService.actualizarStock(anyLong(), anyInt(), anyString(), any()))
+                .thenReturn(inventario);
+        when(inventarioMapper.toDto(any(Inventario.class), any(ProductoDto.class)))
+                .thenReturn(new InventarioResponseDto());
+
+        mockMvc.perform(put("/api/inventarios/producto/1/stock")
+                        .param("cantidad", "5")
+                        .with(jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(token -> token.claim("empresaId", 1L))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void actualizarStockConAdminEsPermitido() throws Exception {
+        Inventario inventario = new Inventario();
+        inventario.setProductoId(1L);
+        when(inventarioService.actualizarStock(anyLong(), anyInt(), anyString(), any()))
+                .thenReturn(inventario);
+        when(inventarioMapper.toDto(any(Inventario.class))).thenReturn(new InventarioResponseDto());
+
+        mockMvc.perform(put("/api/inventarios/producto/1/stock")
+                        .param("cantidad", "5")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isOk());
     }
 }

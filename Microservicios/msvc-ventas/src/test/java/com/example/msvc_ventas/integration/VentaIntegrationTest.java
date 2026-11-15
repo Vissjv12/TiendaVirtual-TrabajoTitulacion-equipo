@@ -16,12 +16,15 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -97,6 +100,18 @@ public class VentaIntegrationTest {
         return producto;
     }
 
+    private SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor jwtCliente() {
+        return jwt()
+                .authorities(new SimpleGrantedAuthority("ROLE_USER"))
+                .jwt(token -> token.claim("email", "juan.perez@test.com").claim("userId", 10L));
+    }
+
+    private SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor jwtAdmin() {
+        return jwt()
+                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                .jwt(token -> token.claim("email", "admin@test.com").claim("userId", 1L));
+    }
+
     /**
      * TEST 1: Crear Venta Exitosa (Happy Path)
      * COBERTURA: Controller -> Service -> Repository -> Mapper -> Entity
@@ -125,6 +140,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -150,6 +166,7 @@ public class VentaIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestInvalido))
                 .andDo(print())
@@ -172,6 +189,7 @@ public class VentaIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtAdmin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -195,6 +213,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -224,6 +243,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         String responseJson = mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated())
@@ -233,7 +253,7 @@ public class VentaIntegrationTest {
         Long ventaId = ventaRepository.findAll().get(0).getId();
 
         // Ahora obtener esa venta
-        mockMvc.perform(get("/api/ventas/" + ventaId))
+        mockMvc.perform(get("/api/ventas/" + ventaId).with(jwtCliente()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(ventaId))
@@ -246,7 +266,7 @@ public class VentaIntegrationTest {
      */
     @Test
     public void test06_ventaNoEncontrada() throws Exception {
-        mockMvc.perform(get("/api/ventas/99999"))
+        mockMvc.perform(get("/api/ventas/99999").with(jwtAdmin()))
                 .andDo(print())
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.codigo").value("NOT_FOUND"));
@@ -276,18 +296,20 @@ public class VentaIntegrationTest {
 
         // Crear venta 1
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
 
         // Crear venta 2
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
 
         // Listar ventas del cliente
-        mockMvc.perform(get("/api/ventas/cliente/" + clienteId))
+        mockMvc.perform(get("/api/ventas/cliente/" + clienteId).with(jwtCliente()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
@@ -315,11 +337,12 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/ventas"))
+        mockMvc.perform(get("/api/ventas").with(jwtAdmin()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", not(empty())));
@@ -356,6 +379,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -387,6 +411,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaTransferencia))
                 .andExpect(status().isCreated());
@@ -401,6 +426,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaDeuna))
                 .andExpect(status().isCreated());
@@ -429,6 +455,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         String responseJson = mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated())
@@ -450,6 +477,7 @@ public class VentaIntegrationTest {
         // Este test puede fallar si no existe el endpoint, pero lo intentamos
         try {
             mockMvc.perform(put("/api/ventas/" + ventaId + "/estado")
+                    .with(jwtAdmin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(updateRequest))
                     .andDo(print());
@@ -482,6 +510,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
@@ -493,7 +522,7 @@ public class VentaIntegrationTest {
                 .getId();
 
         // Intentar descargar PDF
-        mockMvc.perform(get("/api/ventas/" + ventaId + "/factura"))
+        mockMvc.perform(get("/api/ventas/" + ventaId + "/factura").with(jwtCliente()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(header().exists("Content-Disposition"));
@@ -527,6 +556,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated())
@@ -551,6 +581,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaInvalida))
                 .andDo(print())

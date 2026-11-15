@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public class SeguimientoLogisticaController {
 
     @PostMapping
     @Operation(summary = "Crear una nueva actualización de seguimiento")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #dto.ventaId))")
     public ResponseEntity<?> crearSeguimiento(@Valid @RequestBody ActualizarSeguimientoDto dto) {
         log.info("Creando seguimiento para venta ID: {} con estado: {}", dto.getVentaId(), dto.getEstadoLogistica());
         
@@ -64,6 +66,7 @@ public class SeguimientoLogisticaController {
 
     @PutMapping
     @Operation(summary = "Actualizar el estado de seguimiento de un pedido")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #dto.ventaId))")
     public ResponseEntity<?> actualizarSeguimiento(@Valid @RequestBody ActualizarSeguimientoDto dto) {
         log.info("Actualizando seguimiento para venta ID: {} a estado: {}", dto.getVentaId(), dto.getEstadoLogistica());
         
@@ -95,6 +98,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/venta/{ventaId}")
     @Operation(summary = "Obtener historial completo de seguimiento de una venta")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #ventaId)")
     public ResponseEntity<List<SeguimientoLogisticaDto>> obtenerHistorialPorVenta(@PathVariable Long ventaId) {
         log.info("Obteniendo historial de seguimiento para venta ID: {}", ventaId);
         
@@ -108,6 +112,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/venta/{ventaId}/ultimo")
     @Operation(summary = "Obtener el último estado de seguimiento de una venta")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #ventaId)")
     public ResponseEntity<?> obtenerUltimoEstado(@PathVariable Long ventaId) {
         log.info("Obteniendo último estado de seguimiento para venta ID: {}", ventaId);
         
@@ -131,6 +136,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/emprendedor/{emprendedorId}/paginado")
     @Operation(summary = "Obtener seguimientos de un emprendedor paginados (contrato A-19)")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<?> obtenerSeguimientosPorEmprendedorPaginado(
             @PathVariable Long emprendedorId,
             @RequestParam(defaultValue = "0") Integer page,
@@ -156,6 +162,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/emprendedor/{emprendedorId}")
     @Operation(summary = "Obtener todos los seguimientos de un emprendedor")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<List<SeguimientoLogisticaDto>> obtenerSeguimientosPorEmprendedor(@PathVariable Long emprendedorId) {
         log.info("Obteniendo seguimientos del emprendedor ID: {}", emprendedorId);
         
@@ -169,6 +176,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/emprendedor/{emprendedorId}/estado/{estado}")
     @Operation(summary = "Obtener seguimientos de un emprendedor en un estado específico")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<?> obtenerSeguimientosPorEmprendedorYEstado(
             @PathVariable Long emprendedorId,
             @PathVariable String estado) {
@@ -190,6 +198,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/estados")
     @Operation(summary = "Obtener lista de todos los estados logísticos disponibles")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EstadoInfo>> obtenerEstadosDisponibles() {
         log.info("Obteniendo lista de estados logísticos disponibles");
         

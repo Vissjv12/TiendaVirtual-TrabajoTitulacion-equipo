@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -193,6 +194,7 @@ public class InventarioController {
 
     @PutMapping("/producto/{productoId}/stock")
     @Operation(summary = "Actualizar el stock de un producto")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageProduct(authentication, #productoId))")
     public ResponseEntity<InventarioResponseDto> actualizarStock(
             @PathVariable Long productoId,
             @RequestParam Integer cantidad,
@@ -226,6 +228,7 @@ public class InventarioController {
 
     @PostMapping("/salida-lote")
     @Operation(summary = "Procesar una salida de inventario en lote")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageSalidaLote(authentication, #requestDto))")
     public ResponseEntity<List<InventarioResponseDto>> procesarSalidaLote(
             @Valid @RequestBody SalidaInventarioLoteRequestDto requestDto) {
 

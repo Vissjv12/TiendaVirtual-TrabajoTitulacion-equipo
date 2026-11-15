@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -29,6 +30,7 @@ public class StripeController {
      * Crear PaymentIntent para procesar pago con tarjeta
      */
     @PostMapping("/create-payment-intent")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #request.ventaId)")
     public ResponseEntity<StripePaymentIntentResponseDto> crearPaymentIntent(
             @RequestBody StripePaymentIntentRequestDto request) {
         
@@ -66,6 +68,7 @@ public class StripeController {
      * Confirmar pago exitoso y crear registro en base de datos
      */
     @PostMapping("/confirm-payment")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #request.ventaId)")
     public ResponseEntity<PagoResponseDto> confirmarPago(
             @RequestBody StripeConfirmPaymentDto request) {
         
@@ -123,6 +126,7 @@ public class StripeController {
      * Obtener estado de un PaymentIntent
      */
     @GetMapping("/payment-intent/{paymentIntentId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> obtenerEstadoPago(
             @PathVariable String paymentIntentId) {
         
