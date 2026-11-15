@@ -424,35 +424,48 @@ const ProductosPage: React.FC = () => {
                     {/* ✅ Footer siempre en la parte inferior */}
                     <div className="p-3 pt-0">
                         {!isAuthenticated || authService.canViewPrices() ? (
-                            <div className="flex justify-content-between align-items-center">
-                                <div className="text-xl font-bold" style={{ color: primaryColor }}>
-                                    {productService.formatearPrecio(producto.precio)}
-                                </div>
-                                <Button
-                                    icon="pi pi-shopping-cart"
-                                    label={authService.isEmployee() ? 'Gestionar' : isAuthenticated ? 'Agregar' : 'Iniciar sesión para comprar'}
-                                    className="p-button-sm"
-                                    disabled={isAuthenticated && !authService.isEmployee() && !hasStock}
-                                    style={{
-                                        backgroundColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                        borderColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                        color: 'white',
-                                        transition: 'all 0.3s ease',
-                                        opacity: authService.isEmployee() || hasStock ? 1 : 0.6,
-                                        fontSize: '0.8rem',
-                                        padding: '0.5rem 1rem'
-                                    }}
-                                    onClick={() => {
-                                        if (!isAuthenticated) {
-                                            handleAddToCart(producto);
-                                        } else if (authService.isEmployee()) {
-                                            router.push(`/products/${producto.id}/gestionar`);
-                                        } else {
-                                            handleAddToCart(producto);
-                                        }
-                                    }}
-                                />
-                            </div>
+                            (() => {
+                                const isEmployee = isAuthenticated && authService.isEmployee();
+                                const targetEmpresaId = producto.empresa?.id || empresas.find((e) => e.nombre === producto.empresa?.nombre)?.id || null;
+                                const canManageProduct = isEmployee && authService.canManageEmpresa(targetEmpresaId);
+
+                                return (
+                                    <div className="flex justify-content-between align-items-center">
+                                        <div className="text-xl font-bold" style={{ color: primaryColor }}>
+                                            {productService.formatearPrecio(producto.precio)}
+                                        </div>
+                                        {(!isEmployee || canManageProduct) && (
+                                            <Button
+                                                icon={isEmployee ? 'pi pi-cog' : 'pi pi-shopping-cart'}
+                                                label={isEmployee ? 'Gestionar' : isAuthenticated ? 'Agregar' : 'Iniciar sesión para comprar'}
+                                                className="p-button-sm"
+                                                disabled={isAuthenticated && !isEmployee && !hasStock}
+                                                style={{
+                                                    backgroundColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                                    borderColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                                    color: 'white',
+                                                    transition: 'all 0.3s ease',
+                                                    opacity: isEmployee || hasStock ? 1 : 0.6,
+                                                    fontSize: '0.8rem',
+                                                    padding: '0.5rem 1rem'
+                                                }}
+                                                onClick={() => {
+                                                    if (!isAuthenticated) {
+                                                        handleAddToCart(producto);
+                                                    } else if (isEmployee) {
+                                                        const editRoute = authService.isAdmin()
+                                                            ? `/administrador/productos/${producto.id}/editar`
+                                                            : `/emprendedor/productos/${producto.id}/editar`;
+                                                        router.push(editRoute);
+                                                    } else {
+                                                        handleAddToCart(producto);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })()
                         ) : (
                             <div className="text-center">
                                 <div className="text-sm text-600 mb-2">
@@ -612,31 +625,45 @@ const ProductosPage: React.FC = () => {
                         </div>
 
                         {!isAuthenticated || authService.canViewPrices() ? (
-                            <div className="flex align-items-center justify-content-between">
-                                <div className="text-3xl font-bold" style={{ color: primaryColor }}>
-                                    {productService.formatearPrecio(selectedProduct.precio)}
-                                </div>
-                                <Button
-                                    icon="pi pi-shopping-cart"
-                                    label={authService.isEmployee() ? 'Gestionar' : isAuthenticated ? 'Agregar al Carrito' : 'Iniciar sesión para comprar'}
-                                    disabled={isAuthenticated && !authService.isEmployee() && !hasStock}
-                                    style={{
-                                        backgroundColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                        borderColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)'
-                                    }}
-                                    onClick={() => {
-                                        if (!isAuthenticated) {
-                                            setProductModalVisible(false);
-                                            handleAddToCart(selectedProduct);
-                                        } else if (authService.isEmployee()) {
-                                            router.push(`/products/${selectedProduct.id}/gestionar`);
-                                        } else {
-                                            handleAddToCart(selectedProduct);
-                                            setProductModalVisible(false);
-                                        }
-                                    }}
-                                />
-                            </div>
+                            (() => {
+                                const isEmployee = isAuthenticated && authService.isEmployee();
+                                const targetEmpresaId = selectedProduct.empresa?.id || empresas.find((e) => e.nombre === selectedProduct.empresa?.nombre)?.id || null;
+                                const canManageProduct = isEmployee && authService.canManageEmpresa(targetEmpresaId);
+
+                                return (
+                                    <div className="flex align-items-center justify-content-between">
+                                        <div className="text-3xl font-bold" style={{ color: primaryColor }}>
+                                            {productService.formatearPrecio(selectedProduct.precio)}
+                                        </div>
+                                        {(!isEmployee || canManageProduct) && (
+                                            <Button
+                                                icon={isEmployee ? 'pi pi-cog' : 'pi pi-shopping-cart'}
+                                                label={isEmployee ? 'Gestionar' : isAuthenticated ? 'Agregar al Carrito' : 'Iniciar sesión para comprar'}
+                                                disabled={isAuthenticated && !isEmployee && !hasStock}
+                                                style={{
+                                                    backgroundColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                                    borderColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)'
+                                                }}
+                                                onClick={() => {
+                                                    if (!isAuthenticated) {
+                                                        setProductModalVisible(false);
+                                                        handleAddToCart(selectedProduct);
+                                                    } else if (isEmployee) {
+                                                        setProductModalVisible(false);
+                                                        const editRoute = authService.isAdmin()
+                                                            ? `/administrador/productos/${selectedProduct.id}/editar`
+                                                            : `/emprendedor/productos/${selectedProduct.id}/editar`;
+                                                        router.push(editRoute);
+                                                    } else {
+                                                        handleAddToCart(selectedProduct);
+                                                        setProductModalVisible(false);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })()
                         ) : (
                             <div className="text-center">
                                 <div className="text-600 mb-3">

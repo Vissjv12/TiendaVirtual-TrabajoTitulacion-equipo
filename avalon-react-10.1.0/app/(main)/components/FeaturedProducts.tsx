@@ -220,49 +220,61 @@ const FeaturedProducts: React.FC = () => {
         const footer = (
             <div className="p-3">
                 {!isAuthenticated || authService.canViewPrices() ? (
-                    <div className="flex justify-content-between align-items-center">
-                        <div className="text-xl font-bold" style={{ color: primaryColor }}>
-                            {productService.formatearPrecio(producto.precio)}
-                        </div>
-                        <Button
-                            icon="pi pi-shopping-cart"
-                            label={authService.isEmployee() ? 'Gestionar' : isAuthenticated ? 'Agregar' : 'Iniciar sesión para comprar'}
-                            className="p-button-sm"
-                            disabled={isAuthenticated && !authService.isEmployee() && !hasStock}
-                            style={{
-                                backgroundColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                borderColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                color: 'white',
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.9rem',
-                                transition: 'all 0.3s ease',
-                                opacity: authService.isEmployee() || hasStock ? 1 : 0.6
-                            }}
-                            onMouseEnter={(e) => {
-                                if (authService.isEmployee() || hasStock) {
-                                    e.currentTarget.style.backgroundColor = 'var(--primary-600)';
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                    e.currentTarget.style.boxShadow = `0 4px 12px ${primaryColor}40`;
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (authService.isEmployee() || hasStock) {
-                                    e.currentTarget.style.backgroundColor = primaryColor;
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }
-                            }}
-                            onClick={() => {
-                                if (!isAuthenticated) {
-                                    handleAddToCart(producto);
-                                } else if (authService.isEmployee()) {
-                                    router.push(`/dashboard/productos/${producto.id}`);
-                                } else {
-                                    handleAddToCart(producto);
-                                }
-                            }}
-                        />
-                    </div>
+                    (() => {
+                        const isEmployee = isAuthenticated && authService.isEmployee();
+                        const canManageProduct = isEmployee && authService.canManageEmpresa(producto.empresa?.id);
+
+                        return (
+                            <div className="flex justify-content-between align-items-center">
+                                <div className="text-xl font-bold" style={{ color: primaryColor }}>
+                                    {productService.formatearPrecio(producto.precio)}
+                                </div>
+                                {(!isEmployee || canManageProduct) && (
+                                    <Button
+                                        icon={isEmployee ? 'pi pi-cog' : 'pi pi-shopping-cart'}
+                                        label={isEmployee ? 'Gestionar' : isAuthenticated ? 'Agregar' : 'Iniciar sesión para comprar'}
+                                        className="p-button-sm"
+                                        disabled={isAuthenticated && !isEmployee && !hasStock}
+                                        style={{
+                                            backgroundColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                            borderColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                            color: 'white',
+                                            padding: '0.5rem 1rem',
+                                            fontSize: '0.9rem',
+                                            transition: 'all 0.3s ease',
+                                            opacity: isEmployee || hasStock ? 1 : 0.6
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (isEmployee || hasStock) {
+                                                e.currentTarget.style.backgroundColor = 'var(--primary-600)';
+                                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                                e.currentTarget.style.boxShadow = `0 4px 12px ${primaryColor}40`;
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (isEmployee || hasStock) {
+                                                e.currentTarget.style.backgroundColor = primaryColor;
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = 'none';
+                                            }
+                                        }}
+                                        onClick={() => {
+                                            if (!isAuthenticated) {
+                                                handleAddToCart(producto);
+                                            } else if (isEmployee) {
+                                                const editRoute = authService.isAdmin()
+                                                    ? `/administrador/productos/${producto.id}/editar`
+                                                    : `/emprendedor/productos/${producto.id}/editar`;
+                                                router.push(editRoute);
+                                            } else {
+                                                handleAddToCart(producto);
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })()
                 ) : (
                     <div className="text-center">
                         <div className="text-sm text-600 mb-2">

@@ -1,7 +1,7 @@
 # Registro de Pulido Pre-Integración (Frontend + UX)
 
-- **Rama de trabajo:** `feature/pulido-export-validaciones-404` (pendiente de autorización para `git commit` / `git push`; sin merge a `main`)
-- **Alcance:** Exportación real `.csv` en ventas, endurecimiento de validaciones de formularios, corrección del error de cliente en pantalla `404`, submenú dinámico de `Categorías` en `LandingNavbar` y diagnóstico de la latencia en primera carga del panel Emprendedor.
+- **Rama de trabajo:** `feature/pulido-export-validaciones-404` (sin merge a `main`)
+- **Alcance:** Exportación real `.csv` en ventas, endurecimiento de validaciones de formularios, corrección del error de cliente en pantalla `404`, submenú dinámico de `Categorías` en `LandingNavbar`, control por empresa del botón `Gestionar` en vitrina `/products` y productos destacados, y diagnóstico de la latencia en primera carga del panel Emprendedor.
 
 ---
 
@@ -42,6 +42,14 @@
   - En lugar de apuntar a `/products?categories=true` (parámetro ignorado en `products/page.tsx`), el navbar consulta `productService.obtenerCategorias()` al montar.
   - Bajo **Productos -> Categorías**, se despliega un submenú dinámico con cada categoría real; al seleccionar una categoría navega a `/products?categoria=<Nombre>` usando `encodeURIComponent(cat.nombre)` (y fallback `"Ver catálogo"` hacia `/products` si aún no cargan categorías).
   - En el menú móvil (`Sidebar`), se habilitaron los subelementos de `Todos los productos` y la lista de `Categorías` para evitar botones sin acción en pantallas pequeñas.
+
+### 1.5 Botón `Gestionar` por empresa y ruta directa de edición en vitrina
+- **`avalon-react-10.1.0/app/(main)/products/page.tsx`** y **`avalon-react-10.1.0/app/(landing)/products/page.tsx`**:
+  - Tanto en la tarjeta del catálogo como en el modal de detalle del producto, cuando el usuario autenticado es empleado o administrador (`authService.isEmployee()`), se evalúa `authService.canManageEmpresa(targetEmpresaId)` (usando `producto.empresa?.id` con respaldo por nombre en `empresas`).
+  - Para **Emprendedor (`ROLE_EMP`)**, el botón **`Gestionar`** (ícono `pi pi-cog`) se muestra **únicamente** en productos de su empresa y navega a **`/emprendedor/productos/${producto.id}/editar`**; en productos de otras empresas no se renderiza botón y solo queda visible el precio.
+  - Para **Administrador (`ROLE_ADMIN`)**, como no pertenece a una empresa puntual (`canManageEmpresa` retorna `true` globalmente), el botón **`Gestionar`** se muestra en todos los productos y navega a **`/administrador/productos/${producto.id}/editar`**.
+- **`avalon-react-10.1.0/app/(main)/components/FeaturedProducts.tsx`** y **`avalon-react-10.1.0/app/(landing)/components/FeaturedProducts.tsx`**:
+  - Se aplicó el mismo criterio de visibilidad y enrutamiento (`/emprendedor/productos/${producto.id}/editar` para `ROLE_EMP` en sus propios productos y `/administrador/productos/${producto.id}/editar` para `ROLE_ADMIN` en todos), corrigiendo la ruta muerta anterior `/dashboard/productos/${producto.id}`.
 
 ---
 
