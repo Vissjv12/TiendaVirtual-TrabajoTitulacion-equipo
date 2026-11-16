@@ -4,6 +4,7 @@ import com.example.demo.application.dto.*;
 import com.example.demo.application.mapper.UsuarioMapper;
 import com.example.demo.application.service.AuthService;
 import com.example.demo.application.service.PasswordResetService;
+import com.example.demo.application.util.PaginationUtils;
 import com.example.demo.domain.model.Usuario;
 import com.example.demo.domain.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,19 +15,23 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@CrossOrigin(originPatterns = "*")
 @Tag(name = "Gestión de Usuarios", description = "API para gestión de usuarios por administradores")
 public class AuthController {
 
@@ -34,6 +39,7 @@ public class AuthController {
     private final AuthService authService;
     private final UsuarioMapper usuarioMapper;
     private final PasswordResetService passwordResetService;
+    private final com.example.demo.application.service.EmprendedorEmpresaService emprendedorEmpresaService;
 
     // =====================================
     // ENDPOINTS DE AUTENTICACIÓN PÚBLICA
@@ -59,7 +65,7 @@ public class AuthController {
 
     @PostMapping("/auth/login")
     @Operation(summary = "Iniciar sesión")
-    public ResponseEntity<TokenResponseDto> login(@Valid @RequestBody LoginRequestDto loginRequest) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginRequest) {
         try {
             TokenResponseDto tokenResponse = authService.login(loginRequest);
 
@@ -67,12 +73,20 @@ public class AuthController {
             if (usuarioOpt.isPresent()) {
                 Usuario usuario = usuarioOpt.get();
                 UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuario);
+                // T11: conservar el empresaId resuelto al emitir el JWT (antes se perdía aquí y llegaba null)
+                if (tokenResponse.getUsuario() != null) {
+                    usuarioDto.setEmpresaId(tokenResponse.getUsuario().getEmpresaId());
+                }
                 tokenResponse.setUsuario(usuarioDto);
             }
 
             return ResponseEntity.ok(tokenResponse);
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Usuario o contraseña incorrectos"));
         }
     }
 
@@ -159,6 +173,35 @@ public class AuthController {
                 .body(usuarioMapper.toResponseDto(usuarioRegistrado));
     }
 
+    private static final Map<String, String> USUARIO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "username", "username",
+            "email", "email",
+            "nombre", "nombre",
+            "apellido", "apellido",
+            "activo", "activo"
+    );
+
+    @GetMapping("/usuarios/paginado")
+    @Operation(summary = "Listar usuarios paginados (Solo Admin, contrato A-19)")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PageResponseDto<UsuarioResponseDto>> obtenerUsuariosPaginado(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "id,desc") String sort,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String rol,
+            @RequestParam(required = false) Boolean activo) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "id", Sort.Direction.DESC, USUARIO_SORT_FIELDS);
+        Page<Usuario> result = usuarioService.obtenerUsuariosPaginado(q, rol, activo, pageable);
+        PageResponseDto<UsuarioResponseDto> pagina = PageResponseDto.fromPage(result, usuarioMapper::toResponseDto);
+        emprendedorEmpresaService.completarEmpresa(pagina.getContent());
+        return ResponseEntity.ok(pagina);
+    }
+
     @GetMapping("/usuarios")
     @Operation(summary = "Listar todos los usuarios (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
@@ -168,6 +211,7 @@ public class AuthController {
             List<UsuarioResponseDto> usuariosDto = usuarios.stream()
                     .map(usuarioMapper::toResponseDto)
                     .collect(Collectors.toList());
+            emprendedorEmpresaService.completarEmpresa(usuariosDto);
 
             return ResponseEntity.ok(usuariosDto);
         } catch (Exception e) {
@@ -184,6 +228,7 @@ public class AuthController {
 
             if (usuarioOpt.isPresent()) {
                 UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioOpt.get());
+                emprendedorEmpresaService.completarEmpresa(List.of(usuarioDto));
                 return ResponseEntity.ok(usuarioDto);
             } else {
                 return ResponseEntity.notFound().build();
@@ -196,7 +241,7 @@ public class AuthController {
     @PutMapping("/usuarios/{id}")
     @Operation(summary = "Actualizar usuario (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UsuarioResponseDto> actualizarUsuario(
+    public ResponseEntity<?> actualizarUsuario(
             @PathVariable Long id,
             @Valid @RequestBody ActualizarUsuarioDto actualizarDto) {
         try {
@@ -222,8 +267,11 @@ public class AuthController {
 
             Usuario usuarioActualizado = usuarioService.actualizarUsuario(id, actualizarDto);
             UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioActualizado);
+            emprendedorEmpresaService.completarEmpresa(List.of(usuarioDto));
 
             return ResponseEntity.ok(usuarioDto);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -232,14 +280,17 @@ public class AuthController {
     @PatchMapping("/usuarios/{id}/estado")
     @Operation(summary = "Cambiar estado del usuario (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UsuarioResponseDto> cambiarEstadoUsuario(
+    public ResponseEntity<?> cambiarEstadoUsuario(
             @PathVariable Long id,
             @RequestBody CambiarEstadoDto estadoDto) {
         try {
             Usuario usuarioActualizado = usuarioService.cambiarEstado(id, estadoDto.isActivo());
             UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioActualizado);
+            emprendedorEmpresaService.completarEmpresa(List.of(usuarioDto));
 
             return ResponseEntity.ok(usuarioDto);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
@@ -248,12 +299,14 @@ public class AuthController {
     }
 
     @DeleteMapping("/usuarios/{id}")
-    @Operation(summary = "Eliminar usuario (Solo Admin)")
+    @Operation(summary = "Eliminar usuario lógicamente (Solo Admin)")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> eliminarUsuario(@PathVariable Long id) {
+    public ResponseEntity<?> eliminarUsuario(@PathVariable Long id) {
         try {
             usuarioService.eliminarUsuario(id);
             return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
@@ -270,6 +323,7 @@ public class AuthController {
             List<UsuarioResponseDto> usuariosDto = usuarios.stream()
                     .map(usuarioMapper::toResponseDto)
                     .collect(Collectors.toList());
+            emprendedorEmpresaService.completarEmpresa(usuariosDto);
 
             return ResponseEntity.ok(usuariosDto);
         } catch (Exception e) {
@@ -286,6 +340,7 @@ public class AuthController {
             List<UsuarioResponseDto> usuariosDto = usuarios.stream()
                     .map(usuarioMapper::toResponseDto)
                     .collect(Collectors.toList());
+            emprendedorEmpresaService.completarEmpresa(usuariosDto);
 
             return ResponseEntity.ok(usuariosDto);
         } catch (Exception e) {

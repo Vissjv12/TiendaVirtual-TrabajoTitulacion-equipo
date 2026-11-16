@@ -39,13 +39,13 @@ const InventarioPage: React.FC = () => {
                             label="Nuevo Inventario"
                             icon="pi pi-plus"
                             className="p-button-success"
-                            onClick={() => router.push('/emprendedor/inventario/crear')}
+                            onClick={() => router.push('/administrador/inventario/crear')}
                         />
                         <Button
                             label="Ajuste Masivo"
                             icon="pi pi-cog"
                             className="p-button-warning"
-                            onClick={() => router.push('/emprendedor/inventario/ajustar')}
+                            onClick={() => router.push('/administrador/inventario/ajustar')}
                         />
                     </div>
                 </div>

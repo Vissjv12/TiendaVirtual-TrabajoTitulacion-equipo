@@ -11,10 +11,16 @@ import com.example.msvc_ventas.domain.model.Venta;
 import com.example.msvc_ventas.domain.repository.DetalleVentaRepository;
 import com.example.msvc_ventas.domain.repository.VentaRepository;
 import com.example.msvc_ventas.domain.service.ClienteService;
+import com.example.msvc_ventas.domain.service.SeguimientoLogisticaService;
 import com.example.msvc_ventas.domain.service.VentaService;
+import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
+import com.example.msvc_ventas.infrastructure.persistence.repository.PagoRepository;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,11 +32,16 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VentaServiceImpl implements VentaService {
 
     private final VentaRepository ventaRepository;
     private final DetalleVentaRepository detalleVentaRepository;
     private final ClienteService clienteService;
+    private final PagoRepository pagoRepository;
+    private final com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRepository ventaJpaRepository;
+    private final SeguimientoLogisticaService seguimientoLogisticaService;
+    private final GeneradorFacturaTrasCommit generadorFactura;
     @Qualifier("com.example.msvc_ventas.application.client.ProductoClient")
     private final ProductoClient productoClient;
     @Qualifier("com.example.msvc_ventas.application.client.InventarioClient")
@@ -80,9 +91,12 @@ public class VentaServiceImpl implements VentaService {
         }
 
         // Actualizar campos básicos
+        List<DetalleVenta> detalles = ventaExistente.getDetalles();
         ventaExistente.setFechaActualizacion(LocalDateTime.now());
 
-        return ventaRepository.save(ventaExistente);
+        Venta ventaGuardada = ventaRepository.save(ventaExistente);
+        ventaGuardada.setDetalles(detalles);
+        return ventaGuardada;
     }
 
     @Override
@@ -120,10 +134,7 @@ public class VentaServiceImpl implements VentaService {
         List<Venta> ventas = ventaRepository.findByClienteId(clienteId);
 
         // Cargar los detalles de cada venta
-        for (Venta venta : ventas) {
-            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
-            venta.setDetalles(detalles);
-        }
+        cargarDetallesLista(ventas);
 
         return ventas;
     }
@@ -134,10 +145,7 @@ public class VentaServiceImpl implements VentaService {
         List<Venta> ventas = ventaRepository.findByEmprendedorId(emprendedorId);
 
         // Cargar los detalles de cada venta
-        for (Venta venta : ventas) {
-            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
-            venta.setDetalles(detalles);
-        }
+        cargarDetallesLista(ventas);
 
         return ventas;
     }
@@ -148,17 +156,53 @@ public class VentaServiceImpl implements VentaService {
         List<Venta> ventas = ventaRepository.findAll();
 
         // Cargar los detalles de cada venta
-        for (Venta venta : ventas) {
-            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
-            venta.setDetalles(detalles);
-        }
+        cargarDetallesLista(ventas);
 
         return ventas;
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<Venta> listarVentasPaginado(String q, Venta.EstadoVenta estado, Pageable pageable) {
+        Page<Venta> ventas = ventaRepository.findPaginado(q, null, null, estado, pageable);
+        cargarDetallesLista(ventas.getContent());
+        return ventas;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Venta> listarVentasPorClientePaginado(Long clienteId, Pageable pageable) {
+        clienteService.obtenerClientePorId(clienteId);
+        Page<Venta> ventas = ventaRepository.findPaginado("", null, clienteId, null, pageable);
+        cargarDetallesLista(ventas.getContent());
+        return ventas;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Venta> listarVentasPorEmprendedorPaginado(
+            Long emprendedorId,
+            String q,
+            Venta.EstadoVenta estado,
+            Pageable pageable) {
+        Page<Venta> ventas = ventaRepository.findPaginado(q, emprendedorId, null, estado, pageable);
+        cargarDetallesLista(ventas.getContent());
+        return ventas;
+    }
+
+    private void cargarDetallesLista(List<Venta> ventas) {
+        for (Venta venta : ventas) {
+            List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
+            venta.setDetalles(detalles);
+        }
+    }
+
+    @Override
     @Transactional
     public Venta completarVenta(Long id) {
+        // Bloqueo de fila: evita que esta finalización y la de la pasarela descuenten stock dos veces
+        ventaJpaRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NoSuchElementException("Venta no encontrada con ID: " + id));
         Venta venta = obtenerVentaPorId(id);
 
         // Verificar que la venta está en estado pendiente
@@ -195,11 +239,43 @@ public class VentaServiceImpl implements VentaService {
             throw new RuntimeException("Error al actualizar el inventario: " + e.getMessage(), e);
         }
 
-        // Actualizar el estado de la venta
+        // Actualizar el estado de la venta y su estado de pago asociado
+        LocalDateTime ahora = LocalDateTime.now();
         venta.setEstado(Venta.EstadoVenta.COMPLETADA);
-        venta.setFechaActualizacion(LocalDateTime.now());
+        venta.setEstadoPago(Venta.EstadoPago.APROBADO);
+        if (venta.getFechaPago() == null) {
+            venta.setFechaPago(ahora);
+        }
+        venta.setFechaActualizacion(ahora);
 
-        return ventaRepository.save(venta);
+        Venta ventaGuardada = ventaRepository.save(venta);
+        ventaGuardada.setDetalles(detalles);
+
+        // Sincronizar el pago asociado si existe en estado PENDIENTE
+        pagoRepository.findByVentaId(id).ifPresent(pago -> {
+            if (pago.getEstadoPago() == PagoEntity.EstadoPago.PENDIENTE) {
+                pago.setEstadoPago(PagoEntity.EstadoPago.APROBADO);
+                pago.setFechaPago(ahora);
+                pago.setFechaActualizacion(ahora);
+                pagoRepository.save(pago);
+                log.info("Pago ID {} sincronizado a APROBADO al completar venta ID {}", pago.getId(), id);
+            }
+        });
+
+        // Inicializar seguimiento logístico si aún no existe
+        try {
+            seguimientoLogisticaService.inicializarSeguimientoPorPagoAprobado(
+                    ventaGuardada.getId(),
+                    "Emprendedor ID: " + ventaGuardada.getEmprendedorId()
+            );
+        } catch (Exception e) {
+            log.error("Error al inicializar seguimiento logístico al completar venta ID: {}", id, e);
+        }
+
+        // Factura después del commit (A-05), sin hilos con sleep: si hay rollback no se genera
+        generadorFactura.programar(ventaGuardada.getId());
+
+        return ventaGuardada;
     }
 
     @Override
@@ -212,10 +288,29 @@ public class VentaServiceImpl implements VentaService {
             throw new IllegalStateException("Solo se pueden cancelar ventas en estado PENDIENTE");
         }
 
-        // Actualizar el estado de la venta
-        venta.setEstado(Venta.EstadoVenta.CANCELADA);
-        venta.setFechaActualizacion(LocalDateTime.now());
+        List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(id);
 
-        return ventaRepository.save(venta);
+        // Actualizar el estado de la venta y de pago asociado
+        LocalDateTime ahora = LocalDateTime.now();
+        venta.setEstado(Venta.EstadoVenta.CANCELADA);
+        if (venta.getEstadoPago() == Venta.EstadoPago.PENDIENTE) {
+            venta.setEstadoPago(Venta.EstadoPago.RECHAZADO);
+        }
+        venta.setFechaActualizacion(ahora);
+
+        Venta ventaGuardada = ventaRepository.save(venta);
+        ventaGuardada.setDetalles(detalles);
+
+        // Sincronizar el pago asociado si existe en estado PENDIENTE
+        pagoRepository.findByVentaId(id).ifPresent(pago -> {
+            if (pago.getEstadoPago() == PagoEntity.EstadoPago.PENDIENTE) {
+                pago.setEstadoPago(PagoEntity.EstadoPago.RECHAZADO);
+                pago.setFechaActualizacion(ahora);
+                pagoRepository.save(pago);
+                log.info("Pago ID {} sincronizado a RECHAZADO al cancelar venta ID {}", pago.getId(), id);
+            }
+        });
+
+        return ventaGuardada;
     }
 }

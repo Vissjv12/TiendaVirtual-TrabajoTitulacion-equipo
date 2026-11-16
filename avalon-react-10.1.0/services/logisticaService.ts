@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8083/api';
+import authService from './authService';
+import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
+
+const API_BASE_URL = GATEWAY_API_URL;
 
 export interface SeguimientoLogistica {
     id: number;
@@ -36,12 +39,13 @@ export const obtenerHistorialPorVenta = async (ventaId: number): Promise<Seguimi
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/venta/${ventaId}`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
     });
 
     if (!response.ok) {
-        throw new Error('Error al obtener historial de seguimiento');
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener historial de seguimiento');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -54,12 +58,13 @@ export const obtenerUltimoEstado = async (ventaId: number): Promise<SeguimientoL
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/venta/${ventaId}/ultimo`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
     });
 
     if (!response.ok) {
-        throw new Error('Error al obtener último estado de seguimiento');
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener último estado de seguimiento');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -72,14 +77,14 @@ export const crearSeguimiento = async (request: ActualizarSeguimientoRequest): P
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Error al crear seguimiento');
+        const msg = await authService.extractErrorMessage(response, 'Error al crear seguimiento');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -92,14 +97,14 @@ export const actualizarEstadoSeguimiento = async (request: ActualizarSeguimiento
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica`, {
         method: 'PUT',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
         body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Error al actualizar seguimiento');
+        const msg = await authService.extractErrorMessage(response, 'Error al actualizar seguimiento');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -112,12 +117,41 @@ export const obtenerSeguimientosPorEmprendedor = async (emprendedorId: number): 
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/emprendedor/${emprendedorId}`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
     });
 
     if (!response.ok) {
-        throw new Error('Error al obtener seguimientos del emprendedor');
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener seguimientos del emprendedor');
+        throw new Error(msg);
+    }
+
+    return response.json();
+};
+
+/**
+ * Obtiene seguimientos paginados de un emprendedor (contrato A-19)
+ */
+export const obtenerSeguimientosPorEmprendedorPaginado = async (
+    emprendedorId: number,
+    params?: PaginationParams
+): Promise<PageResponse<SeguimientoLogistica>> => {
+    const query = buildPaginationQuery({
+        page: params?.page ?? 0,
+        size: params?.size ?? 10,
+        sort: params?.sort ?? 'fechaCreacion,desc',
+        estado: params?.estado
+    });
+    const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/emprendedor/${emprendedorId}/paginado${query}`, {
+        method: 'GET',
+        headers: {
+            ...authService.getAuthHeaders(),
+        },
+    });
+
+    if (!response.ok) {
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener seguimientos paginados del emprendedor');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -133,12 +167,13 @@ export const obtenerSeguimientosPorEmprendedorYEstado = async (
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/emprendedor/${emprendedorId}/estado/${estado}`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
     });
 
     if (!response.ok) {
-        throw new Error('Error al obtener seguimientos por estado');
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener seguimientos por estado');
+        throw new Error(msg);
     }
 
     return response.json();
@@ -151,12 +186,13 @@ export const obtenerEstadosDisponibles = async (): Promise<EstadoLogistico[]> =>
     const response = await fetch(`${API_BASE_URL}/seguimiento-logistica/estados`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+            ...authService.getAuthHeaders(),
         },
     });
 
     if (!response.ok) {
-        throw new Error('Error al obtener estados disponibles');
+        const msg = await authService.extractErrorMessage(response, 'Error al obtener estados disponibles');
+        throw new Error(msg);
     }
 
     return response.json();

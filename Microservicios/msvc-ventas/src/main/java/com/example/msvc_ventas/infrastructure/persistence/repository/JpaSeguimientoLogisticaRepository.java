@@ -1,6 +1,8 @@
 package com.example.msvc_ventas.infrastructure.persistence.repository;
 
 import com.example.msvc_ventas.infrastructure.persistence.entity.SeguimientoLogisticaEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -49,6 +51,17 @@ public interface JpaSeguimientoLogisticaRepository extends JpaRepository<Seguimi
     List<SeguimientoLogisticaEntity> findByEmprendedorIdAndEstado(
             @Param("emprendedorId") Long emprendedorId,
             @Param("estado") SeguimientoLogisticaEntity.EstadoLogistica estado);
+
+    @Query(value = "SELECT s FROM SeguimientoLogisticaEntity s " +
+                   "WHERE s.ventaId IN (SELECT v.id FROM VentaEntity v WHERE v.emprendedorId = :emprendedorId) " +
+                   "AND (:estado IS NULL OR s.estadoLogistica = :estado)",
+           countQuery = "SELECT COUNT(s) FROM SeguimientoLogisticaEntity s " +
+                        "WHERE s.ventaId IN (SELECT v.id FROM VentaEntity v WHERE v.emprendedorId = :emprendedorId) " +
+                        "AND (:estado IS NULL OR s.estadoLogistica = :estado)")
+    Page<SeguimientoLogisticaEntity> findPaginadoPorEmprendedor(
+            @Param("emprendedorId") Long emprendedorId,
+            @Param("estado") SeguimientoLogisticaEntity.EstadoLogistica estado,
+            Pageable pageable);
 
     /**
      * Verifica si existe al menos un seguimiento para una venta

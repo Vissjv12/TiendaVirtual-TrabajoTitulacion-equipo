@@ -1,6 +1,7 @@
 import authService from './authService';
+import { GATEWAY_BASE_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_INVENTARIO_API_URL || 'http://localhost:8082';
+const API_BASE_URL = GATEWAY_BASE_URL;
 
 // =====================================
 // INTERFACES PARA INVENTARIOS
@@ -90,10 +91,22 @@ class InventarioService {
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
+                const clonedResponse = response.clone();
+                let errorMessage = await authService.extractErrorMessage(
+                    response,
+                    `Error ${response.status}: Error desconocido`
+                );
+                try {
+                    const errorJson = await clonedResponse.json();
+                    if (typeof errorJson?.mensaje === 'string' && errorJson.mensaje.trim()) {
+                        errorMessage = errorJson.mensaje;
+                    }
+                } catch {
+                    // Respuesta no JSON o sin campo mensaje; conservar errorMessage extraído
+                }
                 return {
                     success: false,
-                    message: `Error ${response.status}: ${errorData || 'Error desconocido'}`
+                    message: errorMessage
                 };
             }
 
@@ -158,6 +171,16 @@ class InventarioService {
 
     async obtenerInventarios(): Promise<ApiResponse<Inventario[]>> {
         return this.makeRequest<Inventario[]>('/api/inventarios');
+    }
+
+    async obtenerInventariosPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Inventario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            soloActivos: params?.soloActivos
+        });
+        return this.makeRequest<PageResponse<Inventario>>(`/api/inventarios/paginado${query}`);
     }
 
     async obtenerInventarioPorId(id: number): Promise<ApiResponse<Inventario>> {
@@ -255,12 +278,9 @@ class InventarioService {
             }
         } catch (error) {
             console.error('❌ Error obteniendo stock batch:', error);
-            // Devolver un objeto con todos los productos en 0
-            const errorResult: Record<string, number> = {};
-            productosIds.forEach((id) => {
-                errorResult[id.toString()] = 0;
-            });
-            return errorResult;
+            // Devolver vacío: un fallo de consulta no significa stock 0.
+            // Los consumidores conservan la cantidad que ya tenían.
+            return {};
         }
     }
 
@@ -270,6 +290,35 @@ class InventarioService {
 
     async obtenerMovimientos(): Promise<ApiResponse<MovimientoInventario[]>> {
         return this.makeRequest<MovimientoInventario[]>('/api/movimientos');
+    }
+
+    async obtenerMovimientosPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<MovimientoInventario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaMovimiento,desc',
+            inventarioId: params?.inventarioId,
+            inventarioIds: params?.inventarioIds,
+            tipo: params?.tipo,
+            motivo: params?.motivo,
+            fechaDesde: params?.fechaDesde,
+            fechaHasta: params?.fechaHasta
+        });
+        return this.makeRequest<PageResponse<MovimientoInventario>>(`/api/movimientos/paginado${query}`);
+    }
+
+    async obtenerMovimientosPorInventarioPaginado(
+        inventarioId: number,
+        params?: PaginationParams
+    ): Promise<ApiResponse<PageResponse<MovimientoInventario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaMovimiento,desc'
+        });
+        return this.makeRequest<PageResponse<MovimientoInventario>>(
+            `/api/movimientos/inventario/${inventarioId}/paginado${query}`
+        );
     }
 
     async obtenerMovimientoPorId(id: number): Promise<ApiResponse<MovimientoInventario>> {

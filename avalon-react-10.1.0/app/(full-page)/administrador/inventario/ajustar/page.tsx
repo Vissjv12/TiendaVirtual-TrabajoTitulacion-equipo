@@ -269,7 +269,7 @@ const AjustarInventarioPage: React.FC = () => {
 
     // Cancelar y volver
     const handleCancel = () => {
-        router.push('/emprendedor/inventario');
+        router.push('/administrador/inventario');
     };
 
     // Templates para las columnas

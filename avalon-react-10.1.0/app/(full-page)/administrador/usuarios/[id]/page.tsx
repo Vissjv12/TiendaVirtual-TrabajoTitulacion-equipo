@@ -8,7 +8,7 @@ import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
 import { Skeleton } from 'primereact/skeleton';
-import { confirmDialog } from 'primereact/confirmdialog';
+import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import { Badge } from 'primereact/badge';
 import usuariosService, { Usuario } from '@/services/usuariosService';
 
@@ -19,6 +19,8 @@ export default function DetalleUsuarioPage() {
     
     const [loading, setLoading] = useState(true);
     const [usuario, setUsuario] = useState<Usuario | null>(null);
+    const [totalAdmins, setTotalAdmins] = useState<number>(0);
+    const [activeAdmins, setActiveAdmins] = useState<number>(0);
     const toast = React.useRef<Toast>(null);
 
     useEffect(() => {
@@ -30,7 +32,14 @@ export default function DetalleUsuarioPage() {
     const cargarUsuario = async () => {
         setLoading(true);
         try {
-            const response = await usuariosService.obtenerUsuarioPorId(usuarioId);
+            const [response, statsRes] = await Promise.all([
+                usuariosService.obtenerUsuarioPorId(usuarioId),
+                usuariosService.obtenerEstadisticas()
+            ]);
+            if (statsRes.success && statsRes.data) {
+                setTotalAdmins(statsRes.data.administradores ?? 0);
+                setActiveAdmins(statsRes.data.administradoresActivos ?? statsRes.data.administradores ?? 0);
+            }
             if (response.success && response.data) {
                 setUsuario(response.data);
             } else {
@@ -58,10 +67,12 @@ export default function DetalleUsuarioPage() {
         if (!usuario) return;
         
         confirmDialog({
-            message: `¿Está seguro de eliminar al usuario "${usuario.username}"? Esta acción no se puede deshacer.`,
+            message: `¿Está seguro de eliminar lógicamente al usuario "${usuario.username}"? El usuario pasará a estado inactivo sin borrarse de la base de datos.`,
             header: 'Confirmar eliminación',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
+            acceptLabel: 'Sí, eliminar',
+            rejectLabel: 'Cancelar',
             accept: eliminarUsuario,
         });
     };
@@ -72,7 +83,7 @@ export default function DetalleUsuarioPage() {
         try {
             const response = await usuariosService.eliminarUsuario(usuario.id);
             if (response.success) {
-                mostrarExito('Usuario eliminado exitosamente');
+                mostrarExito('Usuario eliminado lógicamente (desactivado) exitosamente');
                 setTimeout(() => {
                     router.push('/administrador/usuarios');
                 }, 1500);
@@ -155,9 +166,13 @@ export default function DetalleUsuarioPage() {
         );
     }
 
+    const protegerAdmin = usuario.roles.includes('ROLE_ADMIN') &&
+        (totalAdmins <= 1 || (usuario.activo && activeAdmins <= 1));
+
     return (
         <div className="grid">
             <Toast ref={toast} />
+            <ConfirmDialog />
             
             <div className="col-12">
                 <Card>
@@ -188,18 +203,22 @@ export default function DetalleUsuarioPage() {
                                 className="p-button-warning"
                                 onClick={() => router.push(`/administrador/usuarios/${usuario.id}/editar`)}
                             />
-                            <Button 
-                                label={usuario.activo ? 'Desactivar' : 'Activar'}
-                                icon={usuario.activo ? 'pi pi-times' : 'pi pi-check'}
-                                className={usuario.activo ? 'p-button-warning' : 'p-button-success'}
-                                onClick={cambiarEstado}
-                            />
-                            <Button 
-                                label="Eliminar" 
-                                icon="pi pi-trash" 
-                                className="p-button-danger"
-                                onClick={confirmarEliminar}
-                            />
+                            {!protegerAdmin && (
+                                <>
+                                    <Button 
+                                        label={usuario.activo ? 'Desactivar' : 'Activar'}
+                                        icon={usuario.activo ? 'pi pi-times' : 'pi pi-check'}
+                                        className={usuario.activo ? 'p-button-warning' : 'p-button-success'}
+                                        onClick={cambiarEstado}
+                                    />
+                                    <Button 
+                                        label="Eliminar" 
+                                        icon="pi pi-trash" 
+                                        className="p-button-danger"
+                                        onClick={confirmarEliminar}
+                                    />
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -317,7 +336,7 @@ export default function DetalleUsuarioPage() {
                                                     <span className="text-red-900 font-medium">Administrador Total</span>
                                                 </div>
                                             )}
-                                            {usuario.roles.includes('ROLE_EMPRENDEDOR') && (
+                                            {(usuario.roles.includes('ROLE_EMP') || usuario.roles.includes('ROLE_EMPRENDEDOR')) && (
                                                 <div className="flex align-items-center gap-2 p-2 bg-orange-50 border-round">
                                                     <i className="pi pi-briefcase text-orange-600"></i>
                                                     <span className="text-orange-900 font-medium">Gestión de Productos y Ventas</span>
@@ -350,12 +369,14 @@ export default function DetalleUsuarioPage() {
                                     className="p-button-outlined"
                                     onClick={() => router.push(`/administrador/usuarios/${usuario.id}/editar`)}
                                 />
-                                <Button
-                                    label={usuario.activo ? 'Desactivar Usuario' : 'Activar Usuario'}
-                                    icon={usuario.activo ? 'pi pi-times' : 'pi pi-check'}
-                                    className={`p-button-outlined ${usuario.activo ? 'p-button-warning' : 'p-button-success'}`}
-                                    onClick={cambiarEstado}
-                                />
+                                {!protegerAdmin && (
+                                    <Button
+                                        label={usuario.activo ? 'Desactivar Usuario' : 'Activar Usuario'}
+                                        icon={usuario.activo ? 'pi pi-times' : 'pi pi-check'}
+                                        className={`p-button-outlined ${usuario.activo ? 'p-button-warning' : 'p-button-success'}`}
+                                        onClick={cambiarEstado}
+                                    />
+                                )}
                                 <Button
                                     label="Ver Historial"
                                     icon="pi pi-history"
@@ -363,12 +384,14 @@ export default function DetalleUsuarioPage() {
                                     disabled
                                     tooltip="Funcionalidad próximamente"
                                 />
-                                <Button
-                                    label="Eliminar Usuario"
-                                    icon="pi pi-trash"
-                                    className="p-button-outlined p-button-danger"
-                                    onClick={confirmarEliminar}
-                                />
+                                {!protegerAdmin && (
+                                    <Button
+                                        label="Eliminar Usuario"
+                                        icon="pi pi-trash"
+                                        className="p-button-outlined p-button-danger"
+                                        onClick={confirmarEliminar}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

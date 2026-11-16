@@ -1,40 +1,46 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AdministradorSidebar from './components/AdministradorSidebar';
 import AdminHeader from './components/AdminHeader';
+import authService from '../../../services/authService';
 
 export default function AdministradorLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [tieneToken, setTieneToken] = useState(false);
+    const [tieneAcceso, setTieneAcceso] = useState(false);
     const [sidebarActive, setSidebarActive] = useState(false);
 
     useEffect(() => {
-        const verificarToken = () => {
+        const verificarAcceso = () => {
             try {
-                const token = localStorage.getItem('auth_token');
-                const usuario = localStorage.getItem('user_info');
-                
-                if (token && usuario) {
-                    setTieneToken(true);
-                } else {
-                    setTieneToken(false);
+                if (!authService.isAuthenticated()) {
+                    router.replace('/auth/login2');
+                    return;
                 }
-                
-                setLoading(false);
+
+                if (!authService.isAdmin()) {
+                    router.replace('/auth/access2');
+                    return;
+                }
+
+                setTieneAcceso(true);
             } catch (error) {
-                console.error('Error verificando token:', error);
-                setTieneToken(false);
+                console.error('Error verificando acceso administrativo:', error);
+                authService.clearSession();
+                router.replace('/auth/login2');
+            } finally {
                 setLoading(false);
             }
         };
 
-        verificarToken();
-    }, []);
+        verificarAcceso();
+    }, [router]);
 
     if (loading) {
         return (
@@ -55,7 +61,7 @@ export default function AdministradorLayout({
         );
     }
 
-    if (!tieneToken) {
+    if (!tieneAcceso) {
         return (
             <div 
                 className="min-h-screen flex align-items-center justify-content-center"
@@ -65,7 +71,7 @@ export default function AdministradorLayout({
                     <i className="pi pi-lock text-6xl text-red-500 mb-4"></i>
                     <div className="text-xl font-bold text-900 mb-2">Sesión requerida</div>
                     <div className="text-600 mb-4">Necesitas iniciar sesión para acceder</div>
-                    <a href="/(full-page)/auth/login2" className="p-button p-button-primary">
+                    <a href="/auth/login2" className="p-button p-button-primary">
                         Ir a Login
                     </a>
                 </div>

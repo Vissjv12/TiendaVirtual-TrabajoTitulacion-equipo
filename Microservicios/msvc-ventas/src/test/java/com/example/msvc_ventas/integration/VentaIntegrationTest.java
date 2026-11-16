@@ -1,10 +1,14 @@
 package com.example.msvc_ventas.integration;
 
 import com.example.msvc_ventas.application.client.ProductoClient;
+import com.example.msvc_ventas.application.client.ConfiguracionPagosClient;
+import com.example.msvc_ventas.application.dto.EmpresaDto;
 import com.example.msvc_ventas.application.dto.ProductoDto;
 import com.example.msvc_ventas.infrastructure.persistence.entity.ClienteEntity;
 import com.example.msvc_ventas.infrastructure.persistence.repository.ClienteJpaRepository;
 import com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRepository;
+import com.example.msvc_ventas.infrastructure.persistence.repository.PagoRepository;
+import com.example.msvc_ventas.infrastructure.persistence.repository.DetalleVentaJpaRepository;
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,16 +16,20 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Pruebas de Integración para el Microservicio de Ventas
@@ -47,15 +55,25 @@ public class VentaIntegrationTest {
     @Autowired
     private VentaJpaRepository ventaRepository;
 
+    @Autowired
+    private PagoRepository pagoRepository;
+
+    @Autowired
+    private DetalleVentaJpaRepository detalleVentaRepository;
+
     // Solo mockeamos el cliente externo
     @MockBean
     private ProductoClient productoClient;
+
+    @MockBean
+    private ConfiguracionPagosClient configuracionPagosClient;
 
     private Long clienteId;
 
     @BeforeEach
     public void setUp() {
         // Limpiar datos previos
+        pagoRepository.deleteAll();
         ventaRepository.deleteAll();
         clienteRepository.deleteAll();
         
@@ -72,6 +90,26 @@ public class VentaIntegrationTest {
         
         cliente = clienteRepository.save(cliente);
         this.clienteId = cliente.getId();
+        Mockito.when(configuracionPagosClient.obtenerCostoEnvio(Mockito.anyLong()))
+                .thenReturn(new com.example.msvc_ventas.application.dto.CostoEnvioResponseDto(1L, BigDecimal.valueOf(5.00)));
+    }
+
+    private ProductoDto productoBase() {
+        ProductoDto producto = new ProductoDto();
+        producto.setEmpresa(new EmpresaDto(1L));
+        return producto;
+    }
+
+    private SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor jwtCliente() {
+        return jwt()
+                .authorities(new SimpleGrantedAuthority("ROLE_USER"))
+                .jwt(token -> token.claim("email", "juan.perez@test.com").claim("userId", 10L));
+    }
+
+    private SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor jwtAdmin() {
+        return jwt()
+                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                .jwt(token -> token.claim("email", "admin@test.com").claim("userId", 1L));
     }
 
     /**
@@ -81,7 +119,7 @@ public class VentaIntegrationTest {
     @Test
     public void test01_crearVentaExitosa() throws Exception {
         // Mock del producto externo
-        ProductoDto productoSimulado = new ProductoDto();
+        ProductoDto productoSimulado = productoBase();
         productoSimulado.setId(1L);
         productoSimulado.setNombre("Laptop Dell");
         productoSimulado.setPrecio(BigDecimal.valueOf(1200.00));
@@ -102,6 +140,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -127,6 +166,7 @@ public class VentaIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestInvalido))
                 .andDo(print())
@@ -149,6 +189,7 @@ public class VentaIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtAdmin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -172,10 +213,11 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isBadRequest());
     }
 
     /**
@@ -185,7 +227,7 @@ public class VentaIntegrationTest {
     @Test
     public void test05_obtenerVentaPorId() throws Exception {
         // Primero crear una venta
-        ProductoDto producto = new ProductoDto();
+        ProductoDto producto = productoBase();
         producto.setId(1L);
         producto.setNombre("Mouse Logitech");
         producto.setPrecio(BigDecimal.valueOf(25.50));
@@ -201,6 +243,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         String responseJson = mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated())
@@ -210,7 +253,7 @@ public class VentaIntegrationTest {
         Long ventaId = ventaRepository.findAll().get(0).getId();
 
         // Ahora obtener esa venta
-        mockMvc.perform(get("/api/ventas/" + ventaId))
+        mockMvc.perform(get("/api/ventas/" + ventaId).with(jwtCliente()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(ventaId))
@@ -223,7 +266,7 @@ public class VentaIntegrationTest {
      */
     @Test
     public void test06_ventaNoEncontrada() throws Exception {
-        mockMvc.perform(get("/api/ventas/99999"))
+        mockMvc.perform(get("/api/ventas/99999").with(jwtAdmin()))
                 .andDo(print())
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.codigo").value("NOT_FOUND"));
@@ -236,7 +279,7 @@ public class VentaIntegrationTest {
     @Test
     public void test07_listarVentasPorCliente() throws Exception {
         // Crear 2 ventas para el mismo cliente
-        ProductoDto producto = new ProductoDto();
+        ProductoDto producto = productoBase();
         producto.setId(1L);
         producto.setNombre("Teclado Mecánico");
         producto.setPrecio(BigDecimal.valueOf(85.00));
@@ -253,18 +296,20 @@ public class VentaIntegrationTest {
 
         // Crear venta 1
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
 
         // Crear venta 2
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
 
         // Listar ventas del cliente
-        mockMvc.perform(get("/api/ventas/cliente/" + clienteId))
+        mockMvc.perform(get("/api/ventas/cliente/" + clienteId).with(jwtCliente()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
@@ -276,7 +321,7 @@ public class VentaIntegrationTest {
      */
     @Test
     public void test08_listarTodasLasVentas() throws Exception {
-        ProductoDto producto = new ProductoDto();
+        ProductoDto producto = productoBase();
         producto.setId(1L);
         producto.setNombre("Monitor 24 pulgadas");
         producto.setPrecio(BigDecimal.valueOf(250.00));
@@ -292,11 +337,12 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/ventas"))
+        mockMvc.perform(get("/api/ventas").with(jwtAdmin()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", not(empty())));
@@ -308,12 +354,12 @@ public class VentaIntegrationTest {
      */
     @Test
     public void test09_ventaConMultiplesItems() throws Exception {
-        ProductoDto producto1 = new ProductoDto();
+        ProductoDto producto1 = productoBase();
         producto1.setId(1L);
         producto1.setNombre("Laptop");
         producto1.setPrecio(BigDecimal.valueOf(1200.00));
         
-        ProductoDto producto2 = new ProductoDto();
+        ProductoDto producto2 = productoBase();
         producto2.setId(2L);
         producto2.setNombre("Mouse");
         producto2.setPrecio(BigDecimal.valueOf(25.00));
@@ -333,6 +379,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andDo(print())
@@ -347,7 +394,7 @@ public class VentaIntegrationTest {
      */
     @Test
     public void test10_diferentesMetodosPago() throws Exception {
-        ProductoDto producto = new ProductoDto();
+        ProductoDto producto = productoBase();
         producto.setId(1L);
         producto.setNombre("Producto Test");
         producto.setPrecio(BigDecimal.valueOf(100.00));
@@ -364,6 +411,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaTransferencia))
                 .andExpect(status().isCreated());
@@ -378,6 +426,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaDeuna))
                 .andExpect(status().isCreated());
@@ -390,7 +439,7 @@ public class VentaIntegrationTest {
     @Test
     public void test11_actualizarEstadoVenta() throws Exception {
         // Crear venta primero
-        ProductoDto producto = new ProductoDto();
+        ProductoDto producto = productoBase();
         producto.setId(1L);
         producto.setNombre("Producto Test");
         producto.setPrecio(BigDecimal.valueOf(50.00));
@@ -406,6 +455,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         String responseJson = mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated())
@@ -427,6 +477,7 @@ public class VentaIntegrationTest {
         // Este test puede fallar si no existe el endpoint, pero lo intentamos
         try {
             mockMvc.perform(put("/api/ventas/" + ventaId + "/estado")
+                    .with(jwtAdmin())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(updateRequest))
                     .andDo(print());
@@ -443,7 +494,7 @@ public class VentaIntegrationTest {
     @Test
     public void test12_generarFacturaPDF() throws Exception {
         // Crear venta primero
-        ProductoDto producto = new ProductoDto();
+        ProductoDto producto = productoBase();
         producto.setId(1L);
         producto.setNombre("Laptop HP");
         producto.setPrecio(BigDecimal.valueOf(800.00));
@@ -459,6 +510,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaRequest))
                 .andExpect(status().isCreated());
@@ -470,7 +522,7 @@ public class VentaIntegrationTest {
                 .getId();
 
         // Intentar descargar PDF
-        mockMvc.perform(get("/api/ventas/" + ventaId + "/factura"))
+        mockMvc.perform(get("/api/ventas/" + ventaId + "/factura").with(jwtCliente()))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(header().exists("Content-Disposition"));
@@ -480,6 +532,44 @@ public class VentaIntegrationTest {
      * TEST 13: Validación de Cantidad Mínima
      * COBERTURA: Validaciones de negocio, @Min annotations
      */
+    @Test
+    public void test14_ignoraImportesManipuladosPorCliente() throws Exception {
+        ProductoDto producto = productoBase();
+        producto.setId(1L);
+        producto.setNombre("Precio oficial");
+        producto.setPrecio(BigDecimal.valueOf(1200.00));
+        Mockito.when(productoClient.obtenerProducto(1L)).thenReturn(producto);
+
+        String ventaRequest = String.format("""
+                {
+                    "clienteId": %d,
+                    "emprendedorId": 9999,
+                    "costoEnvio": 0,
+                    "items": [{
+                        "productoId": 1,
+                        "cantidad": 2,
+                        "nombreProducto": "Producto falso",
+                        "precioUnitario": 0.01
+                    }],
+                    "metodoPago": "TRANSFERENCIA"
+                }
+                """, clienteId);
+
+        mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(ventaRequest))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.subtotal").value(2400.00))
+                .andExpect(jsonPath("$.impuesto").value(360.00))
+                .andExpect(jsonPath("$.total").value(2765.00));
+
+        var ventaGuardada = ventaRepository.findAll().get(0);
+        assertEquals(Long.valueOf(1L), ventaGuardada.getEmprendedorId());
+        assertEquals(0, BigDecimal.valueOf(1200.00)
+                .compareTo(detalleVentaRepository.findByVentaId(ventaGuardada.getId()).get(0).getPrecioUnitario()));
+    }
+
     @Test
     public void test13_validacionCantidadMinima() throws Exception {
         String ventaInvalida = String.format("""
@@ -491,6 +581,7 @@ public class VentaIntegrationTest {
                 """, clienteId);
 
         mockMvc.perform(post("/api/ventas")
+                .with(jwtCliente())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(ventaInvalida))
                 .andDo(print())

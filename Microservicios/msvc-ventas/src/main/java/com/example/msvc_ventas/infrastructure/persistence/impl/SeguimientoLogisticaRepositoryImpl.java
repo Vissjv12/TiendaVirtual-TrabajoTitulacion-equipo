@@ -6,6 +6,8 @@ import com.example.msvc_ventas.infrastructure.persistence.entity.SeguimientoLogi
 import com.example.msvc_ventas.infrastructure.persistence.mapper.SeguimientoLogisticaMapper;
 import com.example.msvc_ventas.infrastructure.persistence.repository.JpaSeguimientoLogisticaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -72,6 +74,18 @@ public class SeguimientoLogisticaRepositoryImpl implements SeguimientoLogisticaR
                 .stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<SeguimientoLogistica> findPaginadoPorEmprendedor(
+            Long emprendedorId,
+            SeguimientoLogistica.EstadoLogistica estado,
+            Pageable pageable) {
+        SeguimientoLogisticaEntity.EstadoLogistica estadoEntity = estado == null
+                ? null
+                : SeguimientoLogisticaEntity.EstadoLogistica.valueOf(estado.name());
+        return jpaRepository.findPaginadoPorEmprendedor(emprendedorId, estadoEntity, pageable)
+                .map(mapper::toDomain);
     }
 
     @Override

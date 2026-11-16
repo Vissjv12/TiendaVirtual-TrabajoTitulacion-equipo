@@ -4,6 +4,8 @@ import com.example.msvc_ventas.domain.model.SeguimientoLogistica;
 import com.example.msvc_ventas.domain.repository.SeguimientoLogisticaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -106,6 +108,14 @@ public class SeguimientoLogisticaService {
             SeguimientoLogistica.EstadoLogistica estado) {
         log.info("Obteniendo seguimientos del emprendedor {} en estado {}", emprendedorId, estado);
         return seguimientoRepository.findByEmprendedorIdAndEstado(emprendedorId, estado);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SeguimientoLogistica> obtenerSeguimientosPorEmprendedorPaginado(
+            Long emprendedorId,
+            SeguimientoLogistica.EstadoLogistica estado,
+            Pageable pageable) {
+        return seguimientoRepository.findPaginadoPorEmprendedor(emprendedorId, estado, pageable);
     }
 
     /**

@@ -5,6 +5,8 @@ import com.example.msvc_producto.domain.repository.CategoriaRepository;
 import com.example.msvc_producto.infrastructure.persistence.entity.CategoriaEntity;
 import com.example.msvc_producto.infrastructure.persistence.mapper.CategoriaEntityMapper;
 import com.example.msvc_producto.infrastructure.persistence.repository.CategoriaJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -40,6 +42,12 @@ public class CategoriaRepositoryImpl implements CategoriaRepository {
         return categoriaJpaRepository.findAll().stream()
                 .map(categoriaEntityMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Categoria> findPaginado(String q, Pageable pageable) {
+        return categoriaJpaRepository.findPaginado(q, pageable)
+                .map(categoriaEntityMapper::toDomain);
     }
 
     @Override

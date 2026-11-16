@@ -189,5 +189,3 @@ cd C:\Users\mycke\Desktop\TrabajoTitulacion-main\TrabajoTitulacion-main
 # 2. Después, en otra terminal, ejecutar servicios para JMeter
 # (ver Paso 2 de JMeter arriba)
 ```
-
-¿Listo para empezar? 🎯

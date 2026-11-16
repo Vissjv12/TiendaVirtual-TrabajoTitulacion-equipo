@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
@@ -13,37 +13,54 @@ import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
+import { toApiSortParam } from '../../../../services/apiConfig';
 import categoriasEmpresasService, { Empresa } from '../../../../services/categoriasEmpresasService';
+import authService from '../../../../services/authService';
 
 const EmpresasPage: React.FC = () => {
     const router = useRouter();
     const toast = useRef<Toast>(null);
+    const isAdmin = authService.isAdmin();
 
     // Estados principales
     const [empresas, setEmpresas] = useState<Empresa[]>([]);
-    const [empresasFiltradas, setEmpresasFiltradas] = useState<Empresa[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('id');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(1);
 
     // Estados para el modal de detalles
     const [selectedEmpresa, setSelectedEmpresa] = useState<Empresa | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
 
-    // Cargar datos iniciales
+    // Debounce búsqueda
     useEffect(() => {
-        cargarEmpresas();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    const cargarEmpresas = async () => {
+    const cargarEmpresas = useCallback(async () => {
         setLoading(true);
         try {
-            console.log('🔄 Cargando empresas...');
-            const response = await categoriasEmpresasService.obtenerEmpresas();
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'id,asc');
+            const response = await categoriasEmpresasService.obtenerEmpresasPaginado({
+                page,
+                size: rows,
+                sort,
+                q: debouncedSearch.trim() || undefined
+            });
 
             if (response.success && response.data) {
-                setEmpresas(response.data);
-                setEmpresasFiltradas(response.data);
-                console.log('✅ Empresas cargadas:', response.data.length);
+                setEmpresas(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 toast.current?.show({
                     severity: 'error',
@@ -63,27 +80,27 @@ const EmpresasPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [first, rows, sortField, sortOrder, debouncedSearch]);
+
+    // Cargar datos iniciales y cambios de paginación/filtro
+    useEffect(() => {
+        cargarEmpresas();
+    }, [cargarEmpresas]);
 
     // Función de búsqueda
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
-        
-        if (!value.trim()) {
-            setEmpresasFiltradas(empresas);
-            return;
-        }
-        
-        const filtered = empresas.filter(empresa => 
-            empresa.nombre?.toLowerCase().includes(value) ||
-            empresa.ruc?.toLowerCase().includes(value) ||
-            empresa.email?.toLowerCase().includes(value) ||
-            empresa.telefono?.toLowerCase().includes(value) ||
-            empresa.direccion?.toLowerCase().includes(value)
-        );
-        
-        setEmpresasFiltradas(filtered);
+        setSearchTerm(e.target.value);
+    };
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'id');
+        setSortOrder((event.sortOrder === -1 ? -1 : 1) as 1 | -1);
     };
 
     // Confirmar eliminación
@@ -105,9 +122,7 @@ const EmpresasPage: React.FC = () => {
             const response = await categoriasEmpresasService.eliminarEmpresa(id);
             
             if (response.success) {
-                const updatedEmpresas = empresas.filter(e => e.id !== id);
-                setEmpresas(updatedEmpresas);
-                setEmpresasFiltradas(updatedEmpresas);
+                await cargarEmpresas();
                 toast.current?.show({
                     severity: 'success',
                     summary: 'Éxito',
@@ -168,6 +183,7 @@ const EmpresasPage: React.FC = () => {
     };
 
     const actionBodyTemplate = (rowData: Empresa) => {
+        const canEdit = authService.canManageEmpresa(rowData.id);
         return (
             <div className="flex gap-2">
                 <Button 
@@ -176,18 +192,22 @@ const EmpresasPage: React.FC = () => {
                     onClick={() => verDetalles(rowData)}
                     tooltip="Ver detalles"
                 />
-                <Button 
-                    icon="pi pi-pencil" 
-                    className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/empresas/${rowData.id}/editar`)}
-                    tooltip="Editar"
-                />
-                <Button 
-                    icon="pi pi-trash" 
-                    className="p-button-rounded p-button-danger p-button-sm" 
-                    onClick={() => confirmarEliminacion(rowData)}
-                    tooltip="Eliminar"
-                />
+                {canEdit && (
+                    <Button 
+                        icon="pi pi-pencil" 
+                        className="p-button-rounded p-button-success p-button-sm" 
+                        onClick={() => router.push(`/emprendedor/empresas/${rowData.id}/editar`)}
+                        tooltip="Editar"
+                    />
+                )}
+                {isAdmin && (
+                    <Button 
+                        icon="pi pi-trash" 
+                        className="p-button-rounded p-button-danger p-button-sm" 
+                        onClick={() => confirmarEliminacion(rowData)}
+                        tooltip="Eliminar"
+                    />
+                )}
             </div>
         );
     };
@@ -196,12 +216,14 @@ const EmpresasPage: React.FC = () => {
     const leftToolbarTemplate = () => {
         return (
             <div className="flex align-items-center gap-2">
-                <Button 
-                    label="Nueva Empresa" 
-                    icon="pi pi-plus" 
-                    className="p-button-success"
-                    onClick={() => router.push('/emprendedor/empresas/crear')}
-                />
+                {isAdmin && (
+                    <Button 
+                        label="Nueva Empresa" 
+                        icon="pi pi-plus" 
+                        className="p-button-success"
+                        onClick={() => router.push('/emprendedor/empresas/crear')}
+                    />
+                )}
                 <Button 
                     label="Actualizar" 
                     icon="pi pi-refresh" 
@@ -248,10 +270,10 @@ const EmpresasPage: React.FC = () => {
             <div className="mb-4">
                 <h1 className="text-3xl font-bold text-900 mb-2">
                     <i className="pi pi-building text-primary mr-3"></i>
-                    Gestión de Empresas
+                    {isAdmin ? 'Gestión de Empresas' : 'Mi Empresa'}
                 </h1>
                 <p className="text-600 text-lg">
-                    Administra las empresas proveedoras de productos
+                    {isAdmin ? 'Administra las empresas proveedoras de productos' : 'Información y datos de tu empresa asociada'}
                 </p>
             </div>
 
@@ -263,14 +285,22 @@ const EmpresasPage: React.FC = () => {
                     right={rightToolbarTemplate}
                 />
 
-                {loading ? (
+                {loading && empresas.length === 0 ? (
                     renderSkeleton()
                 ) : (
                     <DataTable 
-                        value={empresasFiltradas}
+                        value={empresas}
+                        lazy
+                        loading={loading}
                         paginator
-                        rows={10}
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                         emptyMessage="No se encontraron empresas"
                         responsiveLayout="scroll"
                         className="p-datatable-sm"
@@ -291,7 +321,6 @@ const EmpresasPage: React.FC = () => {
                         <Column 
                             field="direccion" 
                             header="Dirección" 
-                            sortable
                         />
                         <Column 
                             header="Contacto" 

@@ -40,6 +40,16 @@
     top: 0;
     z-index: 997;
     width: 100%;
+    min-height: 70px;
+    flex-shrink: 0;
+}
+
+.admin-topbar .layout-topbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    height: 70px;
 }
 
 .admin-main {
@@ -83,9 +93,12 @@
     }
 }
 
-/* Prevenir scroll horizontal */
+/* Prevenir scroll horizontal sin romper position: sticky */
 .admin-layout-wrapper,
-.admin-content-wrapper,
+.admin-content-wrapper {
+    overflow-x: clip;
+}
+
 .admin-main,
 .admin-main-content {
     overflow-x: hidden;

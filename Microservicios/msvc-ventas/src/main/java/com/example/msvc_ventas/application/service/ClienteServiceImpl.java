@@ -4,6 +4,8 @@ import com.example.msvc_ventas.domain.model.Cliente;
 import com.example.msvc_ventas.domain.repository.ClienteRepository;
 import com.example.msvc_ventas.domain.service.ClienteService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +61,12 @@ public class ClienteServiceImpl implements ClienteService {
     @Transactional(readOnly = true)
     public List<Cliente> listarClientes() {
         return clienteRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Cliente> listarClientesPaginado(Pageable pageable) {
+        return clienteRepository.findPaginado(pageable);
     }
 
     @Override

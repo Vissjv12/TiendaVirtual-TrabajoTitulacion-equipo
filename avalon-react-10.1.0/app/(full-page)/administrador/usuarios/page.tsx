@@ -1,18 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Tag } from 'primereact/tag';
 import { Card } from 'primereact/card';
 import { Toolbar } from 'primereact/toolbar';
-import { confirmDialog } from 'primereact/confirmdialog';
+import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { Dropdown } from 'primereact/dropdown';
 import { Badge } from 'primereact/badge';
+import { toApiSortParam } from '@/services/apiConfig';
 import usuariosService, { Usuario, ROLES_DISPONIBLES, ESTADOS_USUARIO } from '@/services/usuariosService';
 
 export default function UsuariosPage() {
@@ -20,21 +21,50 @@ export default function UsuariosPage() {
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [loading, setLoading] = useState(true);
     const [globalFilter, setGlobalFilter] = useState('');
+    const [debouncedFilter, setDebouncedFilter] = useState('');
     const [selectedUsuarios, setSelectedUsuarios] = useState<Usuario[]>([]);
     const [filtroRol, setFiltroRol] = useState<string>('');
     const [filtroEstado, setFiltroEstado] = useState<boolean | null>(null);
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('id');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
+    const [totalAdmins, setTotalAdmins] = useState<number>(0);
+    const [activeAdmins, setActiveAdmins] = useState<number>(0);
     const toast = React.useRef<Toast>(null);
 
     useEffect(() => {
-        cargarUsuarios();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedFilter(globalFilter);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [globalFilter]);
 
-    const cargarUsuarios = async () => {
+    const cargarUsuarios = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await usuariosService.obtenerUsuarios();
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'id,desc');
+            const [response, statsRes] = await Promise.all([
+                usuariosService.obtenerUsuariosPaginado({
+                    page,
+                    size: rows,
+                    sort,
+                    q: debouncedFilter.trim() || undefined,
+                    rol: filtroRol || undefined,
+                    activo: filtroEstado ?? undefined
+                }),
+                usuariosService.obtenerEstadisticas()
+            ]);
+            if (statsRes.success && statsRes.data) {
+                setTotalAdmins(statsRes.data.administradores ?? 0);
+                setActiveAdmins(statsRes.data.administradoresActivos ?? statsRes.data.administradores ?? 0);
+            }
             if (response.success && response.data) {
-                setUsuarios(response.data);
+                setUsuarios(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 mostrarError('Error al cargar usuarios: ' + response.message);
             }
@@ -44,6 +74,21 @@ export default function UsuariosPage() {
         } finally {
             setLoading(false);
         }
+    }, [first, rows, sortField, sortOrder, debouncedFilter, filtroRol, filtroEstado]);
+
+    useEffect(() => {
+        cargarUsuarios();
+    }, [cargarUsuarios]);
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'id');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     const mostrarExito = (mensaje: string) => {
@@ -56,10 +101,12 @@ export default function UsuariosPage() {
 
     const confirmarEliminar = (usuario: Usuario) => {
         confirmDialog({
-            message: `¿Está seguro de eliminar al usuario "${usuario.username}"?`,
+            message: `¿Está seguro de eliminar lógicamente al usuario "${usuario.username}"? El usuario pasará a estado inactivo sin borrarse de la base de datos.`,
             header: 'Confirmar eliminación',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
+            acceptLabel: 'Sí, eliminar',
+            rejectLabel: 'Cancelar',
             accept: () => eliminarUsuario(usuario.id),
         });
     };
@@ -68,7 +115,7 @@ export default function UsuariosPage() {
         try {
             const response = await usuariosService.eliminarUsuario(id);
             if (response.success) {
-                mostrarExito('Usuario eliminado exitosamente');
+                mostrarExito('Usuario eliminado lógicamente (desactivado) exitosamente');
                 cargarUsuarios();
             } else {
                 mostrarError('Error al eliminar usuario: ' + response.message);
@@ -129,34 +176,47 @@ export default function UsuariosPage() {
         />
     );
 
-    const accionesTemplate = (rowData: Usuario) => (
-        <div className="flex gap-2">
-            <Button
-                icon="pi pi-eye"
-                className="p-button-text p-button-info"
-                tooltip="Ver detalles"
-                onClick={() => router.push(`/administrador/usuarios/${rowData.id}`)}
-            />
-            <Button
-                icon="pi pi-pencil"
-                className="p-button-text p-button-warning"
-                tooltip="Editar"
-                onClick={() => router.push(`/administrador/usuarios/${rowData.id}/editar`)}
-            />
-            <Button
-                icon={rowData.activo ? 'pi pi-times' : 'pi pi-check'}
-                className={`p-button-text ${rowData.activo ? 'p-button-warning' : 'p-button-success'}`}
-                tooltip={rowData.activo ? 'Desactivar' : 'Activar'}
-                onClick={() => cambiarEstado(rowData)}
-            />
-            <Button
-                icon="pi pi-trash"
-                className="p-button-text p-button-danger"
-                tooltip="Eliminar"
-                onClick={() => confirmarEliminar(rowData)}
-            />
-        </div>
-    );
+    const esUnicoAdmin = (usuario: Usuario) => {
+        if (!usuario.roles.includes('ROLE_ADMIN')) return false;
+        return totalAdmins <= 1 || (usuario.activo && activeAdmins <= 1);
+    };
+
+    const accionesTemplate = (rowData: Usuario) => {
+        const protegerAdmin = esUnicoAdmin(rowData);
+
+        return (
+            <div className="flex gap-2">
+                <Button
+                    icon="pi pi-eye"
+                    className="p-button-text p-button-info"
+                    tooltip="Ver detalles"
+                    onClick={() => router.push(`/administrador/usuarios/${rowData.id}`)}
+                />
+                <Button
+                    icon="pi pi-pencil"
+                    className="p-button-text p-button-warning"
+                    tooltip="Editar"
+                    onClick={() => router.push(`/administrador/usuarios/${rowData.id}/editar`)}
+                />
+                {!protegerAdmin && (
+                    <>
+                        <Button
+                            icon={rowData.activo ? 'pi pi-times' : 'pi pi-check'}
+                            className={`p-button-text ${rowData.activo ? 'p-button-warning' : 'p-button-success'}`}
+                            tooltip={rowData.activo ? 'Desactivar' : 'Activar'}
+                            onClick={() => cambiarEstado(rowData)}
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            className="p-button-text p-button-danger"
+                            tooltip="Eliminar (borrado lógico)"
+                            onClick={() => confirmarEliminar(rowData)}
+                        />
+                    </>
+                )}
+            </div>
+        );
+    };
 
     // =====================================
     // FILTROS Y TOOLBAR
@@ -194,7 +254,10 @@ export default function UsuariosPage() {
                     { label: 'Todos los roles', value: '' },
                     ...ROLES_DISPONIBLES.map(r => ({ label: r.label, value: r.value }))
                 ]}
-                onChange={(e) => setFiltroRol(e.value)}
+                onChange={(e) => {
+                    setFirst(0);
+                    setFiltroRol(e.value);
+                }}
                 placeholder="Filtrar por rol"
                 className="w-12rem"
             />
@@ -204,30 +267,20 @@ export default function UsuariosPage() {
                     { label: 'Todos los estados', value: null },
                     ...ESTADOS_USUARIO.map(e => ({ label: e.label, value: e.value }))
                 ]}
-                onChange={(e) => setFiltroEstado(e.value)}
+                onChange={(e) => {
+                    setFirst(0);
+                    setFiltroEstado(e.value);
+                }}
                 placeholder="Filtrar por estado"
                 className="w-12rem"
             />
         </div>
     );
 
-    // Filtrar usuarios localmente
-    const usuariosFiltrados = usuarios.filter(usuario => {
-        const cumpleFiltroTexto = !globalFilter || 
-            usuario.username.toLowerCase().includes(globalFilter.toLowerCase()) ||
-            usuario.nombre.toLowerCase().includes(globalFilter.toLowerCase()) ||
-            usuario.apellido.toLowerCase().includes(globalFilter.toLowerCase()) ||
-            usuario.email.toLowerCase().includes(globalFilter.toLowerCase());
-
-        const cumpleFiltroRol = !filtroRol || usuario.roles.includes(filtroRol);
-        const cumpleFiltroEstado = filtroEstado === null || usuario.activo === filtroEstado;
-
-        return cumpleFiltroTexto && cumpleFiltroRol && cumpleFiltroEstado;
-    });
-
     return (
         <div className="grid">
             <Toast ref={toast} />
+            <ConfirmDialog />
             
             <div className="col-12">
                 <Card>
@@ -237,7 +290,7 @@ export default function UsuariosPage() {
                             <p className="text-600 m-0 mt-1">Administre todos los usuarios del sistema</p>
                         </div>
                         <Badge 
-                            value={usuariosFiltrados.length} 
+                            value={totalRecords} 
                             severity="info" 
                             size="large"
                         />
@@ -250,10 +303,17 @@ export default function UsuariosPage() {
                     />
 
                     <DataTable
-                        value={usuariosFiltrados}
-                        paginator
-                        rows={10}
+                        value={usuarios}
+                        lazy
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
+                        paginator
                         loading={loading}
                         selection={selectedUsuarios}
                         onSelectionChange={(e) => setSelectedUsuarios(e.value as Usuario[])}

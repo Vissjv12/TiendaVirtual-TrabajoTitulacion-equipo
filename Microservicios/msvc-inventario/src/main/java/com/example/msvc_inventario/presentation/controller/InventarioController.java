@@ -3,6 +3,7 @@ package com.example.msvc_inventario.presentation.controller;
 import com.example.msvc_inventario.application.client.ProductoClient;
 import com.example.msvc_inventario.application.dto.*;
 import com.example.msvc_inventario.application.mapper.InventarioMapper;
+import com.example.msvc_inventario.application.util.PaginationUtils;
 import com.example.msvc_inventario.domain.model.Inventario;
 import com.example.msvc_inventario.domain.repository.InventarioRepository;
 import com.example.msvc_inventario.domain.service.InventarioService;
@@ -11,15 +12,18 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/inventarios")
 @Tag(name = "Inventarios", description = "API para gestionar inventarios")
 public class InventarioController {
@@ -40,7 +44,8 @@ public class InventarioController {
     }
 
     @PostMapping
-    @Operation(summary = "Crear un nuevo registro de inventario")
+    @Operation(summary = "Crear el inventario inicial de un producto (no sobrescribe stock existente)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageProduct(authentication, #requestDto.productoId))")
     public ResponseEntity<InventarioResponseDto> crearInventario(@Valid @RequestBody InventarioRequestDto requestDto) {
         Inventario inventario = inventarioMapper.toEntity(requestDto);
         Inventario inventarioGuardado = inventarioService.registrarInventario(inventario);
@@ -62,6 +67,7 @@ public class InventarioController {
 
     @PostMapping("/producto/{productoId}")
     @Operation(summary = "Crear inventario para un producto específico")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageProduct(authentication, #productoId))")
     public ResponseEntity<InventarioResponseDto> crearInventarioParaProducto(
             @PathVariable Long productoId,
             @RequestParam Integer stock) {
@@ -76,6 +82,7 @@ public class InventarioController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar un registro de inventario existente")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #id))")
     public ResponseEntity<InventarioResponseDto> actualizarInventario(
             @PathVariable Long id,
             @Valid @RequestBody InventarioRequestDto requestDto) {
@@ -138,32 +145,58 @@ public class InventarioController {
         return ResponseEntity.ok(responseDto);
     }
 
+    private static final Map<String, String> INVENTARIO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "productoId", "productoId",
+            "cantidad", "cantidad",
+            "ubicacion", "ubicacion",
+            "activo", "activo",
+            "fechaCreacion", "fechaCreacion",
+            "fechaActualizacion", "fechaActualizacion"
+    );
+
+    @GetMapping("/paginado")
+    @Operation(summary = "Listar registros de inventario paginados (contrato A-19)")
+    public ResponseEntity<PageResponseDto<InventarioResponseDto>> listarInventariosPaginado(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "id,desc") String sort,
+            @RequestParam(required = false) Boolean soloActivos) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "id", Sort.Direction.DESC, INVENTARIO_SORT_FIELDS);
+        Page<Inventario> inventarios = inventarioService.listarPaginado(soloActivos, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(inventarios, this::toEnrichedDto));
+    }
+
     @GetMapping
     @Operation(summary = "Listar todos los registros de inventario")
     public ResponseEntity<List<InventarioResponseDto>> listarInventarios() {
         List<Inventario> inventarios = inventarioService.listarTodos();
 
         List<InventarioResponseDto> responseDtos = inventarios.stream()
-                .map(inventario -> {
-                    // Intentar obtener información del producto para cada inventario
-                    ProductoDto productoDto = null;
-                    try {
-                        productoDto = productoClient.obtenerProducto(inventario.getProductoId());
-                    } catch (FeignException e) {
-                        // Si no se puede obtener el producto, continuamos con la información básica
-                    }
-
-                    return (productoDto != null)
-                            ? inventarioMapper.toDto(inventario, productoDto)
-                            : inventarioMapper.toDto(inventario);
-                })
+                .map(this::toEnrichedDto)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responseDtos);
     }
 
+    private InventarioResponseDto toEnrichedDto(Inventario inventario) {
+        ProductoDto productoDto = null;
+        try {
+            productoDto = productoClient.obtenerProducto(inventario.getProductoId());
+        } catch (FeignException e) {
+            // Si no se puede obtener el producto, continuamos con la información básica
+        }
+        return (productoDto != null)
+                ? inventarioMapper.toDto(inventario, productoDto)
+                : inventarioMapper.toDto(inventario);
+    }
+
     @PutMapping("/producto/{productoId}/stock")
     @Operation(summary = "Actualizar el stock de un producto")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageProduct(authentication, #productoId))")
     public ResponseEntity<InventarioResponseDto> actualizarStock(
             @PathVariable Long productoId,
             @RequestParam Integer cantidad,
@@ -190,6 +223,7 @@ public class InventarioController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar un registro de inventario")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #id))")
     public ResponseEntity<Void> eliminarInventario(@PathVariable Long id) {
         inventarioService.eliminar(id);
         return ResponseEntity.noContent().build();
@@ -197,6 +231,7 @@ public class InventarioController {
 
     @PostMapping("/salida-lote")
     @Operation(summary = "Procesar una salida de inventario en lote")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @inventarioAuthorizationService.isServicioPagos(authentication) or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageSalidaLote(authentication, #requestDto))")
     public ResponseEntity<List<InventarioResponseDto>> procesarSalidaLote(
             @Valid @RequestBody SalidaInventarioLoteRequestDto requestDto) {
 

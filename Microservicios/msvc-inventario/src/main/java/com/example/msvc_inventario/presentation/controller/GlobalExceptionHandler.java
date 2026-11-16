@@ -4,6 +4,10 @@ import com.example.msvc_inventario.presentation.dto.ErrorResponse;
 import feign.FeignException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -16,6 +20,15 @@ import java.util.NoSuchElementException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(com.example.msvc_inventario.application.service.InventarioExistenteException.class)
+    public ResponseEntity<ErrorResponse> handleInventarioExistente(
+            com.example.msvc_inventario.application.service.InventarioExistenteException ex) {
+        ErrorResponse error = new ErrorResponse("CONFLICT", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorResponse> handleNoSuchElementException(NoSuchElementException ex) {
@@ -35,10 +48,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
+        ErrorResponse error = new ErrorResponse("FORBIDDEN",
+                "No tienes permisos para acceder o modificar este recurso", LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
+        ErrorResponse error = new ErrorResponse("UNAUTHORIZED",
+                "Autenticación requerida", LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponse> handleFeignException(FeignException ex) {
+        log.error("Communication failure in inventory service: status={}, message={}",
+                ex.status(), ex.getMessage(), ex);
         ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE",
-                "Error al comunicarse con otro microservicio: " + ex.getMessage(), LocalDateTime.now());
+                "El servicio requerido no está disponible temporalmente", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
@@ -55,8 +84,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Unhandled error in inventory service", ex);
         ErrorResponse error = new ErrorResponse("INTERNAL_SERVER_ERROR",
-                "Ha ocurrido un error inesperado: " + ex.getMessage(), LocalDateTime.now());
+                "Ha ocurrido un error inesperado", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

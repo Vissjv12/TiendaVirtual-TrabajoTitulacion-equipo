@@ -13,6 +13,7 @@ import { Timeline } from 'primereact/timeline';
 import { Image } from 'primereact/image';
 import { Toast } from 'primereact/toast';
 import { useRef } from 'react';
+import { GATEWAY_BASE_URL } from '../../../../services/apiConfig';
 
 interface DetalleVenta {
     id: number;
@@ -57,7 +58,7 @@ export default function HistorialCompras() {
             // Obtener el ID del cliente desde el localStorage o contexto de autenticación
             const clienteId = obtenerClienteId();
             
-            const apiBase = process.env.NEXT_PUBLIC_VENTAS_API_URL || 'http://localhost:8083';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/ventas/cliente/${clienteId}`);
             
             if (response.ok) {

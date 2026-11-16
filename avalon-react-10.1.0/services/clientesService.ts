@@ -1,6 +1,8 @@
 // services/clientesService.ts
+import authService from './authService';
+import { GATEWAY_BASE_URL } from './apiConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_VENTAS_API_URL || 'http://localhost:8083';
+const API_BASE_URL = GATEWAY_BASE_URL;
 
 // =====================================
 // INTERFACES PARA CLIENTES
@@ -45,15 +47,12 @@ class ClientesService {
     
     private async makeRequest<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
         try {
-            const token = localStorage.getItem('token');
-            
             const response = await fetch(`${API_BASE_URL}${url}`, {
+                ...options,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : '',
+                    ...authService.getAuthHeaders(),
                     ...options.headers,
                 },
-                ...options,
             });
 
             if (!response.ok) {

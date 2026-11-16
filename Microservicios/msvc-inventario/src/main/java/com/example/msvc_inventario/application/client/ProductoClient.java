@@ -13,6 +13,10 @@ public interface ProductoClient {
     @GetMapping("/api/productos/{id}")
     ProductoDto obtenerProducto(@PathVariable("id") Long id);
 
+    /** Ids de todos los productos de una empresa en una sola llamada (T07). Fallback: null (deniega). */
+    @GetMapping("/api/productos/empresa/{empresaId}/ids")
+    java.util.List<Long> obtenerIdsProductosPorEmpresa(@PathVariable("empresaId") Long empresaId);
+
     @PutMapping("/api/productos/{id}/sincronizar-stock")
     void actualizarStockProducto(@PathVariable("id") Long id, @RequestParam("stock") Integer stock);
 

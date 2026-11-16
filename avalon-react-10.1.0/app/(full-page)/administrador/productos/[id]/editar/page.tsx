@@ -79,7 +79,7 @@ const EditarProductoPage: React.FC = () => {
                     detail: 'Producto no encontrado',
                     life: 3000
                 });
-                router.push('/emprendedor/productos');
+                router.push('/administrador/productos');
                 return;
             }
 
@@ -176,7 +176,7 @@ const EditarProductoPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/productos');
+                    router.push('/administrador/productos');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -262,7 +262,7 @@ const EditarProductoPage: React.FC = () => {
                 <h3>Producto no encontrado</h3>
                 <Button 
                     label="Volver a productos" 
-                    onClick={() => router.push('/emprendedor/productos')}
+                    onClick={() => router.push('/administrador/productos')}
                 />
             </div>
         );
@@ -288,7 +288,7 @@ const EditarProductoPage: React.FC = () => {
                         label="Volver" 
                         icon="pi pi-arrow-left" 
                         className="p-button-outlined"
-                        onClick={() => router.push('/emprendedor/productos')}
+                        onClick={() => router.push('/administrador/productos')}
                     />
                 </div>
             </div>
@@ -515,7 +515,7 @@ const EditarProductoPage: React.FC = () => {
                     label="Cancelar" 
                     icon="pi pi-times" 
                     className="p-button-outlined"
-                    onClick={() => router.push('/emprendedor/productos')}
+                    onClick={() => router.push('/administrador/productos')}
                     disabled={loading}
                 />
                 <Button 

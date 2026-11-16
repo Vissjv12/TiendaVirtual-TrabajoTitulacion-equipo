@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
@@ -11,10 +11,23 @@ import { Toast } from 'primereact/toast';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
 import categoriasEmpresasService, { CategoriaRequest } from '../../../../../services/categoriasEmpresasService';
+import authService from '../../../../../services/authService';
 
 const CrearCategoriaPage: React.FC = () => {
     const router = useRouter();
     const toast = useRef<Toast>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
+
+    useEffect(() => {
+        const admin = authService.isAdmin();
+        setIsAdmin(admin);
+        setAuthChecked(true);
+
+        if (!admin) {
+            router.replace('/emprendedor/categorias');
+        }
+    }, [router]);
 
     // Estados del formulario
     const [formData, setFormData] = useState<CategoriaRequest>({
@@ -118,6 +131,12 @@ const CrearCategoriaPage: React.FC = () => {
     const handleCancel = () => {
         router.push('/emprendedor/categorias');
     };
+
+    // La guarda va DESPUÉS de todos los hooks (reglas de hooks de React). Hasta comprobar la sesión en el
+    // navegador no se renderiza nada, así el HTML del servidor y el primer render del cliente coinciden.
+    if (!authChecked || !isAdmin) {
+        return null;
+    }
 
     return (
         <div className="crear-categoria">
@@ -248,7 +267,7 @@ const CrearCategoriaPage: React.FC = () => {
                                 <div className="mb-3">
                                     <strong className="text-primary">Nombre:</strong>
                                     <p className="text-600 mt-1 mb-0">
-                                        Debe ser único y descriptivo. Ejemplo: "Smartphones", "Ropa Deportiva"
+                                        Debe ser único y descriptivo. Ejemplo: &quot;Smartphones&quot;, &quot;Ropa Deportiva&quot;
                                     </p>
                                 </div>
                                 <div className="mb-3">

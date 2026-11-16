@@ -13,6 +13,15 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Image } from 'primereact/image';
 import { Toast } from 'primereact/toast';
 import { useRef } from 'react';
+import { GATEWAY_BASE_URL, resolveGatewayAssetUrl } from '../../../../services/apiConfig';
+import {
+    EMAIL_REGEX,
+    isValidBankAccount,
+    isValidCedulaOrRucFormat,
+    isValidPersonName,
+    onlyDigits,
+    sanitizePersonName
+} from '../../../../services/formValidations';
 
 interface DatosBancarios {
     banco: string;
@@ -23,9 +32,10 @@ interface DatosBancarios {
     email: string;
 }
 
+// El backend nunca devuelve el token de Payphone, solo si está configurado (hallazgo C-02)
 interface PayphoneConfig {
-    payphoneAppId: string;
-    payphoneToken: string;
+    payphoneAppId?: string;
+    tokenConfigurado: boolean;
 }
 
 interface ConfiguracionPagos {
@@ -74,6 +84,7 @@ export default function ConfiguracionMetodosPago() {
     // Payphone
     const [payphoneAppId, setPayphoneAppId] = useState('');
     const [payphoneToken, setPayphoneToken] = useState('');
+    const [payphoneTokenConfigurado, setPayphoneTokenConfigurado] = useState(false);
 
     // Costo de envío (cuota fija, por defecto $5.00)
     const [costoEnvio, setCostoEnvio] = useState<number>(5);
@@ -88,7 +99,7 @@ export default function ConfiguracionMetodosPago() {
         setLoadingData(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -105,12 +116,12 @@ export default function ConfiguracionMetodosPago() {
                 }
 
                 if (data.qrDeunaUrl) {
-                    setQrDeunaUrl(data.qrDeunaUrl);
+                    setQrDeunaUrl(resolveGatewayAssetUrl(data.qrDeunaUrl));
                 }
 
                 if (data.payphone) {
-                    setPayphoneAppId(data.payphone.payphoneAppId);
-                    setPayphoneToken(data.payphone.payphoneToken);
+                    setPayphoneAppId(data.payphone.payphoneAppId || '');
+                    setPayphoneTokenConfigurado(Boolean(data.payphone.tokenConfigurado));
                 }
 
                 if (data.costoEnvio !== undefined && data.costoEnvio !== null) {
@@ -138,22 +149,22 @@ export default function ConfiguracionMetodosPago() {
             isValid = false;
         }
 
-        if (!numeroCuenta || numeroCuenta.length < 10) {
-            newErrors.numeroCuenta = 'Número de cuenta inválido (mínimo 10 dígitos)';
+        if (!numeroCuenta || !isValidBankAccount(numeroCuenta)) {
+            newErrors.numeroCuenta = 'Número de cuenta inválido (10 a 20 dígitos numéricos)';
             isValid = false;
         }
 
-        if (!titular || titular.trim().length < 3) {
-            newErrors.titular = 'Ingresa el nombre del titular';
+        if (!titular || !isValidPersonName(titular, 3)) {
+            newErrors.titular = 'Ingresa un nombre de titular válido (solo letras, mínimo 3 caracteres)';
             isValid = false;
         }
 
-        if (!cedulaRuc || cedulaRuc.length < 10) {
-            newErrors.cedulaRuc = 'Cédula o RUC inválido';
+        if (!cedulaRuc || !isValidCedulaOrRucFormat(cedulaRuc)) {
+            newErrors.cedulaRuc = 'Cédula o RUC inválido (10 o 13 dígitos numéricos)';
             isValid = false;
         }
 
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (!email || !EMAIL_REGEX.test(email.trim())) {
             newErrors.email = 'Email inválido';
             isValid = false;
         }
@@ -176,7 +187,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/bancarios`, {
                 method: 'POST',
                 headers: {
@@ -220,19 +231,27 @@ export default function ConfiguracionMetodosPago() {
 
         if (!file) return;
 
-        // Validar que sea una imagen
-        if (!file.type.startsWith('image/')) {
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+        const normalizedType = (file.type || '').toLowerCase();
+        const normalizedName = (file.name || '').toLowerCase();
+        const hasValidExtension = allowedExtensions.some((ext) => normalizedName.endsWith(ext));
+
+        // Validar estrictamente que sea una imagen JPG, PNG o WEBP
+        if (!allowedMimeTypes.includes(normalizedType) || !hasValidExtension) {
+            event.options?.clear?.();
             toast.current?.show({
                 severity: 'error',
-                summary: 'Error',
-                detail: 'Solo se permiten archivos de imagen',
-                life: 3000
+                summary: 'Formato no válido',
+                detail: 'Solo se permiten imágenes en formato JPG, PNG o WEBP',
+                life: 3500
             });
             return;
         }
 
         // Validar tamaño (máximo 5MB)
         if (file.size > 5 * 1024 * 1024) {
+            event.options?.clear?.();
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
@@ -249,7 +268,7 @@ export default function ConfiguracionMetodosPago() {
 
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/deuna-qr`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
@@ -258,7 +277,7 @@ export default function ConfiguracionMetodosPago() {
 
             if (response.ok) {
                 const data = await response.json();
-                setQrDeunaUrl(data.qrUrl);
+                setQrDeunaUrl(resolveGatewayAssetUrl(data.qrUrl));
 
                 toast.current?.show({
                     severity: 'success',
@@ -267,16 +286,18 @@ export default function ConfiguracionMetodosPago() {
                     life: 3000
                 });
             } else {
-                throw new Error('Error al subir');
+                const errData = await response.json().catch(() => null);
+                throw new Error(errData?.error || 'No se pudo subir el código QR');
             }
-        } catch (error) {
+        } catch (error: any) {
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'No se pudo subir el código QR',
-                life: 3000
+                detail: error?.message || 'No se pudo subir el código QR',
+                life: 3500
             });
         } finally {
+            event.options?.clear?.();
             setUploadingQR(false);
         }
     };
@@ -287,7 +308,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/deuna-qr`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
@@ -315,11 +336,15 @@ export default function ConfiguracionMetodosPago() {
     };
 
     const guardarPayphone = async () => {
-        if (!payphoneAppId || !payphoneToken) {
+        const cleanAppId = payphoneAppId.trim();
+        const cleanToken = payphoneToken.trim();
+        // El token es obligatorio solo la primera vez; vacío = conservar el ya guardado
+        const tokenInvalido = cleanToken ? cleanToken.length < 6 : !payphoneTokenConfigurado;
+        if (tokenInvalido) {
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: 'Por favor completa el App ID y el Token',
+                detail: 'Ingresa un Token de Payphone válido (mínimo 6 caracteres)',
                 life: 3000
             });
             return;
@@ -328,7 +353,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/payphone`, {
                 method: 'POST',
                 headers: {
@@ -336,12 +361,15 @@ export default function ConfiguracionMetodosPago() {
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    payphoneAppId,
-                    payphoneToken
+                    payphoneAppId: cleanAppId,
+                    payphoneToken: cleanToken
                 })
             });
 
             if (response.ok) {
+                // No se conserva el token en memoria del navegador tras guardarlo
+                setPayphoneToken('');
+                setPayphoneTokenConfigurado(true);
                 toast.current?.show({
                     severity: 'success',
                     summary: 'Éxito',
@@ -377,7 +405,7 @@ export default function ConfiguracionMetodosPago() {
         setLoading(true);
         try {
             const token = localStorage.getItem('auth_token');
-            const apiBase = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+            const apiBase = GATEWAY_BASE_URL;
             const response = await fetch(`${apiBase}/api/emprendedor/configuracion-pagos/costo-envio`, {
                 method: 'PUT',
                 headers: {
@@ -448,7 +476,7 @@ export default function ConfiguracionMetodosPago() {
                                 <label htmlFor="numeroCuenta" className="block font-semibold mb-2">
                                     Número de Cuenta *
                                 </label>
-                                <InputText id="numeroCuenta" value={numeroCuenta} onChange={(e) => setNumeroCuenta(e.target.value)} placeholder="1234567890" className={errors.numeroCuenta ? 'p-invalid' : ''} />
+                                <InputText id="numeroCuenta" value={numeroCuenta} onChange={(e) => setNumeroCuenta(onlyDigits(e.target.value, 20))} keyfilter="pint" inputMode="numeric" maxLength={20} placeholder="1234567890" className={errors.numeroCuenta ? 'p-invalid' : ''} />
                                 {errors.numeroCuenta && <small className="p-error">{errors.numeroCuenta}</small>}
                             </div>
 
@@ -456,7 +484,7 @@ export default function ConfiguracionMetodosPago() {
                                 <label htmlFor="titular" className="block font-semibold mb-2">
                                     Titular de la Cuenta *
                                 </label>
-                                <InputText id="titular" value={titular} onChange={(e) => setTitular(e.target.value)} placeholder="Juan Pérez" className={errors.titular ? 'p-invalid' : ''} />
+                                <InputText id="titular" value={titular} onChange={(e) => setTitular(sanitizePersonName(e.target.value, 80))} maxLength={80} placeholder="Juan Pérez" className={errors.titular ? 'p-invalid' : ''} />
                                 {errors.titular && <small className="p-error">{errors.titular}</small>}
                             </div>
 
@@ -464,7 +492,7 @@ export default function ConfiguracionMetodosPago() {
                                 <label htmlFor="cedulaRuc" className="block font-semibold mb-2">
                                     Cédula o RUC *
                                 </label>
-                                <InputText id="cedulaRuc" value={cedulaRuc} onChange={(e) => setCedulaRuc(e.target.value)} placeholder="1234567890" className={errors.cedulaRuc ? 'p-invalid' : ''} />
+                                <InputText id="cedulaRuc" value={cedulaRuc} onChange={(e) => setCedulaRuc(onlyDigits(e.target.value, 13))} keyfilter="pint" inputMode="numeric" maxLength={13} placeholder="1234567890" className={errors.cedulaRuc ? 'p-invalid' : ''} />
                                 {errors.cedulaRuc && <small className="p-error">{errors.cedulaRuc}</small>}
                             </div>
 
@@ -506,13 +534,13 @@ export default function ConfiguracionMetodosPago() {
                                         <p className="text-600">
                                             Sube una imagen de tu código QR de Deuna.
                                             <br />
-                                            Formatos aceptados: JPG, PNG
+                                            Formatos aceptados: JPG, PNG, WEBP
                                             <br />
                                             Tamaño máximo: 5MB
                                         </p>
                                     </div>
 
-                                    <FileUpload mode="basic" name="qrImage" accept="image/*" maxFileSize={5000000} customUpload uploadHandler={onQRUpload} auto chooseLabel="Seleccionar Imagen" className="p-button-outlined" disabled={uploadingQR} />
+                                    <FileUpload mode="basic" name="qrImage" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" maxFileSize={5000000} customUpload uploadHandler={onQRUpload} auto chooseLabel="Seleccionar Imagen" className="p-button-outlined" disabled={uploadingQR} />
 
                                     {uploadingQR && (
                                         <div className="mt-3">
@@ -534,16 +562,29 @@ export default function ConfiguracionMetodosPago() {
 
                             <div className="col-12 md:col-6">
                                 <label htmlFor="payphoneAppId" className="block font-semibold mb-2">
-                                    Payphone App ID *
+                                    Payphone App ID (opcional)
                                 </label>
                                 <InputText id="payphoneAppId" value={payphoneAppId} onChange={(e) => setPayphoneAppId(e.target.value)} placeholder="Ej: qB7M528y26Y6Qk7673924v" />
                             </div>
 
                             <div className="col-12 md:col-6">
                                 <label htmlFor="payphoneToken" className="block font-semibold mb-2">
-                                    Payphone Token *
+                                    Payphone Token {payphoneTokenConfigurado ? '' : '*'}
                                 </label>
-                                <InputText id="payphoneToken" value={payphoneToken} onChange={(e) => setPayphoneToken(e.target.value)} placeholder="Ingresa tu token de autorización" type="password" />
+                                <InputText
+                                    id="payphoneToken"
+                                    value={payphoneToken}
+                                    onChange={(e) => setPayphoneToken(e.target.value)}
+                                    placeholder={payphoneTokenConfigurado ? 'Token guardado. Escribe uno nuevo solo para reemplazarlo' : 'Ingresa tu token de autorización'}
+                                    type="password"
+                                    autoComplete="new-password"
+                                />
+                                <small className={payphoneTokenConfigurado ? 'text-green-600' : 'text-600'}>
+                                    <i className={`pi ${payphoneTokenConfigurado ? 'pi-check-circle' : 'pi-lock'} mr-1`}></i>
+                                    {payphoneTokenConfigurado
+                                        ? 'Token configurado. Por seguridad no se muestra.'
+                                        : 'Por seguridad, una vez guardado el token no se vuelve a mostrar.'}
+                                </small>
                             </div>
 
                             <div className="col-12">

@@ -30,7 +30,6 @@ public class VentaItemRequestDto {
     // Campos adicionales enviados por el frontend para mejorar performance
     private String nombreProducto;
     
-    @NotNull(message = "El precio unitario es obligatorio")
     @DecimalMin(value = "0.01", message = "El precio debe ser mayor a 0")
     private BigDecimal precioUnitario;
 }

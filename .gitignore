@@ -1,2 +1,30 @@
 # Ignore all documentation files and screenshots
 docs/
+
+# Ignore local work documents
+documentos-trabajo/
+documentos-trabajo/*
+documentos-trabajo/**
+
+# Ignore runtime environment files and generated dynamic backups
+.env
+.env.local
+.env.test
+.env.*.local
+secrets/
+.secrets/
+config/application-secrets.properties
+*.secret
+backups/*.sql
+backups/*.dump
+backups/*.gz
+backups/*.zip
+!backups/.gitkeep
+!backups/backup_pre_migracion.sql
+
+# Logs locales de arranque
+*.log
+
+# Facturas generadas localmente por msvc-ventas
+facturas/
+Microservicios/msvc-ventas/facturas/

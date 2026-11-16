@@ -5,6 +5,8 @@ import com.example.msvc_inventario.domain.repository.InventarioRepository;
 import com.example.msvc_inventario.infrastructure.persistence.entity.InventarioEntity;
 import com.example.msvc_inventario.infrastructure.persistence.mapper.InventarioEntityMapper;
 import com.example.msvc_inventario.infrastructure.persistence.repository.InventarioJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -50,10 +52,36 @@ public class InventarioRepositoryImpl implements InventarioRepository {
     }
 
     @Override
+    public java.util.Map<Long, Long> findProductoIdPorInventarioId(java.util.Collection<Long> inventarioIds) {
+        if (inventarioIds == null || inventarioIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<Long, Long> resultado = new java.util.HashMap<>();
+        for (Object[] fila : jpaRepository.findIdYProductoIdByIdIn(inventarioIds)) {
+            resultado.put(((Number) fila[0]).longValue(), fila[1] == null ? null : ((Number) fila[1]).longValue());
+        }
+        return resultado;
+    }
+
+    @Override
+    public List<Long> findIdsByProductoIdIn(java.util.Collection<Long> productosIds) {
+        if (productosIds == null || productosIds.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findIdsByProductoIdIn(productosIds);
+    }
+
+    @Override
     public List<Inventario> findAll() {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Inventario> findPaginado(Boolean soloActivos, Pageable pageable) {
+        return jpaRepository.findPaginado(soloActivos, pageable)
+                .map(mapper::toDomain);
     }
 
     @Override

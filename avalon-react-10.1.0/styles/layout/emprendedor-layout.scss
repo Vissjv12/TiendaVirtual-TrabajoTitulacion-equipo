@@ -40,6 +40,16 @@
     top: 0;
     z-index: 997;
     width: 100%;
+    min-height: 70px;
+    flex-shrink: 0;
+}
+
+.emprendedor-topbar .layout-topbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    height: 70px;
 }
 
 .emprendedor-main {
@@ -83,9 +93,12 @@
     }
 }
 
-/* Prevenir scroll horizontal */
+/* Prevenir scroll horizontal sin romper position: sticky */
 .emprendedor-layout-wrapper,
-.emprendedor-content-wrapper,
+.emprendedor-content-wrapper {
+    overflow-x: clip;
+}
+
 .emprendedor-main,
 .emprendedor-main-content {
     overflow-x: hidden;

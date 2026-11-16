@@ -1,8 +1,12 @@
 package com.example.demo.presentation.controller;
 
+import com.example.demo.infrastructure.payphone.PayphoneIntegracionException;
 import com.example.demo.presentation.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -18,10 +22,41 @@ import java.util.NoSuchElementException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorResponse> handleNoSuchElementException(NoSuchElementException ex) {
         ErrorResponse error = new ErrorResponse("NOT_FOUND", ex.getMessage(), LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(PayphoneIntegracionException.class)
+    public ResponseEntity<ErrorResponse> handlePayphoneIntegracionException(PayphoneIntegracionException ex) {
+        // Mensaje ya saneado: no contiene token ni la respuesta cruda de Payphone
+        ErrorResponse error = new ErrorResponse("PAYMENT_GATEWAY_ERROR", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.BAD_GATEWAY);
+    }
+
+    @ExceptionHandler(com.example.demo.infrastructure.ventas.VentasNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> handleVentasNoDisponible(
+            com.example.demo.infrastructure.ventas.VentasNoDisponibleException ex) {
+        // Reintentable: la notificación de Payphone recibe 503 y vuelve a intentarlo
+        ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(com.example.demo.infrastructure.producto.ProductoNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> handleProductoNoDisponible(
+            com.example.demo.infrastructure.producto.ProductoNoDisponibleException ex) {
+        ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(com.example.demo.application.service.VinculacionEmpresaConflictoException.class)
+    public ResponseEntity<ErrorResponse> handleVinculacionConflicto(
+            com.example.demo.application.service.VinculacionEmpresaConflictoException ex) {
+        ErrorResponse error = new ErrorResponse("CONFLICT", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -32,8 +67,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
-        ErrorResponse error = new ErrorResponse("UNAUTHORIZED", ex.getMessage(), LocalDateTime.now());
+        log.warn("Authentication failure in auth service", ex);
+        ErrorResponse error = new ErrorResponse("UNAUTHORIZED", "Autenticación requerida", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
+        log.warn("Access denied in auth service", ex);
+        ErrorResponse error = new ErrorResponse("FORBIDDEN", "No tiene permisos para realizar esta operación", LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(IllegalStateException.class)
@@ -45,6 +88,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         ErrorResponse error = new ErrorResponse("BAD_REQUEST", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleCuerpoIlegible(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        // Cuerpo JSON inválido: 400 (no 500), así una notificación malformada no se reintenta sin fin
+        ErrorResponse error = new ErrorResponse("BAD_REQUEST", "Cuerpo de la solicitud inválido", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
@@ -61,8 +112,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Unhandled error in auth service", ex);
         ErrorResponse error = new ErrorResponse("INTERNAL_SERVER_ERROR",
-                "Ha ocurrido un error inesperado: " + ex.getMessage(), LocalDateTime.now());
+                "Ha ocurrido un error inesperado", LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

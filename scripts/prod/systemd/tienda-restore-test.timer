@@ -1,0 +1,12 @@
+[Unit]
+Description=Tienda Virtual - prueba semanal de restauracion (T01)
+
+[Timer]
+# Domingos a las 04:00, despues del respaldo diario de las 02:30
+OnCalendar=Sun *-*-* 04:00:00
+RandomizedDelaySec=10min
+Persistent=true
+Unit=tienda-restore-test.service
+
+[Install]
+WantedBy=timers.target

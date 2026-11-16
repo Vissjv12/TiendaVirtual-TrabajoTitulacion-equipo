@@ -17,10 +17,10 @@ import clientesService from '../../../services/clientesService';
 import CheckoutClienteForm from './components/CheckoutClienteForm';
 import PaymentMethodSelector from './components/PaymentMethodSelector';
 import TransferenciaBancariaForm from './components/TransferenciaBancariaForm';
-import DeunaForm from './components/DeunaForm';
-import StripeCheckoutForm from './components/StripeCheckoutForm';
+import DeunaTransferenciaForm from './components/DeunaTransferenciaForm';
+import { verificarDisponibilidadDeuna, verificarDisponibilidadTransferencia } from '../../../services/pagoService';
 import PayphoneForm from './components/PayphoneForm';
-import { crearPaymentIntent, confirmarPago } from '../../../services/stripeService';
+import payphoneService from '../../../services/payphoneService';
 
 const CheckoutPage: React.FC = () => {
     const { layoutConfig } = useContext(LayoutContext);
@@ -46,16 +46,54 @@ const CheckoutPage: React.FC = () => {
     const [orderNumber, setOrderNumber] = useState<string>('');
 
     // Estados para métodos de pago
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('transferencia');
     const [paymentFormValid, setPaymentFormValid] = useState(false);
     const [paymentFormData, setPaymentFormData] = useState<any>(null);
 
-    // Estados para Stripe
-    const [stripeClientSecret, setStripeClientSecret] = useState<string>('');
-    const [stripePaymentIntentId, setStripePaymentIntentId] = useState<string>('');
-    const [showStripeForm, setShowStripeForm] = useState(false);
 
     const primaryColor = 'var(--primary-color)';
+
+    // Transferencia y Deuna exigen que todo el carrito sea de UNA empresa identificable con su
+    // configuración propia; si no, se deshabilitan sin consultar datos de pago (hallazgo C-01)
+    const [metodosNoDisponibles, setMetodosNoDisponibles] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (!cartSummary || cartSummary.items.length === 0) return;
+        let cancelado = false;
+        const motivoDe = async (verificar: () => Promise<{ disponible: boolean; motivo?: string }>, motivoError: string) => {
+            try {
+                const resultado = await verificar();
+                return resultado.disponible ? undefined : resultado.motivo || motivoError;
+            } catch {
+                return motivoError;
+            }
+        };
+        Promise.all([
+            motivoDe(() => verificarDisponibilidadTransferencia(cartSummary.items), 'No se pudo verificar la cuenta bancaria'),
+            motivoDe(() => verificarDisponibilidadDeuna(cartSummary.items), 'No se pudo verificar la configuración de Deuna'),
+            motivoDe(() => payphoneService.verificarDisponibilidad(cartSummary.items), 'No se pudo verificar la configuración de Payphone')
+        ]).then(([transferencia, deuna, payphone]) => {
+            if (cancelado) return;
+            const bloqueados: Record<string, string> = {};
+            if (transferencia) bloqueados.transferencia = transferencia;
+            if (deuna) bloqueados.deuna = deuna;
+            if (payphone) bloqueados.payphone = payphone;
+            setMetodosNoDisponibles(bloqueados);
+        });
+        return () => {
+            cancelado = true;
+        };
+    }, [cartSummary]);
+
+    useEffect(() => {
+        if (!metodosNoDisponibles[selectedPaymentMethod]) return;
+        const alternativa = ['transferencia', 'payphone', 'deuna'].find((metodo) => !metodosNoDisponibles[metodo]);
+        if (alternativa) {
+            setSelectedPaymentMethod(alternativa);
+        }
+        setPaymentFormValid(false);
+        setPaymentFormData(null);
+    }, [metodosNoDisponibles, selectedPaymentMethod]);
 
     // Pasos del checkout con íconos
     const steps = [
@@ -154,13 +192,19 @@ const CheckoutPage: React.FC = () => {
             return;
         }
 
-        setProcessing(true);
-
-        // Solo mostrar "Procesando pago..." si es tarjeta
-        if (selectedPaymentMethod === 'tarjeta') {
-            setPaymentProcessing(true);
-            setCurrentStep(2); // Mantener en paso de pago para mostrar spinner
+        // Stripe está inactivo por decisión del proyecto: 'tarjeta' ya no crea ventas.
+        // El pago con tarjeta se hace con PayPhone (PayphoneForm gestiona su propio flujo).
+        if (selectedPaymentMethod !== 'transferencia' && selectedPaymentMethod !== 'deuna') {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Método no disponible',
+                detail: 'Selecciona transferencia bancaria o Deuna para continuar',
+                life: 5000
+            });
+            return;
         }
+
+        setProcessing(true);
 
         try {
             console.log('🚀 Iniciando checkout con método:', selectedPaymentMethod);
@@ -176,7 +220,7 @@ const CheckoutPage: React.FC = () => {
 
             // ✅ PASO 2: Procesar usando el método de cartService con método de pago
             console.log('📝 Procesando checkout...');
-            const metodoPago = selectedPaymentMethod === 'tarjeta' ? 'TARJETA' : selectedPaymentMethod === 'transferencia' ? 'TRANSFERENCIA' : 'DEUNA';
+            const metodoPago = selectedPaymentMethod === 'transferencia' ? 'TRANSFERENCIA' : 'DEUNA';
             const comprobanteUrl = selectedPaymentMethod === 'transferencia' ? paymentFormData.comprobanteUrl : undefined;
             const checkoutResult = await cartService.processCheckout(clienteData, metodoPago, comprobanteUrl);
 
@@ -189,63 +233,40 @@ const CheckoutPage: React.FC = () => {
             setOrderNumber(finalOrderNumber);
             console.log('✅ Orden creada:', finalOrderNumber, 'Venta ID:', ventaId);
 
-            // ✅ PASO 3: Procesar según el método de pago
-            if (selectedPaymentMethod === 'tarjeta') {
-                // 💳 TARJETA: Crear PaymentIntent de Stripe
-                console.log('💳 Creando PaymentIntent de Stripe...');
+            // ✅ PASO 3: Transferencia o Deuna quedan pendientes de aprobación del emprendedor
+            // 🏦 TRANSFERENCIA o 📱 DEUNA: Ir directo a confirmación sin procesar
+            console.log('📝 Orden registrada, pago pendiente de confirmación...');
 
-                try {
-                    const userData = authService.getUserInfo();
+            const metodoPagoNombre = selectedPaymentMethod === 'transferencia' ? 'Transferencia Bancaria' : 'Deuna';
 
-                    const paymentIntentResponse = await crearPaymentIntent({
-                        ventaId: ventaId || 0,
-                        clienteId: userData?.id || 0,
-                        monto: cartSummary.total
-                    });
+            console.log('🔄 Método de pago nombre:', metodoPagoNombre);
+            console.log('🔄 Estableciendo resultado de pago pendiente...');
 
-                    console.log('✅ PaymentIntent creado:', paymentIntentResponse.paymentIntentId);
+            // Ir directo a confirmación sin mostrar "Procesando pago..."
+            setPaymentResult({
+                pending: true,
+                method: selectedPaymentMethod,
+                methodName: metodoPagoNombre
+            });
 
-                    // Guardar datos de Stripe y mostrar formulario
-                    setStripeClientSecret(paymentIntentResponse.clientSecret);
-                    setStripePaymentIntentId(paymentIntentResponse.paymentIntentId);
-                    setShowStripeForm(true);
-                    setPaymentProcessing(false); // Permitir interacción con formulario de Stripe
-                } catch (error: any) {
-                    console.error('❌ Error creando PaymentIntent:', error);
-                    throw new Error('Error al inicializar el pago con Stripe');
-                }
-            } else {
-                // 🏦 TRANSFERENCIA o 📱 DEUNA: Ir directo a confirmación sin procesar
-                console.log('📝 Orden registrada, pago pendiente de confirmación...');
+            // Limpiar carrito una vez registrada la orden
+            cartService.clearCart();
 
-                const metodoPagoNombre = selectedPaymentMethod === 'transferencia' ? 'Transferencia Bancaria' : 'Deuna';
+            console.log('🔄 Cambiando a paso 3...');
+            setCurrentStep(3);
 
-                console.log('🔄 Método de pago nombre:', metodoPagoNombre);
-                console.log('🔄 Estableciendo resultado de pago pendiente...');
+            console.log('🔄 Mostrando diálogo de éxito...');
+            setShowSuccessDialog(true);
 
-                // Ir directo a confirmación sin mostrar "Procesando pago..."
-                setPaymentResult({
-                    pending: true,
-                    method: selectedPaymentMethod,
-                    methodName: metodoPagoNombre
-                });
+            console.log('🔄 Mostrando toast...');
+            toast.current?.show({
+                severity: 'info',
+                summary: 'Orden registrada',
+                detail: `Tu orden ${finalOrderNumber} ha sido registrada. El emprendedor procesará tu pago y serás notificado cuando se complete.`,
+                life: 8000
+            });
 
-                console.log('🔄 Cambiando a paso 3...');
-                setCurrentStep(3);
-
-                console.log('🔄 Mostrando diálogo de éxito...');
-                setShowSuccessDialog(true);
-
-                console.log('🔄 Mostrando toast...');
-                toast.current?.show({
-                    severity: 'info',
-                    summary: 'Orden registrada',
-                    detail: `Tu orden ${finalOrderNumber} ha sido registrada. El emprendedor procesará tu pago y serás notificado cuando se complete.`,
-                    life: 8000
-                });
-
-                console.log('🎉 Flujo de pago pendiente completado');
-            }
+            console.log('🎉 Flujo de pago pendiente completado');
         } catch (error: any) {
             console.error('❌ Error en checkout:', error);
 
@@ -262,71 +283,6 @@ const CheckoutPage: React.FC = () => {
             setProcessing(false);
             setPaymentProcessing(false);
         }
-    };
-
-    // 💳 MANEJAR PAGO EXITOSO DE STRIPE
-    const handleStripeSuccess = async (paymentIntentId: string) => {
-        console.log('✅ Pago exitoso en Stripe:', paymentIntentId);
-        setPaymentProcessing(true);
-
-        try {
-            const userData = authService.getUserInfo();
-            const checkoutData = cartService.getCheckoutData();
-            const ventaId = checkoutData?.ventaId;
-
-            if (!ventaId) {
-                throw new Error('No se encontró el ID de la venta');
-            }
-
-            // Confirmar pago en el backend
-            await confirmarPago({
-                paymentIntentId: paymentIntentId,
-                ventaId: ventaId
-            });
-
-            console.log('✅ Pago confirmado en el backend');
-
-            // Limpiar carrito
-            cartService.clearCart();
-
-            // Mostrar éxito
-            setCurrentStep(3);
-            setShowSuccessDialog(true);
-            setShowStripeForm(false);
-
-            toast.current?.show({
-                severity: 'success',
-                summary: '¡Pago exitoso!',
-                detail: `Tu pago ha sido procesado correctamente. Orden: ${orderNumber}`,
-                life: 5000
-            });
-        } catch (error: any) {
-            console.error('❌ Error confirmando pago:', error);
-            toast.current?.show({
-                severity: 'error',
-                summary: 'Error',
-                detail: 'El pago fue procesado pero hubo un error al confirmar la orden. Contacta con soporte.',
-                life: 8000
-            });
-        } finally {
-            setPaymentProcessing(false);
-        }
-    };
-
-    // ❌ MANEJAR ERROR DE STRIPE
-    const handleStripeError = (error: string) => {
-        console.error('❌ Error en Stripe:', error);
-        setShowStripeForm(false);
-        setCurrentStep(1);
-
-        toast.current?.show({
-            severity: 'error',
-            summary: 'Error en el pago',
-            detail: error || 'Hubo un problema procesando tu pago. Intenta nuevamente.',
-            life: 8000
-        });
-
-        setPaymentProcessing(false);
     };
 
     const handleSuccessDialogClose = () => {
@@ -565,18 +521,19 @@ const CheckoutPage: React.FC = () => {
             ) : (
                 <>
                     <PaymentMethodSelector
+                        selectedMethod={(selectedPaymentMethod || 'transferencia') as any}
                         onMethodChange={(method) => {
                             console.log('Método seleccionado:', method);
                             setSelectedPaymentMethod(method);
                             setPaymentFormValid(false); // Resetear validación al cambiar método
                             setPaymentFormData(null);
-                            setShowStripeForm(false);
                         }}
                         onPaymentDataChange={(data) => {
                             console.log('Datos del pago:', data);
                             setPaymentFormData(data);
                         }}
                         primaryColor={primaryColor}
+                        disabledMethods={metodosNoDisponibles}
                     />
                 </>
             )}
@@ -605,32 +562,8 @@ const CheckoutPage: React.FC = () => {
                 />
             )}
 
-            {!paymentProcessing && selectedPaymentMethod === 'tarjeta' && !showStripeForm && (
-                <Card className="mb-4">
-                    <div className="p-4 text-center">
-                        <i className="pi pi-credit-card text-6xl mb-3" style={{ color: primaryColor }}></i>
-                        <h3 className="text-xl font-semibold mb-2">Pago con Tarjeta</h3>
-                        <p className="text-600 mb-3">Procesa tu pago de forma segura con Stripe</p>
-                        <Button
-                            label="Continuar al Pago"
-                            icon="pi pi-arrow-right"
-                            onClick={() => {
-                                setPaymentFormValid(true);
-                                setPaymentFormData({ ready: true });
-                            }}
-                            className="p-button-lg"
-                            disabled={!clienteFormValid}
-                        />
-                        {!clienteFormValid && <small className="text-red-500 block mt-2">Completa primero los datos de envío</small>}
-                    </div>
-                </Card>
-            )}
-
-            {/* Formulario de Stripe cuando hay clientSecret */}
-            {showStripeForm && stripeClientSecret && <StripeCheckoutForm clientSecret={stripeClientSecret} onSuccess={handleStripeSuccess} onError={handleStripeError} monto={cartSummary?.total || 0} />}
-
             {!paymentProcessing && selectedPaymentMethod === 'deuna' && (
-                <DeunaForm
+                <DeunaTransferenciaForm
                     onDataChange={(data, isValid) => {
                         setPaymentFormData(data);
                         setPaymentFormValid(isValid);

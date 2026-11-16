@@ -175,7 +175,7 @@ const CrearInventarioPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/inventario');
+                    router.push('/administrador/inventario');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -200,7 +200,7 @@ const CrearInventarioPage: React.FC = () => {
 
     // Cancelar y volver
     const handleCancel = () => {
-        router.push('/emprendedor/inventario');
+        router.push('/administrador/inventario');
     };
 
     return (

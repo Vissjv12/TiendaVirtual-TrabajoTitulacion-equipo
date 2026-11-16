@@ -1,6 +1,8 @@
 // services/ventasService.ts - VERSIÓN CORREGIDA
+import authService from './authService';
+import { GATEWAY_BASE_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_VENTAS_API_URL || 'http://localhost:8083';
+const API_BASE_URL = GATEWAY_BASE_URL;
 
 // =====================================
 // INTERFACES PARA VENTAS
@@ -57,6 +59,7 @@ export interface ApiResponse<T> {
     success: boolean;
     message: string;
     data?: T;
+    status?: number;
 }
 
 class VentasService {
@@ -66,31 +69,19 @@ class VentasService {
 
     private async makeRequest<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
         try {
-            const token = localStorage.getItem('token');
-
             const response = await fetch(`${API_BASE_URL}${url}`, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: token ? `Bearer ${token}` : '',
+                    ...authService.getAuthHeaders(),
                     ...options.headers
                 },
                 ...options
             });
 
             if (!response.ok) {
-                let errorMessage = `Error ${response.status}`;
-
-                try {
-                    const errorData = await response.text();
-                    if (errorData) {
-                        errorMessage += `: ${errorData}`;
-                    }
-                } catch (parseError) {
-                    errorMessage += ': Error desconocido';
-                }
-
+                const errorMessage = await authService.extractErrorMessage(response, `Error ${response.status}`);
                 return {
                     success: false,
+                    status: response.status,
                     message: errorMessage
                 };
             }
@@ -101,6 +92,7 @@ class VentasService {
                     const data = await response.json();
                     return {
                         success: true,
+                        status: response.status,
                         message: 'Operación exitosa',
                         data
                     };
@@ -108,6 +100,7 @@ class VentasService {
                     // Si no hay JSON, retornar éxito sin data
                     return {
                         success: true,
+                        status: response.status,
                         message: 'Operación exitosa'
                     };
                 }
@@ -116,6 +109,7 @@ class VentasService {
             const data = await response.json();
             return {
                 success: true,
+                status: response.status,
                 message: 'Operación exitosa',
                 data
             };
@@ -167,6 +161,17 @@ class VentasService {
         return this.makeRequest<VentaResponse[]>('/api/ventas');
     }
 
+    async listarVentasPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<VentaResponse>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaVenta,desc',
+            q: params?.q,
+            estado: params?.estado
+        });
+        return this.makeRequest<PageResponse<VentaResponse>>(`/api/ventas/paginado${query}`);
+    }
+
     /**
      * Listar ventas por cliente
      */
@@ -175,12 +180,38 @@ class VentasService {
         return this.makeRequest<VentaResponse[]>(`/api/ventas/cliente/${clienteId}`);
     }
 
+    async listarVentasPorClientePaginado(
+        clienteId: number,
+        params?: PaginationParams
+    ): Promise<ApiResponse<PageResponse<VentaResponse>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaVenta,desc'
+        });
+        return this.makeRequest<PageResponse<VentaResponse>>(`/api/ventas/cliente/${clienteId}/paginado${query}`);
+    }
+
     /**
      * Listar ventas por emprendedor
      */
     async listarVentasPorEmprendedor(emprendedorId: number): Promise<ApiResponse<VentaResponse[]>> {
         console.log('📋 Listando ventas por emprendedor:', emprendedorId);
         return this.makeRequest<VentaResponse[]>(`/api/ventas/emprendedor/${emprendedorId}`);
+    }
+
+    async listarVentasPorEmprendedorPaginado(
+        emprendedorId: number,
+        params?: PaginationParams
+    ): Promise<ApiResponse<PageResponse<VentaResponse>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'fechaVenta,desc',
+            q: params?.q,
+            estado: params?.estado
+        });
+        return this.makeRequest<PageResponse<VentaResponse>>(`/api/ventas/emprendedor/${emprendedorId}/paginado${query}`);
     }
 
     /**
@@ -244,11 +275,11 @@ class VentasService {
         try {
             console.log('📄 Descargando factura PDF para venta:', ventaId);
 
-            const token = localStorage.getItem('token');
+            const token = authService.getToken();
             const response = await fetch(`${API_BASE_URL}/api/ventas/${ventaId}/factura`, {
                 method: 'GET',
                 headers: {
-                    Authorization: token ? `Bearer ${token}` : ''
+                    ...(token && { Authorization: `Bearer ${token}` })
                 }
             });
 
@@ -287,11 +318,11 @@ class VentasService {
         console.log('🧾 Generando factura PDF para venta:', ventaId);
 
         try {
-            const token = localStorage.getItem('token');
+            const token = authService.getToken();
             const response = await fetch(`${API_BASE_URL}/api/ventas/${ventaId}/factura/generar`, {
                 method: 'POST',
                 headers: {
-                    Authorization: token ? `Bearer ${token}` : ''
+                    ...(token && { Authorization: `Bearer ${token}` })
                 }
             });
 

@@ -4,10 +4,24 @@ import React, { useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
-import { FileUpload, FileUploadUploadEvent } from 'primereact/fileupload';
+import { FileUpload, ItemTemplateOptions } from 'primereact/fileupload';
 import { Message } from 'primereact/message';
 import { Divider } from 'primereact/divider';
-import { Button } from 'primereact/button';
+import { Tag } from 'primereact/tag';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import cartService from '../../../../services/cartService';
+import {
+    DatosBancariosPublico,
+    formatAccountTypeLabel,
+    formatBankLabel,
+    verificarDisponibilidadTransferencia
+} from '../../../../services/pagoService';
+import {
+    isValidBankAccount,
+    isValidTransferReference,
+    onlyDigits,
+    sanitizeReferenceCode
+} from '../../../../services/formValidations';
 
 export interface TransferData {
     banco: string;
@@ -30,6 +44,9 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
     const [numeroReferencia, setNumeroReferencia] = useState('');
     const [comprobante, setComprobante] = useState<File | null>(null);
     const [errors, setErrors] = useState<any>({});
+    const [cuentasBancarias, setCuentasBancarias] = useState<DatosBancariosPublico[]>([]);
+    const [loadingCuentas, setLoadingCuentas] = useState(true);
+    const [cuentasError, setCuentasError] = useState<string | null>(null);
 
     const bancos = [
         { label: 'Banco Pichincha', value: 'pichincha' },
@@ -42,33 +59,51 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
         { label: 'Otros', value: 'otros' }
     ];
 
-    // Cuentas de ejemplo para mostrar (en producción vendrían del backend)
-    const cuentasBancarias = {
-        pichincha: '2100123456',
-        guayaquil: '0123456789',
-        pacifico: '1234567890'
+    useEffect(() => {
+        cargarCuentasBancarias();
+    }, []);
+
+    const cargarCuentasBancarias = async () => {
+        setLoadingCuentas(true);
+        setCuentasError(null);
+        try {
+            // Una sola empresa identificable por carrito; si no, se bloquea sin consultar (hallazgo C-01)
+            const disponibilidad = await verificarDisponibilidadTransferencia(cartService.getCart());
+            if (disponibilidad.disponible && disponibilidad.datos) {
+                setCuentasBancarias([disponibilidad.datos]);
+            } else {
+                setCuentasBancarias([]);
+                setCuentasError(disponibilidad.motivo || 'Transferencia bancaria no disponible para este carrito');
+            }
+        } catch (err: any) {
+            setCuentasError(err?.message || 'No se pudieron cargar los datos bancarios del emprendedor');
+            setCuentasBancarias([]);
+        } finally {
+            setLoadingCuentas(false);
+        }
     };
 
     useEffect(() => {
         validateForm();
-    }, [banco, numeroCuenta, numeroReferencia, comprobante]);
+    }, [banco, numeroCuenta, numeroReferencia, comprobante, cuentasBancarias, cuentasError, loadingCuentas]);
 
     const validateForm = () => {
         const newErrors: any = {};
-        let isValid = true;
+        // Sin una cuenta destino válida de la empresa del carrito no se puede pagar por transferencia
+        let isValid = !loadingCuentas && !cuentasError && cuentasBancarias.length === 1;
 
         if (!banco) {
             newErrors.banco = 'Selecciona un banco';
             isValid = false;
         }
 
-        if (!numeroCuenta || numeroCuenta.length < 10) {
-            newErrors.numeroCuenta = 'Ingresa un número de cuenta válido (mínimo 10 dígitos)';
+        if (!numeroCuenta || !isValidBankAccount(numeroCuenta)) {
+            newErrors.numeroCuenta = 'Ingresa un número de cuenta numérico válido (10 a 20 dígitos)';
             isValid = false;
         }
 
-        if (!numeroReferencia || numeroReferencia.length < 6) {
-            newErrors.numeroReferencia = 'Ingresa el número de referencia de la transferencia';
+        if (!numeroReferencia || !isValidTransferReference(numeroReferencia)) {
+            newErrors.numeroReferencia = 'Ingresa una referencia alfanumérica válida (mínimo 6 caracteres, debe incluir números)';
             isValid = false;
         }
 
@@ -93,6 +128,25 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
 
     const onFileRemove = () => {
         setComprobante(null);
+    };
+
+    const itemTemplate = (inFile: object, options: ItemTemplateOptions) => {
+        const file = inFile as File;
+        return (
+            <div className="flex align-items-center justify-content-between w-full gap-3">
+                <div className="flex align-items-center gap-3">
+                    {options.previewElement || <i className="pi pi-file-pdf text-3xl text-red-500"></i>}
+                    <div>
+                        <div className="font-semibold text-900">{file.name}</div>
+                        <div className="flex align-items-center gap-2 mt-1">
+                            <span className="text-sm text-600">{options.formatSize}</span>
+                            <Tag value="Adjunto" severity="success" />
+                        </div>
+                    </div>
+                </div>
+                {options.removeElement}
+            </div>
+        );
     };
 
     return (
@@ -127,7 +181,7 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                     className="mb-4 w-full"
                 />
 
-                {/* Información de cuentas */}
+                {/* Información de cuentas reales configuradas por el emprendedor */}
                 <div className="mb-4 p-4 border-round" style={{ backgroundColor: '#22c55e10' }}>
                     <div className="flex align-items-center mb-3">
                         <i className="pi pi-info-circle mr-2" style={{ color: '#22c55e' }}></i>
@@ -135,23 +189,56 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                             Nuestras Cuentas Bancarias
                         </span>
                     </div>
-                    <div className="grid text-sm">
-                        <div className="col-12 md:col-4">
-                            <div className="font-semibold mb-1">Banco Pichincha</div>
-                            <div className="text-600">Cuenta: {cuentasBancarias.pichincha}</div>
-                            <div className="text-600">Tipo: Ahorros</div>
+
+                    {loadingCuentas ? (
+                        <div className="flex align-items-center gap-2 text-600 text-sm">
+                            <ProgressSpinner style={{ width: '20px', height: '20px' }} strokeWidth="6" />
+                            <span>Cargando cuentas bancarias...</span>
                         </div>
-                        <div className="col-12 md:col-4">
-                            <div className="font-semibold mb-1">Banco Guayaquil</div>
-                            <div className="text-600">Cuenta: {cuentasBancarias.guayaquil}</div>
-                            <div className="text-600">Tipo: Corriente</div>
+                    ) : cuentasError ? (
+                        <Message severity="error" text={cuentasError} className="w-full" />
+                    ) : cuentasBancarias.length === 0 ? (
+                        <Message
+                            severity="warn"
+                            text="Este emprendedor aún no ha configurado sus datos bancarios para transferencia."
+                            className="w-full"
+                        />
+                    ) : (
+                        <div className="grid text-sm">
+                            {cuentasBancarias.map((cuenta, index) => (
+                                <div
+                                    key={`${cuenta.empresaId || index}-${cuenta.numeroCuenta}`}
+                                    className={cuentasBancarias.length === 1 ? 'col-12' : 'col-12 md:col-6'}
+                                >
+                                    <div className="surface-card p-3 border-round border-1 border-green-200">
+                                        {cuenta.empresaNombre && (
+                                            <div className="text-xs font-semibold text-green-700 mb-1">
+                                                {cuenta.empresaNombre}
+                                            </div>
+                                        )}
+                                        <div className="font-semibold text-900 mb-1">
+                                            {formatBankLabel(cuenta.banco)}
+                                        </div>
+                                        <div className="text-700">
+                                            Cuenta: <span className="font-semibold text-900">{cuenta.numeroCuenta}</span>
+                                        </div>
+                                        <div className="text-600">
+                                            Tipo: {formatAccountTypeLabel(cuenta.tipoCuenta)}
+                                        </div>
+                                        {cuenta.titular && (
+                                            <div className="text-600">Titular: {cuenta.titular}</div>
+                                        )}
+                                        {cuenta.cedulaRuc && (
+                                            <div className="text-600">Cédula / RUC: {cuenta.cedulaRuc}</div>
+                                        )}
+                                        {cuenta.email && (
+                                            <div className="text-600">Email: {cuenta.email}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div className="col-12 md:col-4">
-                            <div className="font-semibold mb-1">Banco del Pacífico</div>
-                            <div className="text-600">Cuenta: {cuentasBancarias.pacifico}</div>
-                            <div className="text-600">Tipo: Ahorros</div>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 <Divider />
@@ -189,7 +276,9 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                         <InputText
                             id="numeroCuenta"
                             value={numeroCuenta}
-                            onChange={(e) => setNumeroCuenta(e.target.value)}
+                            onChange={(e) => setNumeroCuenta(onlyDigits(e.target.value, 20))}
+                            keyfilter="pint"
+                            inputMode="numeric"
                             placeholder="Ej: 2100123456"
                             className={`w-full ${errors.numeroCuenta ? 'p-invalid' : ''}`}
                             maxLength={20}
@@ -211,7 +300,8 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                         <InputText
                             id="numeroReferencia"
                             value={numeroReferencia}
-                            onChange={(e) => setNumeroReferencia(e.target.value)}
+                            onChange={(e) => setNumeroReferencia(sanitizeReferenceCode(e.target.value, 50))}
+                            keyfilter={/[A-Za-z0-9-]/}
                             placeholder="Ej: TR123456789"
                             className={`w-full ${errors.numeroReferencia ? 'p-invalid' : ''}`}
                             maxLength={50}
@@ -239,6 +329,9 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
                             maxFileSize={5000000}
                             onSelect={onFileSelect}
                             onRemove={onFileRemove}
+                            onClear={onFileRemove}
+                            itemTemplate={itemTemplate}
+                            uploadOptions={{ className: 'hidden' }}
                             emptyTemplate={
                                 <div className="flex align-items-center justify-content-center flex-column">
                                     <i className="pi pi-cloud-upload text-4xl mb-3" style={{ color: primaryColor }}></i>

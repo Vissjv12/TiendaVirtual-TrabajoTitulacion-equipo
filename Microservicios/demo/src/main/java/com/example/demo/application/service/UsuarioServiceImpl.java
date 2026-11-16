@@ -5,7 +5,10 @@ import com.example.demo.application.dto.EstadisticasUsuariosDto;
 import com.example.demo.domain.model.Usuario;
 import com.example.demo.domain.repository.UsuarioRepository;
 import com.example.demo.domain.service.UsuarioService;
+import com.example.demo.infrastructure.persistence.repository.EmprendedorJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +21,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UsuarioServiceImpl implements UsuarioService {
 
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
+
     private final UsuarioRepository usuarioRepository;
+    private final EmprendedorJpaRepository emprendedorRepository;
     private final PasswordEncoder passwordEncoder;
 
     // =====================================
@@ -101,6 +107,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
 
         if (actualizarDto.getRoles() != null) {
+            validarProteccionUltimoAdmin(usuario, usuario.isActivo(), actualizarDto.getRoles());
             usuario.setRoles(actualizarDto.getRoles());
         }
 
@@ -117,16 +124,62 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+        if (!activo) {
+            validarProteccionUltimoAdmin(usuario, false, usuario.getRoles());
+        }
+
         usuario.setActivo(activo);
-        return usuarioRepository.save(usuario);
+        Usuario actualizado = usuarioRepository.save(usuario);
+        sincronizarEstadoEmprendedor(id, activo);
+        return actualizado;
     }
 
     @Override
     public void eliminarUsuario(Long id) {
-        if (!usuarioRepository.existsById(id)) {
-            throw new RuntimeException("Usuario no encontrado");
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        validarProteccionUltimoAdmin(usuario, false, usuario.getRoles());
+
+        // Borrado lógico para conservar integridad referencial e historial
+        usuario.setActivo(false);
+        usuarioRepository.save(usuario);
+        sincronizarEstadoEmprendedor(id, false);
+    }
+
+    private void validarProteccionUltimoAdmin(Usuario usuario, boolean nuevoActivo, Set<String> nuevosRoles) {
+        boolean esAdminActual = usuario.getRoles() != null && usuario.getRoles().contains(ROLE_ADMIN);
+        if (!esAdminActual) {
+            return;
         }
-        usuarioRepository.deleteById(id);
+
+        boolean mantieneRolAdmin = nuevosRoles != null && nuevosRoles.contains(ROLE_ADMIN);
+        boolean dejaDeSerAdminActivo = !nuevoActivo || !mantieneRolAdmin;
+        if (!dejaDeSerAdminActivo) {
+            return;
+        }
+
+        long totalAdmins = usuarioRepository.countByRolesContaining(ROLE_ADMIN);
+        long adminsActivos = usuarioRepository.countByRolAndActivoTrue(ROLE_ADMIN);
+
+        if (totalAdmins <= 1 || (usuario.isActivo() && adminsActivos <= 1)) {
+            if (!mantieneRolAdmin) {
+                throw new IllegalStateException(
+                        "No se puede quitar el rol de administrador al único administrador del sistema");
+            }
+            throw new IllegalStateException(
+                    "No se puede eliminar ni desactivar al único administrador del sistema");
+        }
+    }
+
+    private void sincronizarEstadoEmprendedor(Long usuarioId, boolean activo) {
+        if (emprendedorRepository == null) {
+            return;
+        }
+        emprendedorRepository.findByUsuarioId(usuarioId).ifPresent(emp -> {
+            emp.setActivo(activo);
+            emprendedorRepository.save(emp);
+        });
     }
 
     @Override
@@ -141,12 +194,18 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
+    public Page<Usuario> obtenerUsuariosPaginado(String q, String rol, Boolean activo, Pageable pageable) {
+        return usuarioRepository.findPaginado(q, rol, activo, pageable);
+    }
+
+    @Override
     public EstadisticasUsuariosDto obtenerEstadisticas() {
         long totalUsuarios = usuarioRepository.count();
         long usuariosActivos = usuarioRepository.countByActivoTrue();
         long usuariosInactivos = usuarioRepository.countByActivoFalse();
-        long administradores = usuarioRepository.countByRolesContaining("ROLE_ADMIN");
-        long emprendedores = usuarioRepository.countByRolesContaining("ROLE_EMPRENDEDOR");
+        long administradores = usuarioRepository.countByRolesContaining(ROLE_ADMIN);
+        long administradoresActivos = usuarioRepository.countByRolAndActivoTrue(ROLE_ADMIN);
+        long emprendedores = usuarioRepository.countByRolesContaining("ROLE_EMP");
         long clientes = usuarioRepository.countByRolesContaining("ROLE_USER");
 
         return EstadisticasUsuariosDto.builder()
@@ -154,6 +213,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .usuariosActivos(usuariosActivos)
                 .usuariosInactivos(usuariosInactivos)
                 .administradores(administradores)
+                .administradoresActivos(administradoresActivos)
                 .emprendedores(emprendedores)
                 .clientes(clientes)
                 .build();

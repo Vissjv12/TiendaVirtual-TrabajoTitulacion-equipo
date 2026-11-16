@@ -1,4 +1,5 @@
 import authService from './authService';
+import { GATEWAY_BASE_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
 
 // =====================================
 // INTERFACES PARA USUARIOS
@@ -12,6 +13,17 @@ export interface Usuario {
     apellido: string;
     activo: boolean;
     roles: string[]; 
+    empresaId?: number | null; // T11: empresa vinculada si es emprendedor
+}
+
+/** T11: respuesta de PUT/DELETE/GET /api/usuarios/{id}/empresa */
+export interface EmpresaVinculada {
+    usuarioId: number;
+    empresaId: number | null;
+    empresaNombre: string | null;
+    empresaAnteriorId: number | null;
+    resultado: 'VINCULADA' | 'REASIGNADA' | 'SIN_CAMBIOS' | 'DESVINCULADA' | 'CONSULTA';
+    requiereNuevoLogin: boolean;
 }
 
 export interface CrearUsuarioRequest {
@@ -37,6 +49,7 @@ export interface EstadisticasUsuarios {
     usuariosActivos: number;
     usuariosInactivos: number;
     administradores: number;
+    administradoresActivos?: number;
     emprendedores: number;
     clientes: number;
 }
@@ -65,7 +78,7 @@ export const ESTADOS_USUARIO = [
 ];
 
 class UsuariosService {
-    private readonly API_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8084';
+    private readonly API_BASE_URL = GATEWAY_BASE_URL;
 
     // =====================================
     // MÉTODOS AUXILIARES
@@ -88,7 +101,14 @@ class UsuariosService {
                 let errorMessage = `Error ${response.status}`;
                 try {
                     const errorData = await response.text();
-                    errorMessage = errorData || errorMessage;
+                    if (errorData) {
+                        try {
+                            const parsed = JSON.parse(errorData);
+                            errorMessage = parsed.message || parsed.error || errorData;
+                        } catch {
+                            errorMessage = errorData;
+                        }
+                    }
                 } catch {
                     // Si no se puede leer el error, usar el mensaje por defecto
                 }
@@ -129,6 +149,18 @@ class UsuariosService {
         return this.makeRequest<Usuario[]>('/api/usuarios');
     }
 
+    async obtenerUsuariosPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Usuario>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            q: params?.q,
+            rol: params?.rol,
+            activo: params?.activo
+        });
+        return this.makeRequest<PageResponse<Usuario>>(`/api/usuarios/paginado${query}`);
+    }
+
     async obtenerUsuarioPorId(id: number): Promise<ApiResponse<Usuario>> {
         return this.makeRequest<Usuario>(`/api/usuarios/${id}`);
     }
@@ -157,6 +189,20 @@ class UsuariosService {
 
     async eliminarUsuario(id: number): Promise<ApiResponse<void>> {
         return this.makeRequest<void>(`/api/usuarios/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // T11: vinculación emprendedor-empresa (solo ADMIN)
+    async vincularEmpresa(usuarioId: number, empresaId: number): Promise<ApiResponse<EmpresaVinculada>> {
+        return this.makeRequest<EmpresaVinculada>(`/api/usuarios/${usuarioId}/empresa`, {
+            method: 'PUT',
+            body: JSON.stringify({ empresaId }),
+        });
+    }
+
+    async desvincularEmpresa(usuarioId: number): Promise<ApiResponse<EmpresaVinculada>> {
+        return this.makeRequest<EmpresaVinculada>(`/api/usuarios/${usuarioId}/empresa`, {
             method: 'DELETE',
         });
     }

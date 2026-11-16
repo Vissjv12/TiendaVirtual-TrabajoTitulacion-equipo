@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_PRODUCTOS_API_URL || 'http://localhost:8081';
+import authService from './authService';
+import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
+const API_BASE_URL = GATEWAY_API_URL;
 
 // =====================================
 // INTERFACES PARA CATEGORÍAS
@@ -49,6 +51,7 @@ export interface ApiResponse<T> {
     success: boolean;
     message: string;
     data?: T;
+    status?: number;
 }
 
 class CategoriasEmpresasService {
@@ -59,22 +62,20 @@ class CategoriasEmpresasService {
     
     private async makeRequest<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
         try {
-            const token = localStorage.getItem('token');
-            
             const response = await fetch(`${API_BASE_URL}${url}`, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : '',
+                    ...authService.getAuthHeaders(),
                     ...options.headers,
                 },
                 ...options,
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
+                const errorMsg = await authService.extractErrorMessage(response, `Error ${response.status}: Error desconocido`);
                 return {
                     success: false,
-                    message: `Error ${response.status}: ${errorData || 'Error desconocido'}`,
+                    status: response.status,
+                    message: errorMsg,
                 };
             }
 
@@ -82,6 +83,7 @@ class CategoriasEmpresasService {
             if (response.status === 204) {
                 return {
                     success: true,
+                    status: response.status,
                     message: 'Operación exitosa',
                 };
             }
@@ -89,6 +91,7 @@ class CategoriasEmpresasService {
             const data = await response.json();
             return {
                 success: true,
+                status: response.status,
                 message: 'Operación exitosa',
                 data,
             };
@@ -125,6 +128,16 @@ class CategoriasEmpresasService {
         return this.makeRequest<Categoria[]>('/categorias');
     }
 
+    async obtenerCategoriasPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Categoria>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            q: params?.q
+        });
+        return this.makeRequest<PageResponse<Categoria>>(`/categorias/paginado${query}`);
+    }
+
     async obtenerCategoriaPorId(id: number): Promise<ApiResponse<Categoria>> {
         return this.makeRequest<Categoria>(`/categorias/${id}`);
     }
@@ -157,14 +170,61 @@ class CategoriasEmpresasService {
     // =====================================
     
     async obtenerEmpresas(): Promise<ApiResponse<Empresa[]>> {
-        return this.makeRequest<Empresa[]>('/empresas');
+        const res = await this.makeRequest<Empresa[]>('/empresas');
+        if (res.success && res.data && !authService.isAdmin() && authService.hasRole('ROLE_EMP')) {
+            const userEmpresaId = authService.getEmpresaId();
+            if (userEmpresaId) {
+                res.data = res.data.filter((e) => Number(e.id) === Number(userEmpresaId));
+            } else {
+                res.data = [];
+            }
+        }
+        return res;
+    }
+
+    async obtenerEmpresasPaginado(params?: PaginationParams): Promise<ApiResponse<PageResponse<Empresa>>> {
+        const query = buildPaginationQuery({
+            page: params?.page ?? 0,
+            size: params?.size ?? 10,
+            sort: params?.sort ?? 'id,desc',
+            q: params?.q
+        });
+        const res = await this.makeRequest<PageResponse<Empresa>>(`/empresas/paginado${query}`);
+        if (res.success && res.data && !authService.isAdmin() && authService.hasRole('ROLE_EMP')) {
+            const userEmpresaId = authService.getEmpresaId();
+            const filtered = userEmpresaId
+                ? res.data.content.filter((e) => Number(e.id) === Number(userEmpresaId))
+                : [];
+            res.data = {
+                ...res.data,
+                content: filtered,
+                totalElements: filtered.length,
+                totalPages: filtered.length > 0 ? 1 : 0,
+                empty: filtered.length === 0
+            };
+        }
+        return res;
     }
 
     async obtenerEmpresaPorId(id: number): Promise<ApiResponse<Empresa>> {
+        if (!authService.isAdmin() && !authService.canManageEmpresa(id)) {
+            return {
+                success: false,
+                status: 403,
+                message: 'Acceso denegado (403): No tienes permisos para consultar o editar otra empresa.'
+            };
+        }
         return this.makeRequest<Empresa>(`/empresas/${id}`);
     }
 
     async crearEmpresa(empresa: EmpresaRequest): Promise<ApiResponse<Empresa>> {
+        if (!authService.isAdmin()) {
+            return {
+                success: false,
+                status: 403,
+                message: 'Acceso denegado (403): Solo un administrador puede registrar nuevas empresas.'
+            };
+        }
         return this.makeRequest<Empresa>('/empresas', {
             method: 'POST',
             body: JSON.stringify({
@@ -175,13 +235,53 @@ class CategoriasEmpresasService {
     }
 
     async actualizarEmpresa(id: number, empresa: EmpresaRequest): Promise<ApiResponse<Empresa>> {
+        if (!authService.isAdmin() && !authService.canManageEmpresa(id)) {
+            return {
+                success: false,
+                status: 403,
+                message: 'Acceso denegado (403): No tienes permisos para modificar los datos de otra empresa.'
+            };
+        }
         return this.makeRequest<Empresa>(`/empresas/${id}`, {
             method: 'PUT',
             body: JSON.stringify(empresa),
         });
     }
 
+    /**
+     * Datos que el EMPRENDEDOR puede editar de su empresa (A-02): nombre y contacto.
+     * El RUC y el estado activo solo los cambia el administrador con actualizarEmpresa().
+     */
+    async actualizarDatosContactoEmpresa(
+        id: number,
+        datos: { nombre: string; direccion?: string; telefono?: string; email?: string }
+    ): Promise<ApiResponse<Empresa>> {
+        if (!authService.isAdmin() && !authService.canManageEmpresa(id)) {
+            return {
+                success: false,
+                status: 403,
+                message: 'Acceso denegado (403): No tienes permisos para modificar los datos de otra empresa.'
+            };
+        }
+        return this.makeRequest<Empresa>(`/empresas/${id}/contacto`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                nombre: datos.nombre,
+                direccion: datos.direccion,
+                telefono: datos.telefono,
+                email: datos.email
+            }),
+        });
+    }
+
     async eliminarEmpresa(id: number): Promise<ApiResponse<void>> {
+        if (!authService.isAdmin()) {
+            return {
+                success: false,
+                status: 403,
+                message: 'Acceso denegado (403): Solo un administrador puede eliminar empresas.'
+            };
+        }
         return this.makeRequest<void>(`/empresas/${id}`, {
             method: 'DELETE',
         });

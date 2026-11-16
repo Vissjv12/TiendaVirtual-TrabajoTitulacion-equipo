@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { DataView } from 'primereact/dataview';
-import { Paginator } from 'primereact/paginator';
+import { Paginator, PaginatorPageChangeEvent } from 'primereact/paginator';
 import { Tag } from 'primereact/tag';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -13,7 +13,6 @@ import { Message } from 'primereact/message';
 import { Timeline } from 'primereact/timeline';
 import { Image } from 'primereact/image';
 import { Toast } from 'primereact/toast';
-import { useRef } from 'react';
 import { 
     SeguimientoLogistica, 
     obtenerHistorialPorVenta,
@@ -21,6 +20,8 @@ import {
     getEstadoIcon
 } from '../../../../services/logisticaService';
 import ventasService from '../../../../services/ventasService';
+import authService from '../../../../services/authService';
+import { GATEWAY_BASE_URL, PageResponse } from '../../../../services/apiConfig';
 
 interface DetalleVenta {
     id: number;
@@ -50,6 +51,8 @@ interface Venta {
 
 export default function HistorialCompras() {
     const toast = useRef<Toast>(null);
+    const clienteIdRef = useRef<number | null>(null);
+    const hasLoadedOnceRef = useRef<boolean>(false);
     const [compras, setCompras] = useState<Venta[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCompra, setSelectedCompra] = useState<Venta | null>(null);
@@ -58,84 +61,93 @@ export default function HistorialCompras() {
     const [loadingSeguimiento, setLoadingSeguimiento] = useState(false);
     const [first, setFirst] = useState(0);
     const [rows, setRows] = useState(10);
+    const [totalRecords, setTotalRecords] = useState(0);
 
-    useEffect(() => {
-        cargarHistorial();
-        
-        // Auto-actualizar cada 30 segundos
-        const interval = setInterval(() => {
-            cargarHistorial();
-        }, 30000);
-        
-        return () => clearInterval(interval);
-    }, []);
-
-    const cargarHistorial = async () => {
-        console.log('📥 Iniciando carga de historial...');
-        setLoading(true);
+    const cargarHistorial = useCallback(async (silent = false) => {
+        if (!silent) {
+            setLoading(true);
+        }
         try {
-            // Obtener el usuario actual
-            const userInfo = typeof window !== 'undefined' ? localStorage.getItem('user_info') : null;
-            if (!userInfo) {
-                console.error('❌ No hay usuario autenticado');
-                throw new Error('No hay usuario autenticado');
+            let resolvedClienteId = clienteIdRef.current;
+
+            if (!resolvedClienteId) {
+                const userInfo = typeof window !== 'undefined' ? localStorage.getItem('user_info') : null;
+                if (!userInfo) {
+                    throw new Error('No hay usuario autenticado');
+                }
+
+                const user = JSON.parse(userInfo);
+                const apiBase = GATEWAY_BASE_URL;
+                const authHeaders = authService.getAuthHeaders();
+                let clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.email || user.username)}`, {
+                    headers: authHeaders
+                });
+
+                if (!clienteResponse.ok && user.username) {
+                    clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.username)}`, {
+                        headers: authHeaders
+                    });
+                }
+
+                if (!clienteResponse.ok) {
+                    setCompras([]);
+                    setTotalRecords(0);
+                    hasLoadedOnceRef.current = true;
+                    return;
+                }
+
+                const cliente = await clienteResponse.json();
+                resolvedClienteId = cliente.id;
+                clienteIdRef.current = resolvedClienteId;
             }
-            
-            const user = JSON.parse(userInfo);
-            console.log('👤 Usuario:', user);
-            
-            // Intentar obtener el cliente por email, si falla intentar por username
-            const apiBase = process.env.NEXT_PUBLIC_VENTAS_API_URL || 'http://localhost:8083';
-            console.log('🔍 Buscando cliente por email:', user.email || user.username);
-            let clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.email || user.username)}`);
-            
-            if (!clienteResponse.ok && user.username) {
-                console.log('⚠️ Email no encontrado, intentando con username:', user.username);
-                // Si falla con email, intentar con username (puede ser el email alternativo)
-                clienteResponse = await fetch(`${apiBase}/api/clientes/email/${encodeURIComponent(user.username)}`);
-            }
-            
-            if (!clienteResponse.ok) {
-                console.log('⚠️ Cliente no encontrado en la base de datos (probablemente usuario nuevo sin compras).');
+
+            if (!resolvedClienteId) {
                 setCompras([]);
-                setLoading(false);
+                setTotalRecords(0);
                 return;
             }
-            
-            const cliente = await clienteResponse.json();
-            console.log('✅ Cliente encontrado:', cliente);
-            
-            // Obtener las ventas del cliente
-            console.log('🔍 Obteniendo ventas para cliente ID:', cliente.id);
-            const response = await fetch(`${apiBase}/api/ventas/cliente/${cliente.id}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('✅ Ventas cargadas:', data.length, 'compras');
-                setCompras(data);
-                toast.current?.show({
-                    severity: 'success',
-                    summary: 'Actualizado',
-                    detail: `${data.length} compra(s) encontrada(s)`,
-                    life: 2000
-                });
+
+            const page = Math.floor(first / rows);
+            const response = await ventasService.listarVentasPorClientePaginado(resolvedClienteId, {
+                page,
+                size: rows,
+                sort: 'fechaVenta,desc'
+            });
+
+            if (response.success && response.data) {
+                const pageData = response.data as unknown as PageResponse<Venta>;
+                setCompras(pageData.content || []);
+                setTotalRecords(pageData.totalElements ?? 0);
+                hasLoadedOnceRef.current = true;
             } else {
-                console.error('❌ Error al cargar ventas:', response.status);
-                throw new Error('Error al cargar el historial');
+                throw new Error(response.message || 'Error al cargar el historial');
             }
         } catch (error) {
             console.error('❌ Error completo:', error);
-            toast.current?.show({
-                severity: 'error',
-                summary: 'Error',
-                detail: error instanceof Error ? error.message : 'No se pudo cargar el historial de compras',
-                life: 3000
-            });
+            if (!silent) {
+                toast.current?.show({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: error instanceof Error ? error.message : 'No se pudo cargar el historial de compras',
+                    life: 3000
+                });
+            }
         } finally {
-            setLoading(false);
-            console.log('✅ Carga finalizada');
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    };
+    }, [first, rows]);
+
+    useEffect(() => {
+        cargarHistorial(false);
+
+        const interval = setInterval(() => {
+            cargarHistorial(true);
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [cargarHistorial]);
 
     const descargarFactura = async (ventaId: number) => {
         try {
@@ -555,7 +567,7 @@ export default function HistorialCompras() {
         );
     };
 
-    if (loading) {
+    if (loading && !hasLoadedOnceRef.current) {
         return (
             <div className="flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
                 <ProgressSpinner />
@@ -581,8 +593,7 @@ export default function HistorialCompras() {
                         icon="pi pi-refresh"
                         label="Actualizar"
                         onClick={() => {
-                            console.log('🔄 Actualizando historial...');
-                            cargarHistorial();
+                            cargarHistorial(false);
                         }}
                         loading={loading}
                         className="p-button-outlined p-button-rounded"
@@ -590,7 +601,7 @@ export default function HistorialCompras() {
                     />
                 </div>
 
-                {compras.length === 0 ? (
+                {compras.length === 0 && !loading ? (
                     <div className="text-center p-5">
                         <i className="pi pi-shopping-cart text-400" style={{ fontSize: '4rem' }}></i>
                         <h3 className="text-600 mt-3">No tienes compras registradas</h3>
@@ -599,7 +610,7 @@ export default function HistorialCompras() {
                 ) : (
                     <>
                         <div className="grid">
-                            {compras.slice(first, first + rows).map((compra) => (
+                            {compras.map((compra) => (
                                 <div key={compra.id} className="col-12">
                                     {itemTemplate(compra)}
                                 </div>
@@ -608,9 +619,9 @@ export default function HistorialCompras() {
                         <Paginator
                             first={first}
                             rows={rows}
-                            totalRecords={compras.length}
+                            totalRecords={totalRecords}
                             rowsPerPageOptions={[5, 10, 20]}
-                            onPageChange={(e) => {
+                            onPageChange={(e: PaginatorPageChangeEvent) => {
                                 setFirst(e.first);
                                 setRows(e.rows);
                             }}

@@ -25,14 +25,14 @@ public class InventarioClientFallback implements InventarioClient {
         return new InventarioInfoDto(null, 0, "No disponible");
     }
 
-    // ✅ NUEVO: Fallback para método batch
+    // Fallback para la consulta batch de cantidades
     @Override
-    public Map<Long, InventarioInfoDto> obtenerInventariosPorProductos(List<Long> productosIds) {
-        Map<Long, InventarioInfoDto> fallbackInventarios = new HashMap<>();
+    public Map<String, Integer> obtenerCantidadesPorProductos(List<Long> productosIds) {
+        Map<String, Integer> fallbackInventarios = new HashMap<>();
 
-        // Crear inventarios con cantidad 0 para todos los productos
+        // Mantener un valor seguro si Inventario no está disponible.
         for (Long productoId : productosIds) {
-            fallbackInventarios.put(productoId, new InventarioInfoDto(null, 0, "No disponible"));
+            fallbackInventarios.put(productoId.toString(), 0);
         }
 
         return fallbackInventarios;

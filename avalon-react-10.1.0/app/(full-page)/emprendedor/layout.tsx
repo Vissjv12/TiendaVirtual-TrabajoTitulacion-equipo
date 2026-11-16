@@ -34,10 +34,15 @@ const EmprendedorLayoutContent: React.FC<EmprendedorLayoutProps> = ({ children }
                     userInfo: authService.getUserInfo()
                 });
                 
-                if (!authenticated || !isEmployee) {
-                    console.log('❌ No autorizado para emprendedor, redirigiendo...');
-                    authService.logout();
+                if (!authenticated) {
+                    console.log('❌ No autenticado (401), redirigiendo a login...');
                     router.push('/auth/login2');
+                    return;
+                }
+
+                if (!isEmployee) {
+                    console.log('❌ Acceso denegado (403) para rol actual, redirigiendo a access2...');
+                    router.push('/auth/access2');
                     return;
                 }
                 

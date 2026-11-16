@@ -13,6 +13,7 @@ import { Toast } from 'primereact/toast';
 import { Image } from 'primereact/image';
 import { ProgressBar } from 'primereact/progressbar';
 import emprendedorService, { ProductoRequest, Categoria, Empresa } from '../../../../../services/emprendedorService';
+import authService from '../../../../../services/authService';
 
 const CrearProductoPage: React.FC = () => {
     const router = useRouter();
@@ -36,6 +37,9 @@ const CrearProductoPage: React.FC = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const isAdmin = authService.isAdmin();
+    const userEmpresaId = authService.getEmpresaId();
+
     // Cargar categorías y empresas
     useEffect(() => {
         cargarDatosIniciales();
@@ -56,6 +60,12 @@ const CrearProductoPage: React.FC = () => {
 
             if (empresasRes.success && empresasRes.data) {
                 setEmpresas(empresasRes.data);
+                // 🔒 Si es ROLE_EMP, preseleccionar y bloquear su propia empresa
+                if (!isAdmin && userEmpresaId) {
+                    setFormData(prev => ({ ...prev, empresaId: userEmpresaId }));
+                } else if (empresasRes.data.length === 1) {
+                    setFormData(prev => ({ ...prev, empresaId: empresasRes.data![0].id }));
+                }
             }
 
         } catch (error) {
@@ -100,6 +110,10 @@ const CrearProductoPage: React.FC = () => {
             newErrors.descripcion = 'La descripción es obligatoria';
         }
 
+        if (!formData.precio || formData.precio <= 0) {
+            newErrors.precio = 'El precio debe ser mayor a 0';
+        }
+
         if (!formData.categoriaId || formData.categoriaId === 0) {
             newErrors.categoriaId = 'Debe seleccionar una categoría';
         }
@@ -141,11 +155,21 @@ const CrearProductoPage: React.FC = () => {
                     router.push('/emprendedor/productos');
                 }, 1500);
             } else {
+                if (response.status === 401) {
+                    toast.current?.show({
+                        severity: 'warn',
+                        summary: 'No autenticado (401)',
+                        detail: response.message || 'Tu sesión ha expirado. Inicia sesión nuevamente.',
+                        life: 3500
+                    });
+                    setTimeout(() => router.push('/auth/login2'), 1500);
+                    return;
+                }
                 toast.current?.show({
-                    severity: 'error',
-                    summary: 'Error',
+                    severity: response.status === 403 ? 'warn' : 'error',
+                    summary: response.status === 403 ? 'Acceso denegado (403)' : 'Error',
                     detail: response.message,
-                    life: 3000
+                    life: 4000
                 });
             }
         } catch (error) {
@@ -241,6 +265,7 @@ const CrearProductoPage: React.FC = () => {
                                     mode="currency"
                                     currency="USD"
                                     locale="en-US"
+                                    min={0.01}
                                     placeholder="0.00"
                                     className={`w-full ${errors.precio ? 'p-invalid' : ''}`}
                                 />
@@ -294,7 +319,13 @@ const CrearProductoPage: React.FC = () => {
                                     options={empresaOptions}
                                     placeholder="Seleccionar empresa"
                                     className={`w-full ${errors.empresaId ? 'p-invalid' : ''}`}
+                                    disabled={!isAdmin}
                                 />
+                                {!isAdmin && (
+                                    <small className="text-600 block mt-1">
+                                        Vinculado automáticamente a tu empresa autorizada
+                                    </small>
+                                )}
                                 {errors.empresaId && (
                                     <small className="p-error block mt-1">{errors.empresaId}</small>
                                 )}

@@ -1,0 +1,3 @@
+# Directorio para almacenar respaldos de base de datos (mysqldump)
+# Los respaldos generados dinámicamente (*.sql) son ignorados por Git excepto backup_pre_migracion.sql
+

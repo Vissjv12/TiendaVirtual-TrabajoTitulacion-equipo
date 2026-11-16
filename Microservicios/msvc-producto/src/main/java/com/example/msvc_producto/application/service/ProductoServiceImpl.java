@@ -2,6 +2,7 @@ package com.example.msvc_producto.application.service;
 
 import com.example.msvc_producto.application.client.InventarioClient;
 import com.example.msvc_producto.application.dto.InventarioInfoDto;
+import com.example.msvc_producto.application.dto.ProductoCatalogoPublicoDto;
 import com.example.msvc_producto.application.dto.ProductoListadoDto;
 import com.example.msvc_producto.domain.model.Categoria;
 import com.example.msvc_producto.domain.model.Empresa;
@@ -11,25 +12,43 @@ import com.example.msvc_producto.domain.service.CategoriaService;
 import com.example.msvc_producto.domain.service.EmpresaService;
 import com.example.msvc_producto.domain.service.ProductoService;
 import feign.FeignException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.util.Map;
 import java.util.List;
+import java.util.Objects;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ProductoServiceImpl implements ProductoService {
 
     private static final Logger logger = LoggerFactory.getLogger(ProductoServiceImpl.class);
-
     private final ProductoRepository productoRepository;
     private final EmpresaService empresaService;
     private final CategoriaService categoriaService;
     private final InventarioClient inventarioClient;
+    private ProductoCatalogoCacheService catalogoCacheService;
+    private ObjectMapper objectMapper;
+    private boolean cacheListadoHabilitado;
+    private Duration cacheProductosTtl = Duration.ofMinutes(5);
+
+    @Autowired
+    private ProductoCatalogoInvalidacionService invalidacionService;
 
     public ProductoServiceImpl(
             ProductoRepository productoRepository,
@@ -40,6 +59,23 @@ public class ProductoServiceImpl implements ProductoService {
         this.empresaService = empresaService;
         this.categoriaService = categoriaService;
         this.inventarioClient = inventarioClient;
+    }
+
+    @Autowired
+    void configurarCacheCatalogo(
+            ObjectProvider<ProductoCatalogoCacheService> cacheProvider,
+            ObjectMapper objectMapper,
+            @Value("${cache.redis.productos.listado.enabled:false}") boolean cacheListadoHabilitado,
+            @Value("${cache.redis.ttl-productos:PT5M}") Duration cacheProductosTtl) {
+        this.catalogoCacheService = cacheProvider.getIfAvailable();
+        this.objectMapper = objectMapper;
+        this.cacheListadoHabilitado = cacheListadoHabilitado;
+        this.cacheProductosTtl = cacheProductosTtl;
+        if (cacheListadoHabilitado && (cacheProductosTtl == null
+                || cacheProductosTtl.isZero()
+                || cacheProductosTtl.isNegative())) {
+            throw new IllegalArgumentException("cache.redis.ttl-productos debe ser una duración positiva");
+        }
     }
 
     @Override
@@ -58,14 +94,29 @@ public class ProductoServiceImpl implements ProductoService {
         producto.setActivo(true);
 
         Producto productoGuardado = productoRepository.save(producto);
+        invalidarCatalogoDespuesDeCommit();
 
-        // Crear registro en inventario (si el microservicio está disponible)
-        try {
-            // Enviar un stock inicial de 0 al inventario
-            inventarioClient.crearInventarioParaProducto(productoGuardado.getId(), 0);
-        } catch (FeignException e) {
-            // Loguear error pero continuar con la creación del producto
-            logger.warn("No se pudo crear el inventario para el producto: {}", e.getMessage());
+        // Crear el registro de inventario (stock 0) DESPUÉS del commit: inventario valida que el
+        // producto pertenezca a la empresa del JWT (A-01) y para eso el producto debe existir ya.
+        final Long productoId = productoGuardado.getId();
+        Runnable crearInventario = () -> {
+            try {
+                inventarioClient.crearInventarioParaProducto(productoId, 0);
+            } catch (FeignException e) {
+                // Si falla, el primer ajuste de stock desde la interfaz crea el inventario
+                logger.warn("No se pudo crear el inventario para el producto {}: HTTP {}", productoId, e.status());
+            }
+        };
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            crearInventario.run();
+                        }
+                    });
+        } else {
+            crearInventario.run();
         }
 
         return productoGuardado;
@@ -91,7 +142,9 @@ public class ProductoServiceImpl implements ProductoService {
         productoExistente.setCategoria(categoria);
         productoExistente.setFechaActualizacion(LocalDateTime.now());
 
-        return productoRepository.save(productoExistente);
+        Producto productoActualizado = productoRepository.save(productoExistente);
+        invalidarCatalogoDespuesDeCommit();
+        return productoActualizado;
         // Ya no actualizamos el stock en el inventario desde aquí
     }
 
@@ -129,6 +182,12 @@ public class ProductoServiceImpl implements ProductoService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Long> listarIdsProductosPorEmpresa(Long empresaId) {
+        return productoRepository.findIdsByEmpresaId(empresaId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Producto> buscarProductosPorCategoria(Long categoriaId) {
         return productoRepository.findByCategoriaId(categoriaId);
     }
@@ -140,6 +199,7 @@ public class ProductoServiceImpl implements ProductoService {
         producto.setActivo(false);
         producto.setFechaActualizacion(LocalDateTime.now());
         productoRepository.save(producto);
+        invalidarCatalogoDespuesDeCommit();
     }
 
     // Método con el nombre correcto y lógica de inventario
@@ -148,27 +208,23 @@ public class ProductoServiceImpl implements ProductoService {
     @Transactional(readOnly = true)
     public List<ProductoListadoDto> obtenerProductosOptimizado() {
         try {
-            List<ProductoListadoDto> productos = productoRepository.findAllOptimized();
+            AtomicReference<Map<String, Integer>> inventarioConsultadoAntesDePublicar = new AtomicReference<>();
+            List<ProductoListadoDto> productos = obtenerCatalogoBase(inventarioConsultadoAntesDePublicar);
             System.out.println("Productos base obtenidos: " + productos.size());
 
-            // ✅ TEMPORAL: Comentar todo el inventario
-        /*
-        for (ProductoListadoDto producto : productos) {
-            try {
-                InventarioInfoDto inventario = inventarioClient.obtenerInventarioPorProductoId(producto.getId());
-                if (inventario != null && inventario.getCantidad() != null) {
-                    producto.setInventarioCantidad(inventario.getCantidad());
-                } else {
-                    producto.setInventarioCantidad(0);
-                }
-            } catch (Exception e) {
-                producto.setInventarioCantidad(0);
-            }
-        }
-        */
+            // Consultar las cantidades en una sola llamada para evitar N+1.
+            List<Long> productosIds = productos.stream()
+                    .map(ProductoListadoDto::getId)
+                    .toList();
+            Map<String, Integer> cantidadesPreconsultadas = inventarioConsultadoAntesDePublicar.get();
+            final Map<String, Integer> cantidades = cantidadesPreconsultadas != null
+                    ? cantidadesPreconsultadas
+                    : consultarCantidadesInventario(productosIds);
 
-            // ✅ TEMPORAL: Asignar 0 a todos sin llamadas HTTP
-            productos.forEach(p -> p.setInventarioCantidad(0));
+            productos.forEach(producto -> {
+                Integer cantidad = cantidades.get(String.valueOf(producto.getId()));
+                producto.setInventarioCantidad(cantidad != null ? Math.max(cantidad, 0) : 0);
+            });
 
             System.out.println("Productos procesados: " + productos.size());
             return productos;
@@ -180,10 +236,125 @@ public class ProductoServiceImpl implements ProductoService {
         }
     }
 
+    private List<ProductoListadoDto> obtenerCatalogoBase(
+            AtomicReference<Map<String, Integer>> inventarioConsultadoAntesDePublicar) {
+        if (!cacheListadoHabilitado || catalogoCacheService == null) {
+            return productoRepository.findAllOptimized();
+        }
+
+        String json = catalogoCacheService.obtenerJson(
+                ProductoCatalogoCacheService.CATALOGO_GENERATION_KEY,
+                ProductoCatalogoCacheService.PRODUCTOS_LISTADO_CACHE_KEY,
+                cacheProductosTtl,
+                this::consultarCatalogoComoJson,
+                sourceJson -> inventarioConsultadoAntesDePublicar.set(
+                        consultarInventarioParaJson(sourceJson)));
+        try {
+            List<ProductoCatalogoPublicoDto> proyeccion = objectMapper.readValue(
+                    json,
+                    new TypeReference<List<ProductoCatalogoPublicoDto>>() { });
+            return proyeccion.stream()
+                    .map(ProductoCatalogoPublicoDto::toListadoDto)
+                    .toList();
+        } catch (JsonProcessingException corruptJson) {
+            try {
+                catalogoCacheService.invalidarCatalogo(ProductoCatalogoCacheService.CATALOGO_GENERATION_KEY);
+            } catch (RuntimeException redisFailure) {
+                logger.warn("No se pudo invalidar JSON de catálogo inválido en Redis ({})",
+                        redisFailure.getClass().getSimpleName());
+            }
+            logger.warn("El JSON del catálogo no se pudo leer; se consulta MySQL directamente");
+            return productoRepository.findAllOptimized();
+        }
+    }
+
+    private Map<String, Integer> consultarInventarioParaJson(String json) {
+        try {
+            List<ProductoCatalogoPublicoDto> proyeccion = objectMapper.readValue(
+                    json,
+                    new TypeReference<List<ProductoCatalogoPublicoDto>>() { });
+            List<Long> productosIds = proyeccion.stream()
+                    .map(ProductoCatalogoPublicoDto::toListadoDto)
+                    .map(ProductoListadoDto::getId)
+                    .toList();
+            return consultarCantidadesInventario(productosIds);
+        } catch (JsonProcessingException invalidSourceJson) {
+            throw new IllegalStateException("No se pudo validar la proyección del catálogo antes de publicarla",
+                    invalidSourceJson);
+        }
+    }
+
+    private Map<String, Integer> consultarCantidadesInventario(List<Long> productosIds) {
+        return Objects.requireNonNull(
+                inventarioClient.obtenerCantidadesPorProductos(productosIds),
+                "La respuesta de inventario no puede ser null");
+    }
+
+    private String consultarCatalogoComoJson() {
+        List<ProductoCatalogoPublicoDto> proyeccion = productoRepository.findAllOptimized().stream()
+                .map(ProductoCatalogoPublicoDto::from)
+                .toList();
+        try {
+            return objectMapper.writeValueAsString(proyeccion);
+        } catch (JsonProcessingException serializationFailure) {
+            throw new IllegalStateException("No se pudo serializar la proyección pública del catálogo",
+                    serializationFailure);
+        }
+    }
+
+    private void invalidarCatalogoDespuesDeCommit() {
+        if (invalidacionService != null) {
+            invalidacionService.invalidarDespuesDeCommit();
+        }
+    }
+
     // ✅ CORREGIDO: También agregar este método que falta en la interfaz
     @Override
     @Transactional(readOnly = true)
     public List<ProductoListadoDto> listarProductosOptimizado() {
         return obtenerProductosOptimizado();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Producto> listarProductosPaginado(
+            String q,
+            Long empresaId,
+            Long categoriaId,
+            Boolean activo,
+            Pageable pageable) {
+        String filtroTexto = q == null ? "" : q.trim();
+        return productoRepository.findPaginado(filtroTexto, empresaId, categoriaId, activo, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductoListadoDto> obtenerProductosOptimizadoPaginado(
+            String q,
+            String categoria,
+            String empresa,
+            Pageable pageable) {
+        String filtroQ = q == null ? "" : q.trim();
+        String filtroCategoria = categoria == null ? "" : categoria.trim();
+        String filtroEmpresa = empresa == null ? "" : empresa.trim();
+
+        Page<ProductoListadoDto> page = productoRepository.findListadoPaginado(
+                filtroQ, filtroCategoria, filtroEmpresa, pageable);
+
+        if (!page.isEmpty() && inventarioClient != null) {
+            List<Long> productosIds = page.getContent().stream()
+                    .map(ProductoListadoDto::getId)
+                    .toList();
+            try {
+                Map<String, Integer> cantidades = consultarCantidadesInventario(productosIds);
+                page.getContent().forEach(producto -> {
+                    Integer cantidad = cantidades.get(String.valueOf(producto.getId()));
+                    producto.setInventarioCantidad(cantidad != null ? Math.max(cantidad, 0) : 0);
+                });
+            } catch (Exception ex) {
+                logger.warn("No se pudo enriquecer el stock en lote de la página actual: {}", ex.getMessage());
+            }
+        }
+        return page;
     }
 }

@@ -2,6 +2,7 @@ package com.example.msvc_ventas.presentation.controller;
 
 import com.example.msvc_ventas.application.dto.*;
 import com.example.msvc_ventas.application.mapper.PagoMapper;
+import com.example.msvc_ventas.application.util.PaginationUtils;
 import com.example.msvc_ventas.domain.service.PagoService;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,15 +10,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/pagos")
 @RequiredArgsConstructor
 @Slf4j
@@ -29,6 +34,7 @@ public class PagoController {
 
     @PostMapping
     @Operation(summary = "Crear un nuevo pago para una venta")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #requestDto.ventaId)")
     public ResponseEntity<PagoResponseDto> crearPago(@Valid @RequestBody PagoRequestDto requestDto) {
         log.info("Creando pago para venta ID: {} con método: {}", requestDto.getVentaId(), requestDto.getMetodoPago());
         
@@ -50,6 +56,7 @@ public class PagoController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener un pago por su ID")
+    @PreAuthorize("@ventaAuthorizationService.canViewPago(authentication, #id)")
     public ResponseEntity<PagoResponseDto> obtenerPago(@PathVariable Long id) {
         PagoEntity pago = pagoService.obtenerPagoPorId(id);
         return ResponseEntity.ok(pagoMapper.toDto(pago));
@@ -57,6 +64,7 @@ public class PagoController {
 
     @GetMapping("/venta/{ventaId}")
     @Operation(summary = "Obtener el pago de una venta específica")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #ventaId)")
     public ResponseEntity<PagoResponseDto> obtenerPagoPorVenta(@PathVariable Long ventaId) {
         PagoEntity pago = pagoService.obtenerPagoPorVentaId(ventaId);
         return ResponseEntity.ok(pagoMapper.toDto(pago));
@@ -64,6 +72,7 @@ public class PagoController {
 
     @PostMapping("/{id}/aprobar")
     @Operation(summary = "Aprobar un pago (solo emprendedor propietario)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP') and @ventaAuthorizationService.canManagePago(authentication, #id) and @ventaAuthorizationService.canManageCompany(authentication, #aprobarDto.emprendedorId)")
     public ResponseEntity<PagoResponseDto> aprobarPago(
             @PathVariable Long id,
             @Valid @RequestBody AprobarPagoDto aprobarDto) {
@@ -75,6 +84,7 @@ public class PagoController {
 
     @PostMapping("/{id}/rechazar")
     @Operation(summary = "Rechazar un pago (solo emprendedor propietario)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP') and @ventaAuthorizationService.canManagePago(authentication, #id) and @ventaAuthorizationService.canManageCompany(authentication, #aprobarDto.emprendedorId)")
     public ResponseEntity<PagoResponseDto> rechazarPago(
             @PathVariable Long id,
             @Valid @RequestBody AprobarPagoDto aprobarDto) {
@@ -86,6 +96,7 @@ public class PagoController {
 
     @PostMapping("/{id}/comprobante")
     @Operation(summary = "Subir comprobante de transferencia")
+    @PreAuthorize("@ventaAuthorizationService.canUploadComprobantePago(authentication, #id)")
     public ResponseEntity<PagoResponseDto> subirComprobante(
             @PathVariable Long id,
             @Valid @RequestBody SubirComprobanteDto comprobanteDto) {
@@ -97,6 +108,7 @@ public class PagoController {
 
     @GetMapping("/emprendedor/{emprendedorId}/pendientes")
     @Operation(summary = "Listar pagos pendientes de aprobación de un emprendedor")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<List<PagoResponseDto>> listarPagosPendientes(@PathVariable Long emprendedorId) {
         List<PagoEntity> pagos = pagoService.listarPagosPendientesPorEmprendedor(emprendedorId);
         List<PagoResponseDto> pagosDto = pagos.stream()
@@ -107,6 +119,7 @@ public class PagoController {
 
     @GetMapping("/emprendedor/{emprendedorId}")
     @Operation(summary = "Listar todos los pagos de un emprendedor")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<List<PagoResponseDto>> listarPagosPorEmprendedor(@PathVariable Long emprendedorId) {
         List<PagoEntity> pagos = pagoService.listarPagosPorEmprendedor(emprendedorId);
         List<PagoResponseDto> pagosDto = pagos.stream()
@@ -115,8 +128,72 @@ public class PagoController {
         return ResponseEntity.ok(pagosDto);
     }
 
+    private static final Map<String, String> PAGO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "monto", "monto",
+            "metodoPago", "metodoPago",
+            "estadoPago", "estadoPago",
+            "fechaPago", "fechaPago",
+            "fechaCreacion", "fechaCreacion"
+    );
+
+    @GetMapping("/emprendedor/{emprendedorId}/pendientes/paginado")
+    @Operation(summary = "Listar pagos pendientes de aprobación de un emprendedor paginados (contrato A-19)")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
+    public ResponseEntity<PageResponseDto<PagoResponseDto>> listarPagosPendientesPaginado(
+            @PathVariable Long emprendedorId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, PAGO_SORT_FIELDS);
+        Page<PagoEntity> pagos = pagoService.listarPagosPendientesPorEmprendedorPaginado(emprendedorId, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(pagos, pagoMapper::toDto));
+    }
+
+    @GetMapping("/emprendedor/{emprendedorId}/paginado")
+    @Operation(summary = "Listar todos los pagos de un emprendedor paginados (contrato A-19)")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
+    public ResponseEntity<PageResponseDto<PagoResponseDto>> listarPagosPorEmprendedorPaginado(
+            @PathVariable Long emprendedorId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort) {
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, PAGO_SORT_FIELDS);
+        Page<PagoEntity> pagos = pagoService.listarPagosPorEmprendedorPaginado(emprendedorId, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(pagos, pagoMapper::toDto));
+    }
+
+    @GetMapping("/estado/{estado}/paginado")
+    @Operation(summary = "Listar pagos por estado paginados (contrato A-19)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<PageResponseDto<PagoResponseDto>> listarPagosPorEstadoPaginado(
+            @PathVariable String estado,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort) {
+        PagoEntity.EstadoPago estadoPago;
+        try {
+            estadoPago = PagoEntity.EstadoPago.valueOf(estado.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, PAGO_SORT_FIELDS);
+        Page<PagoEntity> pagos = pagoService.listarPagosPorEstadoPaginado(estadoPago, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(pagos, pagoMapper::toDto));
+    }
+
     @GetMapping("/estado/{estado}")
     @Operation(summary = "Listar pagos por estado (PENDIENTE, PROCESANDO, APROBADO, RECHAZADO)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<PagoResponseDto>> listarPagosPorEstado(@PathVariable String estado) {
         PagoEntity.EstadoPago estadoPago;
         try {

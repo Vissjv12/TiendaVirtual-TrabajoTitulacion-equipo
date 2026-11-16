@@ -4,9 +4,9 @@ services:
     container_name: mysql-feria-digital
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-admin}
-      MYSQL_USER: ${MYSQL_USER:-admin}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-admin}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD debe definirse en .env}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER debe definirse en .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD debe definirse en .env}
       TZ: America/Guayaquil
     ports:
       - '3306:3306'
@@ -32,7 +32,7 @@ services:
           'localhost',
           '-u',
           'root',
-          '-p${MYSQL_ROOT_PASSWORD:-admin}',
+          '-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD debe definirse en .env}',
         ]
       interval: 10s
       timeout: 5s

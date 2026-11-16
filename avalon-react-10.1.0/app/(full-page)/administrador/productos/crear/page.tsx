@@ -100,6 +100,10 @@ const CrearProductoPage: React.FC = () => {
             newErrors.descripcion = 'La descripción es obligatoria';
         }
 
+        if (!formData.precio || formData.precio <= 0) {
+            newErrors.precio = 'El precio debe ser mayor a 0';
+        }
+
         if (!formData.categoriaId || formData.categoriaId === 0) {
             newErrors.categoriaId = 'Debe seleccionar una categoría';
         }
@@ -138,7 +142,7 @@ const CrearProductoPage: React.FC = () => {
                 
                 // Redirigir después de un breve delay
                 setTimeout(() => {
-                    router.push('/emprendedor/productos');
+                    router.push('/administrador/productos');
                 }, 1500);
             } else {
                 toast.current?.show({
@@ -204,7 +208,7 @@ const CrearProductoPage: React.FC = () => {
                         label="Volver" 
                         icon="pi pi-arrow-left" 
                         className="p-button-outlined"
-                        onClick={() => router.push('/emprendedor/productos')}
+                        onClick={() => router.push('/administrador/productos')}
                     />
                 </div>
             </div>
@@ -241,6 +245,7 @@ const CrearProductoPage: React.FC = () => {
                                     mode="currency"
                                     currency="USD"
                                     locale="en-US"
+                                    min={0.01}
                                     placeholder="0.00"
                                     className={`w-full ${errors.precio ? 'p-invalid' : ''}`}
                                 />
@@ -406,7 +411,7 @@ const CrearProductoPage: React.FC = () => {
                     label="Cancelar" 
                     icon="pi pi-times" 
                     className="p-button-outlined"
-                    onClick={() => router.push('/emprendedor/productos')}
+                    onClick={() => router.push('/administrador/productos')}
                     disabled={loading}
                 />
                 <Button 

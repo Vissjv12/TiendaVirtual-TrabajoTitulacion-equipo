@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { RadioButton } from 'primereact/radiobutton';
 import { Divider } from 'primereact/divider';
@@ -23,19 +23,29 @@ export interface PaymentMethodData {
 }
 
 interface PaymentMethodSelectorProps {
+    selectedMethod?: PaymentMethod;
     onMethodChange: (method: PaymentMethod) => void;
     onPaymentDataChange: (data: PaymentMethodData) => void;
     primaryColor?: string;
+    /** Métodos no disponibles para este carrito, con el motivo que se muestra al comprador. */
+    disabledMethods?: Partial<Record<PaymentMethod, string>>;
 }
 
 const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
+    selectedMethod: controlledMethod = 'transferencia',
     onMethodChange,
     onPaymentDataChange,
-    primaryColor = 'var(--primary-color)'
+    primaryColor = 'var(--primary-color)',
+    disabledMethods = {}
 }) => {
-    const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('transferencia');
+    const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(controlledMethod);
+
+    useEffect(() => {
+        setSelectedMethod(controlledMethod);
+    }, [controlledMethod]);
 
     const handleMethodChange = (method: PaymentMethod) => {
+        if (disabledMethods[method]) return;
         setSelectedMethod(method);
         onMethodChange(method);
         onPaymentDataChange({ method });
@@ -100,14 +110,20 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                 <Divider />
 
                 <div className="grid">
-                    {paymentOptions.map((option) => (
+                    {paymentOptions.map((option) => {
+                        const disabledReason = disabledMethods[option.value];
+                        const isDisabled = Boolean(disabledReason);
+                        return (
                         <div key={option.value} className="col-12">
                             <div
-                                className={`p-4 border-round-lg cursor-pointer transition-all transition-duration-200 ${
-                                    selectedMethod === option.value
-                                        ? 'shadow-4'
-                                        : 'shadow-2 hover:shadow-3'
+                                className={`p-4 border-round-lg transition-all transition-duration-200 ${
+                                    isDisabled
+                                        ? 'cursor-auto opacity-60'
+                                        : selectedMethod === option.value
+                                            ? 'cursor-pointer shadow-4'
+                                            : 'cursor-pointer shadow-2 hover:shadow-3'
                                 }`}
+                                aria-disabled={isDisabled}
                                 style={{
                                     backgroundColor: selectedMethod === option.value 
                                         ? `${option.color}10` 
@@ -127,13 +143,14 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                                         value={option.value}
                                         onChange={(e) => handleMethodChange(e.value)}
                                         checked={selectedMethod === option.value}
+                                        disabled={isDisabled}
                                         style={{
                                             accentColor: option.color
                                         }}
                                     />
                                     <label
                                         htmlFor={option.value}
-                                        className="ml-3 cursor-pointer flex-1"
+                                        className={`ml-3 flex-1 ${isDisabled ? 'cursor-auto' : 'cursor-pointer'}`}
                                     >
                                         <div className="flex align-items-center justify-content-between">
                                             <div className="flex align-items-center">
@@ -162,6 +179,12 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                                                     <div className="text-sm text-600">
                                                         {option.description}
                                                     </div>
+                                                    {isDisabled && (
+                                                        <div className="text-sm mt-1 text-orange-600">
+                                                            <i className="pi pi-lock mr-1 text-xs"></i>
+                                                            No disponible: {disabledReason}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             {selectedMethod === option.value && (
@@ -175,7 +198,8 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </Card>

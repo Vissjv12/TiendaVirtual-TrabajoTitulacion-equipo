@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Badge } from 'primereact/badge';
@@ -12,8 +12,10 @@ import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { InputText } from 'primereact/inputtext';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
+import { toApiSortParam } from '../../../../services/apiConfig';
 import ventasService, { VentaResponse } from '../../../../services/ventasService';
 import authService from '../../../../services/authService';
+import { exportVentasToCsv, fetchAllPaginatedRecords } from '../../../../services/csvExport';
 
 const VentasPage: React.FC = () => {
     const router = useRouter();
@@ -21,19 +23,28 @@ const VentasPage: React.FC = () => {
 
     // Estados principales
     const [ventas, setVentas] = useState<VentaResponse[]>([]);
-    const [ventasFiltradas, setVentasFiltradas] = useState<VentaResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('fechaVenta');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(-1);
     const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+    const [exporting, setExporting] = useState<boolean>(false);
 
     const primaryColor = 'var(--primary-color)';
 
-    // Cargar datos iniciales
     useEffect(() => {
-        cargarVentas();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    const cargarVentas = async () => {
+    const cargarVentas = useCallback(async () => {
         setLoading(true);
         try {
             const userInfo = authService.getUserInfo();
@@ -42,7 +53,7 @@ const VentasPage: React.FC = () => {
             if (!emprendedorId) {
                 console.warn('⚠️ No se encontró empresaId del emprendedor');
                 setVentas([]);
-                setVentasFiltradas([]);
+                setTotalRecords(0);
                 toast.current?.show({
                     severity: 'warn',
                     summary: 'Atención',
@@ -52,13 +63,18 @@ const VentasPage: React.FC = () => {
                 return;
             }
 
-            console.log('🔄 Cargando ventas para emprendedor:', emprendedorId);
-            const response = await ventasService.listarVentasPorEmprendedor(emprendedorId);
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaVenta,desc');
+            const response = await ventasService.listarVentasPorEmprendedorPaginado(emprendedorId, {
+                page,
+                size: rows,
+                sort,
+                q: debouncedSearch.trim() || undefined
+            });
 
             if (response.success && response.data) {
-                console.log('✅ Ventas cargadas:', response.data);
-                setVentas(response.data);
-                setVentasFiltradas(response.data);
+                setVentas(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 console.error('❌ Error cargando ventas:', response.message);
                 toast.current?.show({
@@ -79,28 +95,27 @@ const VentasPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [first, rows, sortField, sortOrder, debouncedSearch]);
+
+    // Cargar datos iniciales y cambios de paginación
+    useEffect(() => {
+        cargarVentas();
+    }, [cargarVentas]);
 
     // Función de filtro
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
+        setSearchTerm(e.target.value);
+    };
 
-        if (!value.trim()) {
-            setVentasFiltradas(ventas);
-            return;
-        }
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
 
-        const filtered = ventas.filter(
-            (venta) =>
-                venta.numeroFactura?.toLowerCase().includes(value) ||
-                venta.cliente?.nombre?.toLowerCase().includes(value) ||
-                venta.cliente?.apellido?.toLowerCase().includes(value) ||
-                venta.cliente?.email?.toLowerCase().includes(value) ||
-                ventasService.formatearEstado(venta.estado)?.toLowerCase().includes(value)
-        );
-
-        setVentasFiltradas(filtered);
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'fechaVenta');
+        setSortOrder((event.sortOrder === 1 ? 1 : -1) as 1 | -1);
     };
 
     // Completar venta con manejo de errores mejorado
@@ -128,6 +143,7 @@ const VentasPage: React.FC = () => {
                     detail: 'Venta completada exitosamente',
                     life: 3000
                 });
+                window.dispatchEvent(new Event('pagosUpdated'));
                 await cargarVentas(); // Recargar datos
             } else {
                 console.error('❌ Error completando venta:', response.message);
@@ -193,6 +209,7 @@ const VentasPage: React.FC = () => {
                     detail: 'Venta cancelada exitosamente',
                     life: 3000
                 });
+                window.dispatchEvent(new Event('pagosUpdated'));
                 await cargarVentas(); // Recargar datos
             } else {
                 console.error('❌ Error cancelando venta:', response.message);
@@ -277,6 +294,71 @@ const VentasPage: React.FC = () => {
         );
     };
 
+    const exportarVentas = async () => {
+        const userInfo = authService.getUserInfo();
+        const emprendedorId = userInfo?.empresaId;
+        if (!emprendedorId) {
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Atención',
+                detail: 'No se pudo identificar tu empresa para exportar ventas',
+                life: 4000
+            });
+            return;
+        }
+
+        setExporting(true);
+        try {
+            const sort = toApiSortParam(sortField, sortOrder, 'fechaVenta,desc');
+            const result = await fetchAllPaginatedRecords((page, size) =>
+                ventasService.listarVentasPorEmprendedorPaginado(emprendedorId, {
+                    page,
+                    size,
+                    sort,
+                    q: debouncedSearch.trim() || undefined
+                })
+            );
+
+            if (!result.success) {
+                toast.current?.show({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: result.message || 'No se pudieron obtener las ventas para exportar',
+                    life: 4000
+                });
+                return;
+            }
+
+            if (result.items.length === 0) {
+                toast.current?.show({
+                    severity: 'info',
+                    summary: 'Sin datos',
+                    detail: 'No hay ventas que coincidan con el filtro actual para exportar',
+                    life: 3000
+                });
+                return;
+            }
+
+            const filename = exportVentasToCsv(result.items, 'ventas_emprendedor');
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Exportación completada',
+                detail: `Se exportaron ${result.items.length} ventas a ${filename}`,
+                life: 3500
+            });
+        } catch (error) {
+            console.error('❌ Error exportando ventas:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Ocurrió un error al generar el archivo CSV',
+                life: 4000
+            });
+        } finally {
+            setExporting(false);
+        }
+    };
+
     // Toolbar del listado
     const leftToolbarTemplate = () => {
         return (
@@ -286,24 +368,18 @@ const VentasPage: React.FC = () => {
                     icon="pi pi-refresh"
                     className="p-button-outlined"
                     onClick={cargarVentas}
-                    disabled={loading}
+                    disabled={loading || exporting}
                     style={{
                         borderColor: primaryColor,
                         color: primaryColor
                     }}
                 />
                 <Button
-                    label="Exportar"
-                    icon="pi pi-download"
+                    label={exporting ? 'Exportando...' : 'Exportar CSV'}
+                    icon={exporting ? 'pi pi-spin pi-spinner' : 'pi pi-download'}
                     className="p-button-help"
-                    onClick={() =>
-                        toast.current?.show({
-                            severity: 'info',
-                            summary: 'En desarrollo',
-                            detail: 'Función de exportación próximamente',
-                            life: 3000
-                        })
-                    }
+                    onClick={exportarVentas}
+                    disabled={loading || exporting}
                 />
             </div>
         );
@@ -415,24 +491,30 @@ const VentasPage: React.FC = () => {
             <Card>
                 <Toolbar className="mb-4" left={leftToolbarTemplate} right={rightToolbarTemplate} />
 
-                {loading ? (
+                {loading && ventas.length === 0 ? (
                     renderSkeleton()
                 ) : (
                     <DataTable
-                        value={ventasFiltradas}
+                        value={ventas}
+                        lazy
+                        loading={loading}
                         paginator
-                        rows={10}
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
                         emptyMessage="No se encontraron ventas"
                         responsiveLayout="scroll"
                         className="p-datatable-sm"
                         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                         currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} ventas"
-                        sortField="fechaVenta"
-                        sortOrder={-1}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                     >
                         <Column field="numeroFactura" header="N° Factura" body={numeroFacturaBodyTemplate} sortable />
-                        <Column field="cliente.nombre" header="Cliente" body={clienteBodyTemplate} sortable />
+                        <Column field="cliente.nombre" header="Cliente" body={clienteBodyTemplate} />
                         <Column field="total" header="Total" body={totalBodyTemplate} sortable />
                         <Column field="estado" header="Estado" body={estadoBodyTemplate} sortable />
                         <Column field="fechaVenta" header="Fecha" body={fechaBodyTemplate} sortable />

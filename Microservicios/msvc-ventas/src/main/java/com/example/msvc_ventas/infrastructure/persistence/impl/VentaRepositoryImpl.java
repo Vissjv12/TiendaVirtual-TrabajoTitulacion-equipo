@@ -6,6 +6,8 @@ import com.example.msvc_ventas.infrastructure.persistence.entity.VentaEntity;
 import com.example.msvc_ventas.infrastructure.persistence.mapper.VentaEntityMapper;
 import com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -57,5 +59,24 @@ public class VentaRepositoryImpl implements VentaRepository {
         return jpaRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Venta> findPaginado(
+            String q,
+            Long emprendedorId,
+            Long clienteId,
+            Venta.EstadoVenta estado,
+            Pageable pageable) {
+        VentaEntity.EstadoVenta entityEstado = estado == null
+                ? null
+                : VentaEntity.EstadoVenta.valueOf(estado.name());
+        return jpaRepository.findPaginado(
+                        q == null ? "" : q.trim(),
+                        emprendedorId,
+                        clienteId,
+                        entityEstado,
+                        pageable)
+                .map(mapper::toDomain);
     }
 }

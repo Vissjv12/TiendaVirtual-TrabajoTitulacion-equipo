@@ -1,0 +1,157 @@
+# Registro Técnico y Evidencias — Etapa 4: API Gateway (A-11 a A-14)
+
+- **Etapa del cronograma:** `Etapa 4 — API Gateway`
+- **Actividades cubiertas:** `A-11`, `A-12`, `A-13` y `A-14`
+- **Ramas asociadas:**
+  - `feature/a11-diseno-gateway`
+  - `feature/a12-implementacion-gateway`
+  - `feature/a13-frontend-gateway`
+  - `feature/a14-validacion-gateway`
+- **Observaciones de auditoría cerradas:** `O-11` (Ausencia de API Gateway centralizado), `O-13` (Políticas CORS dispersas/duplicadas) y `O-06` (Alineación de ruta Deuna QR)
+- **Riesgos mitigados:** `R-01` (Prevención de agotamiento de memoria RAM en servidor municipal de 3.6 GB mediante contenedor NGINX ultraligero de `~20 MB` RAM)
+
+---
+
+## 1. Resumen de Implementación por Actividad
+
+| Actividad | Rama | Archivos Principales | Estado |
+|---|---|---|---|
+| **A-11: Diseñar estrategia del Gateway** | `feature/a11-diseno-gateway` | `Documentos_Jordy/A11-ESTRATEGIA-Y-DISENO-GATEWAY.md` | Completada |
+| **A-12: Implementar Gateway en pruebas** | `feature/a12-implementacion-gateway` | `gateway/nginx.conf`<br>`gateway/snippets/proxy-params.conf`<br>`gateway/snippets/cors-headers.conf`<br>`docker-compose.gateway.yml`<br>`.env.example` | Completada |
+| **A-13: Migrar frontend al Gateway** | `feature/a13-frontend-gateway` | `avalon-react-10.1.0/services/apiConfig.ts`<br>12 servicios en `avalon-react-10.1.0/services/*.ts`<br>`next.config.js`, `app/api/payphone/confirm/route.ts`<br>`configuracion-pagos/page.tsx`, `PayphoneForm.tsx`, `DeunaForm.tsx`, `historial-compras/page.tsx` | Completada |
+| **A-14: Validar seguridad, CORS y disponibilidad** | `feature/a14-validacion-gateway` | `Documentos_Jordy/pruebas-gateway-a14.ps1`<br>`Documentos_Jordy/REGISTRO-ETAPA-4-GATEWAY-A11-A14.md`<br>`Documentos_Jordy/GUIA-LEVANTAMIENTO-SISTEMA.md`<br>`Microservicios/demo/.../GlobalExceptionHandler.java` | Completada (`43/43 OK`) |
+
+---
+
+## 2. Hallazgos y Correcciones Aplicadas durante la Validación (A-14)
+
+1. **Mapeo de `AccessDeniedException` a `403 Forbidden` en `auth-service` (`demo`):**
+   - Durante la corrida de la matriz de roles a través del Gateway, se detectó que cuando un usuario autenticado con rol `ROLE_CLI` invocaba `GET /api/usuarios` (protegido con `@PreAuthorize("hasRole('ADMIN')")`), `GlobalExceptionHandler` en `demo` capturaba `AccessDeniedException` dentro del manejador genérico `Exception.class` y devolvía `500 Internal Server Error` en lugar de `403 Forbidden`.
+   - Se añadió `@ExceptionHandler(AccessDeniedException.class)` en `Microservicios/demo/src/main/java/com/example/demo/presentation/controller/GlobalExceptionHandler.java` homologándolo con `msvc-producto` y `msvc-inventario` (`A-06`), devolviendo `403 Forbidden` con cuerpo JSON uniforme.
+2. **Deduplicación de Cabeceras CORS (`O-13`):**
+   - Se comprobó que al ocultar las cabeceras `Access-Control-Allow-*` provenientes de los microservicios (`proxy_hide_header` en `gateway/snippets/proxy-params.conf`) e inyectar la política única en NGINX, las respuestas `GET`, `POST`, `PUT`, `DELETE` y `OPTIONS` incluyen una única cabecera `Access-Control-Allow-Origin: http://localhost:3000`.
+3. **Comportamiento ante Caída de Microservicios (`502 Bad Gateway` en JSON):**
+   - Con los microservicios detenidos, el Gateway responde `502 Bad Gateway` con payload JSON `{"code":"SERVICE_UNAVAILABLE","message":"El servicio solicitado no se encuentra disponible temporalmente (Bad Gateway)","status":502}` y cabeceras CORS activas, evitando páginas HTML por defecto de NGINX.
+
+---
+
+## 3. Evidencia de Ejecución Automatizada (`pruebas-gateway-a14.ps1`)
+
+Comando ejecutado:
+
+```powershell
+.\Documentos_Jordy\pruebas-gateway-a14.ps1
+```
+
+Resultado obtenido (`43` éxitos, `0` fallos):
+
+```text
+============================================================================
+ VALIDACION DE API GATEWAY (A-14) -> http://localhost:8080
+============================================================================
+
+== 1. Salud y Disponibilidad del API Gateway ==
+[OK]    GET /health (Gateway NGINX)                                      esperado=200      obtenido=200
+[OK]    GET /api/health (Gateway NGINX)                                  esperado=200      obtenido=200
+[OK]    Payload JSON de /health valido (status=UP, engine=nginx)
+
+== 2. Politica CORS Centralizada y Preflight OPTIONS (O-13) ==
+[OK]    OPTIONS /api/productos (Preflight CORS)                          esperado=204      obtenido=204
+[OK]    Cabeceras CORS en OPTIONS correctas (Origin=http://localhost:3000, Credentials=true)
+[OK]    GET /api/categorias con Origin (Deduplicacion CORS)              esperado=200      obtenido=200
+[OK]    Sin duplicacion de Access-Control-Allow-Origin (http://localhost:3000)
+
+== 3. Bloqueo de Rutas Internas y Errores Perimetrales JSON ==
+[OK]    PUT /api/productos/1/sincronizar-stock (Bloqueado 403)           esperado=403      obtenido=403
+[OK]    GET /actuator/health (Bloqueado 403)                             esperado=403      obtenido=403
+[OK]    GET /api/ruta-inexistente-a14 (No existe 404 JSON)               esperado=404      obtenido=404
+
+== 4. Enrutamiento Norte-Sur Publico hacia los 4 Microservicios ==
+[OK]    GET /api/productos/listado (msvc-producto)                       esperado=200      obtenido=200
+[OK]    GET /api/productos/1 (msvc-producto)                             esperado=200      obtenido=200
+[OK]    GET /api/categorias (msvc-producto)                              esperado=200      obtenido=200
+[OK]    GET /api/empresas (msvc-producto)                                esperado=200      obtenido=200
+[OK]    GET /api/inventarios/producto/1 (msvc-inventario)                esperado=200      obtenido=200
+[OK]    POST /api/inventarios/cantidad/batch (msvc-inventario)           esperado=200      obtenido=200
+[OK]    GET /api/ventas (msvc-ventas)                                    esperado=200      obtenido=200
+[OK]    GET /api/emprendedor/configuracion-pagos/costo-envio/1 (auth)    esperado=200      obtenido=200
+[OK]    GET /api/emprendedor/deuna-qr/1 (alias O-06 -> auth)             esperado=200/404  obtenido=404
+
+== 5. Consistencia de Stock via Gateway (Productos vs Inventario) ==
+[OK]    Stock consistente via Gateway: productos=78 inventarios=39 diferencias=0
+
+== 6. Rechazo de Escrituras y Rutas Protegidas sin Token (401) ==
+[OK]    POST /api/productos sin token                                    esperado=401      obtenido=401
+[OK]    PUT /api/productos/999999 sin token                              esperado=401      obtenido=401
+[OK]    DELETE /api/productos/999999 sin token                           esperado=401      obtenido=401
+[OK]    POST /api/inventarios sin token                                  esperado=401      obtenido=401
+[OK]    PUT /api/inventarios/999999 sin token                            esperado=401      obtenido=401
+[OK]    PUT /api/inventarios/producto/999999/stock sin token             esperado=401      obtenido=401
+[OK]    DELETE /api/inventarios/999999 sin token                         esperado=401      obtenido=401
+[OK]    GET /api/usuarios sin token (auth-service)                       esperado=401      obtenido=401
+[OK]    GET /api/emprendedor/configuracion-pagos sin token (auth)        esperado=401      obtenido=401
+[OK]    POST /api/inventarios/salida-lote sin token (inventario)         esperado=401      obtenido=401
+[OK]    PUT /api/productos/999999 con token invalido                     esperado=401      obtenido=401
+
+== 7. Autenticacion y Autorizacion por Rol via Gateway (JWT Propagation) ==
+
+-- 7.1 Rol insuficiente: cliente1 (403) --
+[OK]    POST /api/productos con rol CLIENTE                              esperado=403      obtenido=403
+[OK]    PUT /api/productos/1 con rol CLIENTE                             esperado=403      obtenido=403
+[OK]    DELETE /api/productos/999999 con rol CLIENTE                     esperado=403      obtenido=403
+[OK]    PUT /api/inventarios/999999 con rol CLIENTE                      esperado=403      obtenido=403
+[OK]    DELETE /api/inventarios/999999 con rol CLIENTE                   esperado=403      obtenido=403
+[OK]    GET /api/usuarios con rol CLIENTE                                esperado=403      obtenido=403
+
+-- 7.2 Aislamiento multi-empresa: sigcholac (empresa 2) sobre empresa 1 (403) --
+[OK]    POST producto en empresa ajena 1                                 esperado=403      obtenido=403
+[OK]    PUT producto ajeno 1                                             esperado=403      obtenido=403
+[OK]    DELETE producto ajeno 1                                          esperado=403      obtenido=403
+
+-- 7.3 Rol ADMIN via Gateway (200 / 404 controlado) --
+[OK]    GET /api/usuarios/estadisticas con ADMIN                         esperado=200      obtenido=200
+[OK]    GET /api/ventas con ADMIN                                        esperado=200      obtenido=200
+[OK]    PUT /api/productos/999999 (inexistente -> 404)                   esperado=404      obtenido=404
+
+============================================================================
+ RESUMEN A-14: Exitos=43 | Fallos=0
+============================================================================
+```
+
+## 4. Evidencia reproducida en el entorno local del proyecto
+
+La matriz se ejecutó nuevamente usando el puerto configurado para este equipo:
+
+```powershell
+.\Documentos_Jordy\pruebas-gateway-a14.ps1 -Gateway http://127.0.0.1:8090
+```
+
+La primera ejecución fue parcial porque Auth todavía no estaba disponible y devolvió `502` en dos rutas que dependen de ese microservicio. Después de reiniciar únicamente Auth y repetir la matriz, el resultado fue:
+
+```text
+RESUMEN A-14: Exitos=43 | Fallos=0
+```
+
+La ejecución final confirmó:
+
+- Salud del Gateway y CORS centralizado correctos.
+- Enrutamiento hacia Auth, Productos, Inventario y Ventas correcto.
+- Respuestas `401` sin token y `403` para el rol `CLIENTE` correctas.
+- Corrección del caso `cliente1 -> GET /api/usuarios`: ahora responde `403`.
+- Aislamiento de `sigcholac` frente a productos de otra empresa.
+- Acceso administrativo válido para `admin`.
+- Stock consistente: `39` productos, `39` inventarios y `0` diferencias.
+
+La ejecución parcial se conserva como evidencia de disponibilidad incompleta; la ejecución `43/43` es la evidencia válida para el cierre funcional de A-14.
+
+## 5. Aclaración de despliegue: Gateway local frente a producción
+
+`docker-compose.gateway.yml` levanta únicamente un contenedor NGINX llamado `gateway-feria-digital`. No levanta Auth, Productos, Inventario, Ventas, Eureka ni MySQL. Su función es ofrecer un punto de entrada único y reenviar las rutas hacia los servicios que escuchan en los puertos `8081`, `8082`, `8083` y `8084` del host.
+
+En el entorno local, el Compose permite validar el Gateway en `http://127.0.0.1:8090` o en el puerto configurado por `GATEWAY_PORT`. La configuración usa `host.docker.internal` y `extra_hosts` para que el contenedor alcance los microservicios ejecutados directamente en el equipo.
+
+La documentación de despliegue del servidor registra otra arquitectura: los microservicios se ejecutan como servicios `systemd`, MySQL es nativo y NGINX del sistema atiende HTTPS/SSL. Bajo esa arquitectura no es necesario instalar Docker solo para publicar cambios de Java o frontend, ni ejecutar `docker-compose.gateway.yml`. El NGINX nativo cumple el papel de reverse proxy/gateway y debe conservar reglas equivalentes de enrutamiento, CORS, SSL y bloqueo perimetral.
+
+Docker solo sería necesario en producción si el equipo decide adoptar explícitamente el Gateway contenedorizado. En ese caso habría que instalar Docker Compose, adaptar los upstream a la red real del servidor, evitar conflictos con el NGINX/SSL existente, definir reinicio y logs, y validar firewall, healthcheck y rutas antes del cambio. No es una consecuencia automática de esta rama.
+
+**Conclusión:** para el servidor actual, primero se debe confirmar la configuración activa de `/etc/nginx` y los servicios `systemd`; no se debe instalar Docker ni reemplazar el reverse proxy de producción sin una decisión de infraestructura separada.

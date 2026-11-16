@@ -12,6 +12,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
 import { Skeleton } from 'primereact/skeleton';
 import categoriasEmpresasService, { EmpresaRequest, Empresa } from '../../../../../../services/categoriasEmpresasService';
+import authService from '../../../../../../services/authService';
 
 const EditarEmpresaPage: React.FC = () => {
     const router = useRouter();
@@ -37,6 +38,16 @@ const EditarEmpresaPage: React.FC = () => {
     // Cargar datos de la empresa
     useEffect(() => {
         if (empresaId) {
+            if (!authService.canManageEmpresa(empresaId)) {
+                toast.current?.show({
+                    severity: 'warn',
+                    summary: 'Acceso denegado (403)',
+                    detail: 'No tienes permisos para editar los datos de otra empresa.',
+                    life: 3500
+                });
+                setTimeout(() => router.push('/emprendedor/empresas'), 1500);
+                return;
+            }
             cargarEmpresa();
         }
     }, [empresaId]);
@@ -95,12 +106,7 @@ const EditarEmpresaPage: React.FC = () => {
             newErrors.nombre = 'El nombre no puede exceder 100 caracteres';
         }
 
-        // Validar RUC
-        if (!formData.ruc.trim()) {
-            newErrors.ruc = 'El RUC es obligatorio';
-        } else if (!/^[0-9]{13}$/.test(formData.ruc)) {
-            newErrors.ruc = 'El RUC debe tener exactamente 13 dígitos numéricos';
-        }
+        // El RUC y el estado son datos administrativos de solo lectura para el emprendedor (A-02)
 
         // Validar dirección (opcional)
         if (formData.direccion && formData.direccion.length > 200) {
@@ -142,15 +148,6 @@ const EditarEmpresaPage: React.FC = () => {
         }
     };
 
-    // Formatear RUC mientras se escribe
-    const handleRucChange = (value: string) => {
-        // Solo permitir números
-        const cleanValue = value.replace(/\D/g, '');
-        // Limitar a 13 dígitos
-        const limitedValue = cleanValue.slice(0, 13);
-        handleInputChange('ruc', limitedValue);
-    };
-
     // Formatear teléfono mientras se escribe
     const handleTelefonoChange = (value: string) => {
         // Solo permitir números
@@ -176,8 +173,13 @@ const EditarEmpresaPage: React.FC = () => {
 
         setLoading(true);
         try {
-            console.log('📤 Actualizando empresa:', formData);
-            const response = await categoriasEmpresasService.actualizarEmpresa(empresaId, formData);
+            // Solo se envían nombre y contacto; el RUC y el estado los gestiona el administrador (A-02)
+            const response = await categoriasEmpresasService.actualizarDatosContactoEmpresa(empresaId, {
+                nombre: formData.nombre,
+                direccion: formData.direccion,
+                telefono: formData.telefono,
+                email: formData.email
+            });
 
             if (response.success) {
                 toast.current?.show({
@@ -319,21 +321,18 @@ const EditarEmpresaPage: React.FC = () => {
                                 {/* RUC */}
                                 <div className="col-12 md:col-6">
                                     <label htmlFor="ruc" className="block text-900 font-medium mb-2">
-                                        RUC <span className="text-red-500">*</span>
+                                        RUC
                                     </label>
                                     <InputText
                                         id="ruc"
                                         value={formData.ruc}
-                                        onChange={(e) => handleRucChange(e.target.value)}
-                                        placeholder="1234567890123"
-                                        className={`w-full ${errors.ruc ? 'p-invalid' : ''}`}
-                                        maxLength={13}
+                                        className="w-full"
+                                        disabled
+                                        readOnly
                                     />
-                                    {errors.ruc && (
-                                        <small className="p-error block mt-1">{errors.ruc}</small>
-                                    )}
                                     <small className="text-600 block mt-1">
-                                        {formData.ruc.length}/13 dígitos
+                                        <i className="pi pi-lock mr-1 text-xs"></i>
+                                        Solo el administrador puede modificar el RUC
                                     </small>
                                 </div>
 
@@ -411,14 +410,14 @@ const EditarEmpresaPage: React.FC = () => {
                                         <InputSwitch
                                             id="activo"
                                             checked={formData.activo || false}
-                                            onChange={(e) => handleInputChange('activo', e.value)}
+                                            disabled
                                         />
                                         <span className="text-600">
                                             {formData.activo ? 'Activo' : 'Inactivo'}
                                         </span>
                                     </div>
                                     <small className="text-600 block mt-1">
-                                        Las empresas inactivas no aparecerán como opción al crear productos
+                                        Solo el administrador puede activar o desactivar la empresa
                                     </small>
                                 </div>
                             </div>

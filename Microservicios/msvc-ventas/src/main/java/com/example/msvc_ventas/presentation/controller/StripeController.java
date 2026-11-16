@@ -1,34 +1,43 @@
 package com.example.msvc_ventas.presentation.controller;
 
 import com.example.msvc_ventas.application.dto.*;
-import com.example.msvc_ventas.application.mapper.PagoMapper;
-import com.example.msvc_ventas.domain.service.PagoService;
 import com.example.msvc_ventas.domain.service.StripeService;
-import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
 import com.stripe.model.PaymentIntent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Stripe: INACTIVO por decisión del proyecto, conservado para una evaluación futura.
+ *
+ * El controlador solo se registra con {@code stripe.enabled=true} (variable STRIPE_ENABLED, por defecto false).
+ * Deshabilitado, /api/stripe/** no existe: el servicio responde 401 sin token y 404 con token, y el Gateway
+ * ya no enruta /api/stripe. El pago con tarjeta oficial es PayPhone (PagoPasarelaService).
+ *
+ * Aunque se active la bandera, este controlador NO puede aprobar pagos ni completar ventas: confirm-payment
+ * responde 501 hasta integrarse con PagoPasarelaService (monto verificado, descuento de stock con credencial
+ * interna, idempotencia y factura tras commit). El webhook, que respondía 200 sin verificar la firma, se retiró.
+ */
 @RestController
 @RequestMapping("/api/stripe")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
+@ConditionalOnProperty(name = "stripe.enabled", havingValue = "true")
 public class StripeController {
 
     private final StripeService stripeService;
-    private final PagoService pagoService;
-    private final PagoMapper pagoMapper;
 
     /**
      * Crear PaymentIntent para procesar pago con tarjeta
      */
     @PostMapping("/create-payment-intent")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #request.ventaId)")
     public ResponseEntity<StripePaymentIntentResponseDto> crearPaymentIntent(
             @RequestBody StripePaymentIntentRequestDto request) {
         
@@ -63,66 +72,23 @@ public class StripeController {
     }
 
     /**
-     * Confirmar pago exitoso y crear registro en base de datos
+     * Confirmación de pago: deshabilitada hasta integrarse con PagoPasarelaService.
+     * El flujo anterior (procesarPagoTarjeta) completaba la venta sin descontar inventario y se eliminó.
      */
     @PostMapping("/confirm-payment")
-    public ResponseEntity<PagoResponseDto> confirmarPago(
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #request.ventaId)")
+    public ResponseEntity<Map<String, String>> confirmarPago(
             @RequestBody StripeConfirmPaymentDto request) {
-        
-        log.info("Confirmando pago para PaymentIntent: {}", request.getPaymentIntentId());
-        
-        try {
-            // Verificar estado del PaymentIntent en Stripe
-            PaymentIntent paymentIntent = stripeService.obtenerPaymentIntent(request.getPaymentIntentId());
-            
-            if (!"succeeded".equals(paymentIntent.getStatus())) {
-                throw new IllegalStateException("El pago no fue exitoso. Estado: " + paymentIntent.getStatus());
-            }
-
-            // Crear registro de pago en base de datos con estado APROBADO
-            PagoEntity pago = pagoService.procesarPagoTarjeta(
-                    request.getVentaId(),
-                    request.getPaymentIntentId(),
-                    null // comprobanteUrl no necesario para Stripe
-            );
-
-            PagoResponseDto response = pagoMapper.toDto(pago);
-            log.info("Pago confirmado exitosamente. Pago ID: {}", pago.getId());
-            
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Error al confirmar pago: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    /**
-     * Webhook de Stripe para eventos de pago
-     */
-    @PostMapping("/webhook")
-    public ResponseEntity<String> handleWebhook(
-            @RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String signature) {
-        
-        log.info("Webhook recibido de Stripe");
-        
-        try {
-            // Aquí puedes implementar la lógica del webhook si lo necesitas
-            // Por ejemplo, para manejar eventos de payment_intent.succeeded automáticamente
-            
-            return ResponseEntity.ok("Webhook procesado");
-            
-        } catch (Exception e) {
-            log.error("Error procesando webhook: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error procesando webhook");
-        }
+        log.warn("confirm-payment de Stripe invocado para la venta {}: no soportado", request.getVentaId());
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(Map.of(
+                "message", "La confirmación con Stripe no está disponible; el pago con tarjeta se procesa con PayPhone"));
     }
 
     /**
      * Obtener estado de un PaymentIntent
      */
     @GetMapping("/payment-intent/{paymentIntentId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> obtenerEstadoPago(
             @PathVariable String paymentIntentId) {
         

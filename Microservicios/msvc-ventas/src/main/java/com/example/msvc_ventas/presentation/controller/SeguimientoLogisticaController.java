@@ -1,7 +1,9 @@
 package com.example.msvc_ventas.presentation.controller;
 
 import com.example.msvc_ventas.application.dto.ActualizarSeguimientoDto;
+import com.example.msvc_ventas.application.dto.PageResponseDto;
 import com.example.msvc_ventas.application.dto.SeguimientoLogisticaDto;
+import com.example.msvc_ventas.application.util.PaginationUtils;
 import com.example.msvc_ventas.domain.model.SeguimientoLogistica;
 import com.example.msvc_ventas.domain.repository.VentaRepository;
 import com.example.msvc_ventas.domain.service.SeguimientoLogisticaService;
@@ -10,15 +12,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/seguimiento-logistica")
 @RequiredArgsConstructor
 @Slf4j
@@ -30,6 +36,7 @@ public class SeguimientoLogisticaController {
 
     @PostMapping
     @Operation(summary = "Crear una nueva actualización de seguimiento")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #dto.ventaId))")
     public ResponseEntity<?> crearSeguimiento(@Valid @RequestBody ActualizarSeguimientoDto dto) {
         log.info("Creando seguimiento para venta ID: {} con estado: {}", dto.getVentaId(), dto.getEstadoLogistica());
         
@@ -58,6 +65,7 @@ public class SeguimientoLogisticaController {
 
     @PutMapping
     @Operation(summary = "Actualizar el estado de seguimiento de un pedido")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @ventaAuthorizationService.canManageVenta(authentication, #dto.ventaId))")
     public ResponseEntity<?> actualizarSeguimiento(@Valid @RequestBody ActualizarSeguimientoDto dto) {
         log.info("Actualizando seguimiento para venta ID: {} a estado: {}", dto.getVentaId(), dto.getEstadoLogistica());
         
@@ -89,6 +97,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/venta/{ventaId}")
     @Operation(summary = "Obtener historial completo de seguimiento de una venta")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #ventaId)")
     public ResponseEntity<List<SeguimientoLogisticaDto>> obtenerHistorialPorVenta(@PathVariable Long ventaId) {
         log.info("Obteniendo historial de seguimiento para venta ID: {}", ventaId);
         
@@ -102,6 +111,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/venta/{ventaId}/ultimo")
     @Operation(summary = "Obtener el último estado de seguimiento de una venta")
+    @PreAuthorize("@ventaAuthorizationService.canViewVenta(authentication, #ventaId)")
     public ResponseEntity<?> obtenerUltimoEstado(@PathVariable Long ventaId) {
         log.info("Obteniendo último estado de seguimiento para venta ID: {}", ventaId);
         
@@ -115,8 +125,43 @@ public class SeguimientoLogisticaController {
         return ResponseEntity.ok(toDto(seguimiento));
     }
 
+    private static final Map<String, String> SEGUIMIENTO_SORT_FIELDS = Map.of(
+            "id", "id",
+            "ventaId", "ventaId",
+            "estadoLogistica", "estadoLogistica",
+            "fechaActualizacion", "fechaActualizacion",
+            "fechaCreacion", "fechaCreacion"
+    );
+
+    @GetMapping("/emprendedor/{emprendedorId}/paginado")
+    @Operation(summary = "Obtener seguimientos de un emprendedor paginados (contrato A-19)")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
+    public ResponseEntity<?> obtenerSeguimientosPorEmprendedorPaginado(
+            @PathVariable Long emprendedorId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "fechaCreacion,desc") String sort,
+            @RequestParam(required = false) String estado) {
+        SeguimientoLogistica.EstadoLogistica estadoEnum = null;
+        if (estado != null && !estado.isBlank()) {
+            try {
+                estadoEnum = SeguimientoLogistica.EstadoLogistica.valueOf(estado.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Estado logístico inválido: " + estado);
+            }
+        }
+        Pageable pageable = PaginationUtils.createPageable(
+                page, size, sort,
+                PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
+                "fechaCreacion", Sort.Direction.DESC, SEGUIMIENTO_SORT_FIELDS);
+        Page<SeguimientoLogistica> result = seguimientoService.obtenerSeguimientosPorEmprendedorPaginado(
+                emprendedorId, estadoEnum, pageable);
+        return ResponseEntity.ok(PageResponseDto.fromPage(result, this::toDto));
+    }
+
     @GetMapping("/emprendedor/{emprendedorId}")
     @Operation(summary = "Obtener todos los seguimientos de un emprendedor")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<List<SeguimientoLogisticaDto>> obtenerSeguimientosPorEmprendedor(@PathVariable Long emprendedorId) {
         log.info("Obteniendo seguimientos del emprendedor ID: {}", emprendedorId);
         
@@ -130,6 +175,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/emprendedor/{emprendedorId}/estado/{estado}")
     @Operation(summary = "Obtener seguimientos de un emprendedor en un estado específico")
+    @PreAuthorize("@ventaAuthorizationService.canManageCompany(authentication, #emprendedorId)")
     public ResponseEntity<?> obtenerSeguimientosPorEmprendedorYEstado(
             @PathVariable Long emprendedorId,
             @PathVariable String estado) {
@@ -151,6 +197,7 @@ public class SeguimientoLogisticaController {
 
     @GetMapping("/estados")
     @Operation(summary = "Obtener lista de todos los estados logísticos disponibles")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EstadoInfo>> obtenerEstadosDisponibles() {
         log.info("Obteniendo lista de estados logísticos disponibles");
         

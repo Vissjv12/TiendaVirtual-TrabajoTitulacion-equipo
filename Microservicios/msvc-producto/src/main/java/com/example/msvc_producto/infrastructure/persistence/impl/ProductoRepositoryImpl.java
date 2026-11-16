@@ -7,6 +7,8 @@ import com.example.msvc_producto.infrastructure.persistence.entity.ProductoEntit
 import com.example.msvc_producto.infrastructure.persistence.mapper.ProductoEntityMapper;
 import com.example.msvc_producto.infrastructure.persistence.repository.ProductoJpaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -45,6 +47,11 @@ public class ProductoRepositoryImpl implements ProductoRepository {
     }
 
     @Override
+    public List<Long> findIdsByEmpresaId(Long empresaId) {
+        return jpaRepository.findIdsByEmpresaId(empresaId);
+    }
+
+    @Override
     public List<Producto> findByEmpresaId(Long empresaId) {
         return jpaRepository.findByEmpresaId(empresaId).stream()
                 .map(mapper::toDomain)
@@ -80,5 +87,35 @@ public class ProductoRepositoryImpl implements ProductoRepository {
                         ((Number) row[7]).longValue()    // empresaId (índice 7)
                 ))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ProductoListadoDto> findListadoPaginado(
+            String q,
+            String categoria,
+            String empresa,
+            Pageable pageable) {
+        return jpaRepository.findListadoPaginado(q, categoria, empresa, pageable)
+                .map(entity -> new ProductoListadoDto(
+                        entity.getId(),
+                        entity.getNombre(),
+                        entity.getDescripcion(),
+                        entity.getPrecio() != null ? entity.getPrecio().doubleValue() : 0.0,
+                        entity.getImagen(),
+                        entity.getCategoria() != null ? entity.getCategoria().getNombre() : null,
+                        entity.getEmpresa() != null ? entity.getEmpresa().getNombre() : null,
+                        entity.getEmpresa() != null ? entity.getEmpresa().getId() : null
+                ));
+    }
+
+    @Override
+    public Page<Producto> findPaginado(
+            String q,
+            Long empresaId,
+            Long categoriaId,
+            Boolean activo,
+            Pageable pageable) {
+        return jpaRepository.findPaginado(q, empresaId, categoriaId, activo, pageable)
+                .map(mapper::toDomain);
     }
 }

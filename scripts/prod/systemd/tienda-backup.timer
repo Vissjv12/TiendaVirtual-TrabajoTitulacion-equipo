@@ -1,0 +1,13 @@
+[Unit]
+Description=Tienda Virtual - respaldo diario de bases de datos (T01)
+
+[Timer]
+# Todos los días a las 02:30 (hora del servidor), con hasta 10 min de variación
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10min
+# Si el servidor estaba apagado a esa hora, ejecuta el respaldo al arrancar
+Persistent=true
+Unit=tienda-backup.service
+
+[Install]
+WantedBy=timers.target

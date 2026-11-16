@@ -43,12 +43,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/registro", "/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/google").permitAll()
                         .requestMatchers("/api/auth/recuperar-password/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                        // Endpoints públicos para clientes en el checkout
-                        .requestMatchers("/api/emprendedor/configuracion-pagos/payphone/*").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").hasAuthority("ROLE_ADMIN")
+                        // Endpoints públicos para clientes en el checkout y recursos de QR Deuna
+                        // Solo la disponibilidad (GET) y la notificación de Payphone son públicas;
+                        // preparar y confirmar exigen usuario autenticado (C-02 / A-03)
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/emprendedor/configuracion-pagos/payphone/notificacion").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/emprendedor/configuracion-pagos/payphone/*").permitAll()
                         .requestMatchers("/api/emprendedor/configuracion-pagos/bancarios/*").permitAll()
                         .requestMatchers("/api/emprendedor/configuracion-pagos/deuna-qr/*").permitAll()
                         .requestMatchers("/api/emprendedor/configuracion-pagos/costo-envio/*").permitAll()
+                        .requestMatchers("/uploads/qr-deuna/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

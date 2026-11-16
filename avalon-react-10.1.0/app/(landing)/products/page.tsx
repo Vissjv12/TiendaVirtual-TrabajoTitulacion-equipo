@@ -14,12 +14,20 @@ import { Dropdown } from 'primereact/dropdown';
 import { Sidebar } from 'primereact/sidebar';
 import { Divider } from 'primereact/divider';
 import { Chip } from 'primereact/chip';
+import { Paginator, PaginatorPageChangeEvent } from 'primereact/paginator';
 // ✅ CORREGIDO: Remover importación de LandingNavbar
 import productService, { ProductoResponse, Categoria, Empresa } from '../../../services/productService';
 import authService from '../../../services/authService';
 import cartService from '../../../services/cartService';
 
 type SortOption = 'nombre-asc' | 'nombre-desc' | 'precio-asc' | 'precio-desc';
+
+const SORT_TO_API: Record<SortOption, string> = {
+    'nombre-asc': 'nombre,asc',
+    'nombre-desc': 'nombre,desc',
+    'precio-asc': 'precio,asc',
+    'precio-desc': 'precio,desc'
+};
 
 interface SortOptionLabel {
     label: string;
@@ -40,11 +48,15 @@ const ProductosPage: React.FC = () => {
     const [empresas, setEmpresas] = useState<Empresa[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Estados de filtros - ✅ CORREGIDO: Filtrar por NOMBRE, no ID
+    // Estados de filtros y paginación servidor (A-19 / A-21)
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedCategoriaNombre, setSelectedCategoriaNombre] = useState<string | null>(null);
     const [selectedEmpresaNombre, setSelectedEmpresaNombre] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<SortOption>('nombre-asc');
+    const [first, setFirst] = useState(0);
+    const [rows, setRows] = useState(12);
+    const [totalRecords, setTotalRecords] = useState(0);
 
     // Estados de UI
     const [showLoginDialog, setShowLoginDialog] = useState(false);
@@ -64,67 +76,50 @@ const ProductosPage: React.FC = () => {
         { label: 'Precio mayor a menor', value: 'precio-desc' }
     ];
 
-    // ✅ CORREGIDO: Filtros por NOMBRE
-    const productosFiltrados = useMemo(() => {
-        if (!mounted || productos.length === 0) return [];
-
-        let resultado = [...productos];
-
-        // Filtrar por búsqueda
-        if (searchTerm.trim()) {
-            resultado = productService.filtrarProductos(resultado, searchTerm);
-        }
-
-        // ✅ CORREGIDO: Filtrar por NOMBRE de categoría
-        if (selectedCategoriaNombre) {
-            resultado = resultado.filter((p) => p.categoria.nombre === selectedCategoriaNombre);
-        }
-
-        // ✅ CORREGIDO: Filtrar por NOMBRE de empresa
-        if (selectedEmpresaNombre) {
-            resultado = resultado.filter((p) => p.empresa.nombre === selectedEmpresaNombre);
-        }
-
-        // Ordenar
-        switch (sortBy) {
-            case 'nombre-asc':
-                resultado.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-                break;
-            case 'nombre-desc':
-                resultado.sort((a, b) => b.nombre.localeCompare(a.nombre, 'es'));
-                break;
-            case 'precio-asc':
-                resultado.sort((a, b) => a.precio - b.precio);
-                break;
-            case 'precio-desc':
-                resultado.sort((a, b) => b.precio - a.precio);
-                break;
-        }
-
-        return resultado;
-    }, [productos, searchTerm, selectedCategoriaNombre, selectedEmpresaNombre, sortBy, mounted]);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+            setFirst(0);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
     useEffect(() => {
         const initializePage = async () => {
-            setMounted(true);
             window.scrollTo(0, 0);
-
             setIsAuthenticated(authService.isAuthenticated());
 
-            // ✅ CORREGIDO: Procesar parámetros por NOMBRE
             const categoria = searchParams.get('categoria');
             const empresa = searchParams.get('empresa');
-            const busqueda = searchParams.get('q');
+            const busqueda = searchParams.get('q') || '';
 
-            if (categoria) setSelectedCategoriaNombre(categoria);
-            if (empresa) setSelectedEmpresaNombre(empresa);
-            if (busqueda) setSearchTerm(busqueda);
+            setSelectedCategoriaNombre(categoria);
+            setSelectedEmpresaNombre(empresa);
+            setSearchTerm(busqueda);
+            setDebouncedSearch(busqueda.trim());
+            setFirst(0);
 
-            await cargarDatos();
+            try {
+                const [categoriasRes, empresasRes] = await Promise.all([
+                    productService.obtenerCategorias(),
+                    productService.obtenerEmpresas()
+                ]);
+                if (categoriasRes.success && categoriasRes.data) setCategorias(categoriasRes.data);
+                if (empresasRes.success && empresasRes.data) setEmpresas(empresasRes.data);
+            } catch (error) {
+                console.error('❌ Error cargando filtros del catálogo:', error);
+            }
+
+            setMounted(true);
         };
 
         initializePage();
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!mounted) return;
+        cargarProductosPaginados();
+    }, [mounted, first, rows, debouncedSearch, selectedCategoriaNombre, selectedEmpresaNombre, sortBy]);
 
     useEffect(() => {
         if (!mounted) return;
@@ -137,18 +132,25 @@ const ProductosPage: React.FC = () => {
         return () => clearInterval(interval);
     }, [mounted]);
 
-    const cargarDatos = async () => {
+    const cargarProductosPaginados = async () => {
         setLoading(true);
         try {
-            console.log('🚀 Iniciando carga de datos (ProductosPage)...');
-
-            const productosRes = await productService.obtenerProductos();
-            console.log('📦 Productos cargados:', productosRes.success);
+            const page = Math.floor(first / rows);
+            const productosRes = await productService.obtenerProductosListadoPaginado({
+                page,
+                size: rows,
+                sort: SORT_TO_API[sortBy],
+                q: debouncedSearch || undefined,
+                categoria: selectedCategoriaNombre || undefined,
+                empresa: selectedEmpresaNombre || undefined
+            });
 
             if (productosRes.success && productosRes.data) {
-                setProductos(productosRes.data);
-                console.log('✅ Productos seteados:', productosRes.data.length);
+                setProductos(productosRes.data.content || []);
+                setTotalRecords(productosRes.data.totalElements ?? 0);
             } else {
+                setProductos([]);
+                setTotalRecords(0);
                 toast.current?.show({
                     severity: 'error',
                     summary: 'Error',
@@ -156,18 +158,8 @@ const ProductosPage: React.FC = () => {
                     life: 3000
                 });
             }
-
-            const [categoriasRes, empresasRes] = await Promise.all([productService.obtenerCategorias(), productService.obtenerEmpresas()]);
-
-            if (categoriasRes.success && categoriasRes.data) {
-                setCategorias(categoriasRes.data);
-            }
-
-            if (empresasRes.success && empresasRes.data) {
-                setEmpresas(empresasRes.data);
-            }
         } catch (error) {
-            console.error('❌ Error cargando datos:', error);
+            console.error('❌ Error cargando productos paginados:', error);
             toast.current?.show({
                 severity: 'error',
                 summary: 'Error',
@@ -176,15 +168,22 @@ const ProductosPage: React.FC = () => {
             });
         } finally {
             setLoading(false);
-            console.log('✅ Carga completada (ProductosPage)');
         }
+    };
+
+    const handlePageChange = (event: PaginatorPageChangeEvent) => {
+        setFirst(event.first);
+        setRows(event.rows);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const limpiarFiltros = () => {
         setSearchTerm('');
+        setDebouncedSearch('');
         setSelectedCategoriaNombre(null);
         setSelectedEmpresaNombre(null);
         setSortBy('nombre-asc');
+        setFirst(0);
         router.push('/products');
     };
 
@@ -424,42 +423,57 @@ const ProductosPage: React.FC = () => {
 
                     {/* ✅ Footer siempre en la parte inferior */}
                     <div className="p-3 pt-0">
-                        {isAuthenticated && authService.canViewPrices() ? (
-                            <div className="flex justify-content-between align-items-center">
-                                <div className="text-xl font-bold" style={{ color: primaryColor }}>
-                                    {productService.formatearPrecio(producto.precio)}
-                                </div>
-                                <Button
-                                    icon="pi pi-shopping-cart"
-                                    label={authService.isEmployee() ? 'Gestionar' : 'Agregar'}
-                                    className="p-button-sm"
-                                    disabled={authService.isEmployee() ? false : !hasStock}
-                                    style={{
-                                        backgroundColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                        borderColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                        color: 'white',
-                                        transition: 'all 0.3s ease',
-                                        opacity: authService.isEmployee() || hasStock ? 1 : 0.6,
-                                        fontSize: '0.8rem',
-                                        padding: '0.5rem 1rem'
-                                    }}
-                                    onClick={() => {
-                                        if (authService.isEmployee()) {
-                                            router.push(`/products/${producto.id}/gestionar`);
-                                        } else {
-                                            handleAddToCart(producto);
-                                        }
-                                    }}
-                                />
-                            </div>
+                        {!isAuthenticated || authService.canViewPrices() ? (
+                            (() => {
+                                const isEmployee = isAuthenticated && authService.isEmployee();
+                                const targetEmpresaId = producto.empresa?.id || empresas.find((e) => e.nombre === producto.empresa?.nombre)?.id || null;
+                                const canManageProduct = isEmployee && authService.canManageEmpresa(targetEmpresaId);
+
+                                return (
+                                    <div className="flex justify-content-between align-items-center">
+                                        <div className="text-xl font-bold" style={{ color: primaryColor }}>
+                                            {productService.formatearPrecio(producto.precio)}
+                                        </div>
+                                        {(!isEmployee || canManageProduct) && (
+                                            <Button
+                                                icon={isEmployee ? 'pi pi-cog' : 'pi pi-shopping-cart'}
+                                                label={isEmployee ? 'Gestionar' : isAuthenticated ? 'Agregar' : 'Iniciar sesión para comprar'}
+                                                className="p-button-sm"
+                                                disabled={isAuthenticated && !isEmployee && !hasStock}
+                                                style={{
+                                                    backgroundColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                                    borderColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                                    color: 'white',
+                                                    transition: 'all 0.3s ease',
+                                                    opacity: isEmployee || hasStock ? 1 : 0.6,
+                                                    fontSize: '0.8rem',
+                                                    padding: '0.5rem 1rem'
+                                                }}
+                                                onClick={() => {
+                                                    if (!isAuthenticated) {
+                                                        handleAddToCart(producto);
+                                                    } else if (isEmployee) {
+                                                        const editRoute = authService.isAdmin()
+                                                            ? `/administrador/productos/${producto.id}/editar`
+                                                            : `/emprendedor/productos/${producto.id}/editar`;
+                                                        router.push(editRoute);
+                                                    } else {
+                                                        handleAddToCart(producto);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })()
                         ) : (
                             <div className="text-center">
                                 <div className="text-sm text-600 mb-2">
                                     <i className="pi pi-lock mr-1" style={{ color: primaryColor }}></i>
-                                    Inicia sesión para ver precios
+                                    Inicia sesión para comprar
                                 </div>
                                 <Button
-                                    label="Iniciar Sesión"
+                                    label="Iniciar sesión para comprar"
                                     icon="pi pi-sign-in"
                                     className="p-button-sm p-button-outlined w-full"
                                     style={{
@@ -518,7 +532,10 @@ const ProductosPage: React.FC = () => {
                 <label className="block mb-2 font-semibold text-sm text-900">Categoría</label>
                 <Dropdown
                     value={selectedCategoriaNombre}
-                    onChange={(e) => setSelectedCategoriaNombre(e.value)}
+                    onChange={(e) => {
+                        setSelectedCategoriaNombre(e.value);
+                        setFirst(0);
+                    }}
                     options={[{ label: 'Todas las categorías', value: null }, ...categorias.map((cat) => ({ label: cat.nombre, value: cat.nombre }))]}
                     placeholder="Seleccionar categoría"
                     className="w-full"
@@ -530,7 +547,10 @@ const ProductosPage: React.FC = () => {
                 <label className="block mb-2 font-semibold text-sm text-900">Empresa</label>
                 <Dropdown
                     value={selectedEmpresaNombre}
-                    onChange={(e) => setSelectedEmpresaNombre(e.value)}
+                    onChange={(e) => {
+                        setSelectedEmpresaNombre(e.value);
+                        setFirst(0);
+                    }}
                     options={[{ label: 'Todas las empresas', value: null }, ...empresas.map((emp) => ({ label: emp.nombre, value: emp.nombre }))]}
                     placeholder="Seleccionar empresa"
                     className="w-full"
@@ -604,37 +624,54 @@ const ProductosPage: React.FC = () => {
                             </span>
                         </div>
 
-                        {isAuthenticated && authService.canViewPrices() ? (
-                            <div className="flex align-items-center justify-content-between">
-                                <div className="text-3xl font-bold" style={{ color: primaryColor }}>
-                                    {productService.formatearPrecio(selectedProduct.precio)}
-                                </div>
-                                <Button
-                                    icon="pi pi-shopping-cart"
-                                    label={authService.isEmployee() ? 'Gestionar' : 'Agregar al Carrito'}
-                                    disabled={authService.isEmployee() ? false : !hasStock}
-                                    style={{
-                                        backgroundColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)',
-                                        borderColor: authService.isEmployee() || hasStock ? primaryColor : 'var(--surface-400)'
-                                    }}
-                                    onClick={() => {
-                                        if (authService.isEmployee()) {
-                                            router.push(`/products/${selectedProduct.id}/gestionar`);
-                                        } else {
-                                            handleAddToCart(selectedProduct);
-                                            setProductModalVisible(false);
-                                        }
-                                    }}
-                                />
-                            </div>
+                        {!isAuthenticated || authService.canViewPrices() ? (
+                            (() => {
+                                const isEmployee = isAuthenticated && authService.isEmployee();
+                                const targetEmpresaId = selectedProduct.empresa?.id || empresas.find((e) => e.nombre === selectedProduct.empresa?.nombre)?.id || null;
+                                const canManageProduct = isEmployee && authService.canManageEmpresa(targetEmpresaId);
+
+                                return (
+                                    <div className="flex align-items-center justify-content-between">
+                                        <div className="text-3xl font-bold" style={{ color: primaryColor }}>
+                                            {productService.formatearPrecio(selectedProduct.precio)}
+                                        </div>
+                                        {(!isEmployee || canManageProduct) && (
+                                            <Button
+                                                icon={isEmployee ? 'pi pi-cog' : 'pi pi-shopping-cart'}
+                                                label={isEmployee ? 'Gestionar' : isAuthenticated ? 'Agregar al Carrito' : 'Iniciar sesión para comprar'}
+                                                disabled={isAuthenticated && !isEmployee && !hasStock}
+                                                style={{
+                                                    backgroundColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)',
+                                                    borderColor: isEmployee || hasStock ? primaryColor : 'var(--surface-400)'
+                                                }}
+                                                onClick={() => {
+                                                    if (!isAuthenticated) {
+                                                        setProductModalVisible(false);
+                                                        handleAddToCart(selectedProduct);
+                                                    } else if (isEmployee) {
+                                                        setProductModalVisible(false);
+                                                        const editRoute = authService.isAdmin()
+                                                            ? `/administrador/productos/${selectedProduct.id}/editar`
+                                                            : `/emprendedor/productos/${selectedProduct.id}/editar`;
+                                                        router.push(editRoute);
+                                                    } else {
+                                                        handleAddToCart(selectedProduct);
+                                                        setProductModalVisible(false);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })()
                         ) : (
                             <div className="text-center">
                                 <div className="text-600 mb-3">
                                     <i className="pi pi-lock mr-2" style={{ color: primaryColor }}></i>
-                                    Inicia sesión para ver precios y comprar
+                                    Inicia sesión para comprar
                                 </div>
                                 <Button
-                                    label="Iniciar Sesión"
+                                    label="Iniciar sesión para comprar"
                                     icon="pi pi-sign-in"
                                     className="w-full"
                                     style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
@@ -674,7 +711,7 @@ const ProductosPage: React.FC = () => {
                                             Todos los Productos
                                         </h1>
                                         <p className="text-lg" style={{ color: 'var(--text-color-secondary)' }}>
-                                            {loading ? 'Cargando...' : `${productosFiltrados.length} productos disponibles`}
+                                            {loading ? 'Cargando...' : `${totalRecords} productos disponibles`}
                                         </p>
                                     </div>
 
@@ -690,7 +727,16 @@ const ProductosPage: React.FC = () => {
                                             }}
                                         />
 
-                                        <Dropdown value={sortBy} onChange={(e) => setSortBy(e.value)} options={sortOptions} placeholder="Ordenar por" className="w-12rem" />
+                                        <Dropdown
+                                            value={sortBy}
+                                            onChange={(e) => {
+                                                setSortBy(e.value);
+                                                setFirst(0);
+                                            }}
+                                            options={sortOptions}
+                                            placeholder="Ordenar por"
+                                            className="w-12rem"
+                                        />
                                     </div>
                                 </div>
 
@@ -702,9 +748,9 @@ const ProductosPage: React.FC = () => {
                                         </span>
                                         {searchTerm && <Chip label={`Búsqueda: "${searchTerm}"`} removable onRemove={() => setSearchTerm('')} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />}
                                         {selectedCategoriaNombre && (
-                                            <Chip label={`Categoría: ${selectedCategoriaNombre}`} removable onRemove={() => setSelectedCategoriaNombre(null)} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />
+                                            <Chip label={`Categoría: ${selectedCategoriaNombre}`} removable onRemove={() => { setSelectedCategoriaNombre(null); setFirst(0); }} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />
                                         )}
-                                        {selectedEmpresaNombre && <Chip label={`Empresa: ${selectedEmpresaNombre}`} removable onRemove={() => setSelectedEmpresaNombre(null)} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />}
+                                        {selectedEmpresaNombre && <Chip label={`Empresa: ${selectedEmpresaNombre}`} removable onRemove={() => { setSelectedEmpresaNombre(null); setFirst(0); }} style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }} />}
                                     </div>
                                 )}
                             </div>
@@ -722,20 +768,33 @@ const ProductosPage: React.FC = () => {
                                 <div className="col-12 lg:col-9">
                                     {loading ? (
                                         <div className="grid">
-                                            {Array.from({ length: 12 }).map((_, index) => (
+                                            {Array.from({ length: rows }).map((_, index) => (
                                                 <div key={index} className="col-12 sm:col-6 lg:col-4 xl:col-3">
                                                     {renderSkeleton()}
                                                 </div>
                                             ))}
                                         </div>
-                                    ) : productosFiltrados.length > 0 ? (
-                                        <div className="grid">
-                                            {productosFiltrados.map((producto) => (
-                                                <div key={producto.id} className="col-12 sm:col-6 lg:col-4 xl:col-3">
-                                                    {renderProductCard(producto)}
-                                                </div>
-                                            ))}
-                                        </div>
+                                    ) : productos.length > 0 ? (
+                                        <>
+                                            <div className="grid">
+                                                {productos.map((producto) => (
+                                                    <div key={producto.id} className="col-12 sm:col-6 lg:col-4 xl:col-3">
+                                                        {renderProductCard(producto)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4">
+                                                <Paginator
+                                                    first={first}
+                                                    rows={rows}
+                                                    totalRecords={totalRecords}
+                                                    rowsPerPageOptions={[12, 24, 36, 48]}
+                                                    onPageChange={handlePageChange}
+                                                    template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                                                    currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} productos"
+                                                />
+                                            </div>
+                                        </>
                                     ) : (
                                         <div className="text-center py-8">
                                             <Card className="max-w-md mx-auto" style={{ backgroundColor: 'var(--surface-card)' }}>
@@ -811,7 +870,7 @@ const ProductosPage: React.FC = () => {
                                 ¡Inicia Sesión!
                             </h3>
                             <p className="mb-4 line-height-3" style={{ color: 'var(--text-color-secondary)' }}>
-                                Para agregar productos al carrito y ver precios, necesitas iniciar sesión en tu cuenta.
+                                Para agregar productos al carrito y comprar, necesitas iniciar sesión en tu cuenta.
                             </p>
                             {selectedProduct && (
                                 <div
@@ -832,7 +891,7 @@ const ProductosPage: React.FC = () => {
                             <div className="flex gap-3 justify-content-center">
                                 <Button label="Cancelar" icon="pi pi-times" className="p-button-text" onClick={() => setShowLoginDialog(false)} />
                                 <Button
-                                    label="Iniciar Sesión"
+                                    label="Iniciar sesión para comprar"
                                     icon="pi pi-sign-in"
                                     style={{
                                         backgroundColor: primaryColor,

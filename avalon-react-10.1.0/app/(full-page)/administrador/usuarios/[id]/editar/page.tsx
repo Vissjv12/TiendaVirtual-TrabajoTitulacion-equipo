@@ -13,6 +13,7 @@ import { Message } from 'primereact/message';
 import { Skeleton } from 'primereact/skeleton';
 import { Checkbox } from 'primereact/checkbox';
 import usuariosService, { Usuario, ActualizarUsuarioRequest, ROLES_DISPONIBLES } from '@/services/usuariosService';
+import EmpresaVinculadaCard from './EmpresaVinculadaCard';
 
 interface FormData {
     username: string;
@@ -537,6 +538,17 @@ export default function EditarUsuarioPage() {
                         </div>
                     </form>
                 </Card>
+
+                {/* T11: vinculación emprendedor-empresa */}
+                {usuario && (
+                    <EmpresaVinculadaCard
+                        usuarioId={usuarioId}
+                        rolesGuardados={usuario.roles}
+                        empresaIdInicial={usuario.empresaId ?? null}
+                        onExito={mostrarExito}
+                        onError={mostrarError}
+                    />
+                )}
             </div>
         </div>
     );

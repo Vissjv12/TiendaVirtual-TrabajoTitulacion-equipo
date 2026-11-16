@@ -14,6 +14,7 @@ public class EstadisticasUsuariosDto {
     private long usuariosActivos;
     private long usuariosInactivos;
     private long administradores;
+    private long administradoresActivos;
     private long emprendedores;
     private long clientes;
 }

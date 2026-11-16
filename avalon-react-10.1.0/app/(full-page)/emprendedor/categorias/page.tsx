@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableStateEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
@@ -13,37 +13,54 @@ import { Badge } from 'primereact/badge';
 import { Skeleton } from 'primereact/skeleton';
 import { Toolbar } from 'primereact/toolbar';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
+import { toApiSortParam } from '../../../../services/apiConfig';
 import categoriasEmpresasService, { Categoria } from '../../../../services/categoriasEmpresasService';
+import authService from '../../../../services/authService';
 
 const CategoriasPage: React.FC = () => {
     const router = useRouter();
     const toast = useRef<Toast>(null);
+    const isAdmin = authService.isAdmin();
 
     // Estados principales
     const [categorias, setCategorias] = useState<Categoria[]>([]);
-    const [categoriasFiltradas, setCategoriasFiltradas] = useState<Categoria[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+    const [first, setFirst] = useState<number>(0);
+    const [rows, setRows] = useState<number>(10);
+    const [totalRecords, setTotalRecords] = useState<number>(0);
+    const [sortField, setSortField] = useState<string>('id');
+    const [sortOrder, setSortOrder] = useState<1 | -1>(1);
 
     // Estados para el modal de detalles
     const [selectedCategoria, setSelectedCategoria] = useState<Categoria | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
 
-    // Cargar datos iniciales
+    // Debounce búsqueda
     useEffect(() => {
-        cargarCategorias();
-    }, []);
+        const timer = setTimeout(() => {
+            setFirst(0);
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    const cargarCategorias = async () => {
+    const cargarCategorias = useCallback(async () => {
         setLoading(true);
         try {
-            console.log('🔄 Cargando categorías...');
-            const response = await categoriasEmpresasService.obtenerCategorias();
+            const page = Math.floor(first / rows);
+            const sort = toApiSortParam(sortField, sortOrder, 'id,asc');
+            const response = await categoriasEmpresasService.obtenerCategoriasPaginado({
+                page,
+                size: rows,
+                sort,
+                q: debouncedSearch.trim() || undefined
+            });
 
             if (response.success && response.data) {
-                setCategorias(response.data);
-                setCategoriasFiltradas(response.data);
-                console.log('✅ Categorías cargadas:', response.data.length);
+                setCategorias(response.data.content || []);
+                setTotalRecords(response.data.totalElements ?? 0);
             } else {
                 toast.current?.show({
                     severity: 'error',
@@ -63,24 +80,27 @@ const CategoriasPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [first, rows, sortField, sortOrder, debouncedSearch]);
+
+    // Cargar datos iniciales y cambios de paginación/filtro
+    useEffect(() => {
+        cargarCategorias();
+    }, [cargarCategorias]);
 
     // Función de búsqueda
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toLowerCase();
-        setSearchTerm(value);
-        
-        if (!value.trim()) {
-            setCategoriasFiltradas(categorias);
-            return;
-        }
-        
-        const filtered = categorias.filter(categoria => 
-            categoria.nombre?.toLowerCase().includes(value) ||
-            categoria.descripcion?.toLowerCase().includes(value)
-        );
-        
-        setCategoriasFiltradas(filtered);
+        setSearchTerm(e.target.value);
+    };
+
+    const handlePage = (event: DataTableStateEvent) => {
+        setFirst(event.first ?? 0);
+        setRows(event.rows ?? 10);
+    };
+
+    const handleSort = (event: DataTableStateEvent) => {
+        setFirst(0);
+        setSortField(event.sortField || 'id');
+        setSortOrder((event.sortOrder === -1 ? -1 : 1) as 1 | -1);
     };
 
     // Confirmar eliminación
@@ -102,9 +122,7 @@ const CategoriasPage: React.FC = () => {
             const response = await categoriasEmpresasService.eliminarCategoria(id);
             
             if (response.success) {
-                const updatedCategorias = categorias.filter(c => c.id !== id);
-                setCategorias(updatedCategorias);
-                setCategoriasFiltradas(updatedCategorias);
+                await cargarCategorias();
                 toast.current?.show({
                     severity: 'success',
                     summary: 'Éxito',
@@ -154,18 +172,22 @@ const CategoriasPage: React.FC = () => {
                     onClick={() => verDetalles(rowData)}
                     tooltip="Ver detalles"
                 />
-                <Button 
-                    icon="pi pi-pencil" 
-                    className="p-button-rounded p-button-success p-button-sm" 
-                    onClick={() => router.push(`/emprendedor/categorias/${rowData.id}/editar`)}
-                    tooltip="Editar"
-                />
-                <Button 
-                    icon="pi pi-trash" 
-                    className="p-button-rounded p-button-danger p-button-sm" 
-                    onClick={() => confirmarEliminacion(rowData)}
-                    tooltip="Eliminar"
-                />
+                {isAdmin && (
+                    <>
+                        <Button 
+                            icon="pi pi-pencil" 
+                            className="p-button-rounded p-button-success p-button-sm" 
+                            onClick={() => router.push(`/emprendedor/categorias/${rowData.id}/editar`)}
+                            tooltip="Editar"
+                        />
+                        <Button 
+                            icon="pi pi-trash" 
+                            className="p-button-rounded p-button-danger p-button-sm" 
+                            onClick={() => confirmarEliminacion(rowData)}
+                            tooltip="Eliminar"
+                        />
+                    </>
+                )}
             </div>
         );
     };
@@ -174,12 +196,14 @@ const CategoriasPage: React.FC = () => {
     const leftToolbarTemplate = () => {
         return (
             <div className="flex align-items-center gap-2">
-                <Button 
-                    label="Nueva Categoría" 
-                    icon="pi pi-plus" 
-                    className="p-button-success"
-                    onClick={() => router.push('/emprendedor/categorias/crear')}
-                />
+                {isAdmin && (
+                    <Button 
+                        label="Nueva Categoría" 
+                        icon="pi pi-plus" 
+                        className="p-button-success"
+                        onClick={() => router.push('/emprendedor/categorias/crear')}
+                    />
+                )}
                 <Button 
                     label="Actualizar" 
                     icon="pi pi-refresh" 
@@ -241,14 +265,22 @@ const CategoriasPage: React.FC = () => {
                     right={rightToolbarTemplate}
                 />
 
-                {loading ? (
+                {loading && categorias.length === 0 ? (
                     renderSkeleton()
                 ) : (
                     <DataTable 
-                        value={categoriasFiltradas}
+                        value={categorias}
+                        lazy
+                        loading={loading}
                         paginator
-                        rows={10}
+                        first={first}
+                        rows={rows}
+                        totalRecords={totalRecords}
                         rowsPerPageOptions={[5, 10, 25, 50]}
+                        onPage={handlePage}
+                        onSort={handleSort}
+                        sortField={sortField}
+                        sortOrder={sortOrder}
                         emptyMessage="No se encontraron categorías"
                         responsiveLayout="scroll"
                         className="p-datatable-sm"
@@ -264,7 +296,6 @@ const CategoriasPage: React.FC = () => {
                         <Column 
                             field="descripcion" 
                             header="Descripción" 
-                            sortable
                         />
                         <Column 
                             field="activo" 

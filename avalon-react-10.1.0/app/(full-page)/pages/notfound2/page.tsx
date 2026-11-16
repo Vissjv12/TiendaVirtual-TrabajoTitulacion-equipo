@@ -1,12 +1,10 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import { Button } from 'primereact/button';
 import React from 'react';
 
 function NotFound() {
-    const router = useRouter();
     const navigateToDashboard = () => {
-        router.push('/');
+        window.location.assign('/');
     };
 
     return (

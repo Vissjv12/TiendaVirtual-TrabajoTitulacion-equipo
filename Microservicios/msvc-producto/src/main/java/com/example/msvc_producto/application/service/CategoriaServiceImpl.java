@@ -3,7 +3,10 @@ package com.example.msvc_producto.application.service;
 import com.example.msvc_producto.domain.model.Categoria;
 import com.example.msvc_producto.domain.repository.CategoriaRepository;
 import com.example.msvc_producto.domain.service.CategoriaService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -15,6 +18,9 @@ public class CategoriaServiceImpl implements CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
+    @Autowired
+    private ProductoCatalogoInvalidacionService invalidacionService;
+
     public CategoriaServiceImpl(CategoriaRepository categoriaRepository) {
         this.categoriaRepository = categoriaRepository;
     }
@@ -25,7 +31,9 @@ public class CategoriaServiceImpl implements CategoriaService {
         categoria.setFechaCreacion(LocalDateTime.now());
         categoria.setFechaActualizacion(LocalDateTime.now());
         categoria.setActivo(true);
-        return categoriaRepository.save(categoria);
+        Categoria categoriaGuardada = categoriaRepository.save(categoria);
+        invalidarCatalogoDespuesDeCommit();
+        return categoriaGuardada;
     }
 
     @Override
@@ -38,7 +46,9 @@ public class CategoriaServiceImpl implements CategoriaService {
         categoriaExistente.setActivo(categoria.getActivo());
         categoriaExistente.setFechaActualizacion(LocalDateTime.now());
 
-        return categoriaRepository.save(categoriaExistente);
+        Categoria categoriaActualizada = categoriaRepository.save(categoriaExistente);
+        invalidarCatalogoDespuesDeCommit();
+        return categoriaActualizada;
     }
 
     @Override
@@ -55,11 +65,24 @@ public class CategoriaServiceImpl implements CategoriaService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<Categoria> listarCategoriasPaginado(String q, Pageable pageable) {
+        return categoriaRepository.findPaginado(q == null ? "" : q.trim(), pageable);
+    }
+
+    @Override
     @Transactional
     public void eliminarCategoria(Long id) {
         Categoria categoria = obtenerCategoriaPorId(id);
         categoria.setActivo(false);
         categoria.setFechaActualizacion(LocalDateTime.now());
         categoriaRepository.save(categoria);
+        invalidarCatalogoDespuesDeCommit();
+    }
+
+    private void invalidarCatalogoDespuesDeCommit() {
+        if (invalidacionService != null) {
+            invalidacionService.invalidarDespuesDeCommit();
+        }
     }
 }

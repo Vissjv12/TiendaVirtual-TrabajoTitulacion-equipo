@@ -5,6 +5,8 @@ import com.example.msvc_producto.domain.repository.EmpresaRepository;
 import com.example.msvc_producto.infrastructure.persistence.entity.EmpresaEntity;
 import com.example.msvc_producto.infrastructure.persistence.mapper.EmpresaEntityMapper;
 import com.example.msvc_producto.infrastructure.persistence.repository.EmpresaJpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -30,6 +32,16 @@ public class EmpresaRepositoryImpl implements EmpresaRepository {
     }
 
     @Override
+    public boolean existeRucEnOtraEmpresa(String ruc, Long idExcluido) {
+        if (ruc == null || ruc.isBlank()) {
+            return false;
+        }
+        return idExcluido == null
+                ? empresaJpaRepository.existsByRuc(ruc.trim())
+                : empresaJpaRepository.existsByRucAndIdNot(ruc.trim(), idExcluido);
+    }
+
+    @Override
     public Optional<Empresa> findById(Long id) {
         return empresaJpaRepository.findById(id)
                 .map(empresaEntityMapper::toDomain);
@@ -40,6 +52,12 @@ public class EmpresaRepositoryImpl implements EmpresaRepository {
         return empresaJpaRepository.findAll().stream()
                 .map(empresaEntityMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Empresa> findPaginado(String q, Pageable pageable) {
+        return empresaJpaRepository.findPaginado(q, pageable)
+                .map(empresaEntityMapper::toDomain);
     }
 
     @Override

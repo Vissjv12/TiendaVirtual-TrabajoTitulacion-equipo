@@ -79,11 +79,8 @@ ALTER TABLE auth_service.configuracion_metodos_pago
   ADD COLUMN payphone_app_id VARCHAR(255) NULL,
   ADD COLUMN payphone_token TEXT NULL;
 
--- Insertar tokens de Sigcholac (emprendedor_id = 2):
-UPDATE auth_service.configuracion_metodos_pago
-  SET payphone_app_id = 'sHCWllJKakqahJaUTCLyw',
-      payphone_token  = '8fV0cvagdtJ-yqRHe6ek3g...[token completo]'
-  WHERE emprendedor_id = 2;
+-- Las credenciales de Payphone no se documentan ni se versionan.
+-- Deben configurarse mediante el mecanismo seguro definido para el entorno.
 ```
 
 ---

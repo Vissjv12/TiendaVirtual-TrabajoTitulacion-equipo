@@ -44,7 +44,7 @@ docker compose -f .\docker-compose.db.yml up -d
 ### Ver bases creadas
 
 ```powershell
-docker exec -it mysql-feria-digital mysql -u admin -padmin -e "SHOW DATABASES;"
+docker exec -it mysql-feria-digital mysql -u admin -p -e "SHOW DATABASES;"
 ```
 
 Debes ver: `auth_service`, `productos`, `inventario`, `ventas`.
@@ -102,12 +102,9 @@ docker compose -f .\docker-compose.db.yml up -d
 
 ### Error de credenciales
 
-Este compose usa por defecto:
-- Usuario: `admin`
-- Password: `admin`
-- Root password: `admin`
-
-Si cambias variables, vuelve a levantar desde cero con `down -v`.
+Las credenciales se leen desde el archivo `.env` y no deben escribirse en esta guía.
+Si cambias las credenciales de una instalación existente, coordina la actualización
+de los microservicios y conserva un respaldo antes de aplicar el cambio.
 
 ---
 

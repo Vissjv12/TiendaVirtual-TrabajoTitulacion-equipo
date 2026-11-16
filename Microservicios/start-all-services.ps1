@@ -1,5 +1,5 @@
 # Script para levantar todos los microservicios
-# Asegúrate de tener Java 17 y PostgreSQL corriendo
+# Asegúrate de tener Java 17 y Docker (MySQL) corriendo
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Iniciando Microservicios" -ForegroundColor Cyan
@@ -7,6 +7,26 @@ Write-Host "========================================" -ForegroundColor Cyan
 
 # Directorio base
 $BASE_DIR = $PSScriptRoot
+$ROOT_DIR = (Resolve-Path "$BASE_DIR\..").Path
+
+# Cargar variables del .env (obligatorio tras A-08 para que no falle la conexion a BD ni JWT)
+$envFile = Join-Path $ROOT_DIR ".env"
+if (Test-Path $envFile) {
+    Write-Host "[INFO] Cargando secretos y configuracion desde .env..." -ForegroundColor Cyan
+    Get-Content $envFile | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-Object {
+        $k, $v = $_ -split '=', 2
+        [Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim().Trim('"'), 'Process')
+    }
+} else {
+    Write-Host "[WARN] No se encontro .env en la raiz. Copia .env.example a .env antes de iniciar." -ForegroundColor Yellow
+}
+
+# Asegurar Java 17 para evitar errores con versiones experimentales de Java
+$temurin = "C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot"
+if (Test-Path $temurin) {
+    $env:JAVA_HOME = $temurin
+    $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+}
 
 # Función para iniciar un servicio
 function Start-Service {
