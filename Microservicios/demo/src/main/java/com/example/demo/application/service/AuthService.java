@@ -48,7 +48,7 @@ public class AuthService {
     private String googleClientId;
 
     @Value("${jwt.access-token-ttl-seconds:900}")
-    private long accessTokenTtlSeconds;
+    private long accessTokenTtlSeconds = 900L;
 
     private static final String GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token=";
 
