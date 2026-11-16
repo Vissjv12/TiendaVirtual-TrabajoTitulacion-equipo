@@ -5,10 +5,12 @@ import com.example.msvc_inventario.application.dto.InventarioResponseDto;
 import com.example.msvc_inventario.application.dto.MovimientoInventarioResponseDto;
 import com.example.msvc_inventario.application.mapper.InventarioMapper;
 import com.example.msvc_inventario.application.mapper.MovimientoInventarioMapper;
+import com.example.msvc_inventario.application.service.InventarioAuthorizationService;
 import com.example.msvc_inventario.application.util.PaginationUtils;
 import com.example.msvc_inventario.domain.model.Inventario;
 import com.example.msvc_inventario.domain.model.MovimientoInventario;
 import com.example.msvc_inventario.domain.repository.InventarioRepository;
+import com.example.msvc_inventario.domain.repository.MovimientoInventarioRepository;
 import com.example.msvc_inventario.domain.service.InventarioService;
 import com.example.msvc_inventario.domain.service.MovimientoInventarioService;
 import com.example.msvc_inventario.infrastructure.config.SecurityConfig;
@@ -23,6 +25,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,6 +39,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -44,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         controllers = {InventarioController.class, MovimientoInventarioController.class},
         properties = "jwt.secret=local-test-secret-for-inventory"
 )
-@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, GlobalExceptionHandler.class, InventarioAuthorizationService.class})
 class InventarioPaginationTest {
 
     @Autowired
@@ -61,6 +65,9 @@ class InventarioPaginationTest {
 
     @MockitoBean
     private InventarioRepository inventarioRepository;
+
+    @MockitoBean
+    private MovimientoInventarioRepository movimientoRepository;
 
     @MockitoBean
     private MovimientoInventarioService movimientoService;
@@ -125,6 +132,7 @@ class InventarioPaginationTest {
         when(movimientoMapper.toDto(mov)).thenReturn(dto);
 
         mockMvc.perform(get("/api/movimientos/paginado")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         .param("tipo", "ENTRADA"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(11))
@@ -133,6 +141,7 @@ class InventarioPaginationTest {
                 .andExpect(jsonPath("$.empty").value(false));
 
         mockMvc.perform(get("/api/movimientos/paginado")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         .param("tipo", "TIPO_INEXISTENTE"))
                 .andExpect(status().isBadRequest());
 

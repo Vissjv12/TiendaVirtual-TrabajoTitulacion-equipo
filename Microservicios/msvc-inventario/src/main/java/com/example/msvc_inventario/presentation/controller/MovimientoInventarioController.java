@@ -4,18 +4,23 @@ import com.example.msvc_inventario.application.dto.MovimientoInventarioRequestDt
 import com.example.msvc_inventario.application.dto.MovimientoInventarioResponseDto;
 import com.example.msvc_inventario.application.dto.PageResponseDto;
 import com.example.msvc_inventario.application.mapper.MovimientoInventarioMapper;
+import com.example.msvc_inventario.application.service.InventarioAuthorizationService;
 import com.example.msvc_inventario.application.util.PaginationUtils;
 import com.example.msvc_inventario.domain.model.MovimientoInventario;
 import com.example.msvc_inventario.domain.service.MovimientoInventarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -25,13 +30,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/movimientos")
 @Tag(name = "Movimientos de Inventario", description = "API para gestionar los movimientos de inventario")
 public class MovimientoInventarioController {
 
     private final MovimientoInventarioService movimientoService;
     private final MovimientoInventarioMapper movimientoMapper;
+
+    @Autowired(required = false)
+    private InventarioAuthorizationService autorizacion;
 
     public MovimientoInventarioController(
             MovimientoInventarioService movimientoService,
@@ -58,6 +65,7 @@ public class MovimientoInventarioController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener un movimiento de inventario por su ID")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageMovimiento(authentication, #id))")
     public ResponseEntity<MovimientoInventarioResponseDto> obtenerMovimientoPorId(@PathVariable Long id) {
         MovimientoInventario movimiento = movimientoService.obtenerPorId(id);
         return ResponseEntity.ok(movimientoMapper.toDto(movimiento));
@@ -65,6 +73,7 @@ public class MovimientoInventarioController {
 
     @GetMapping("/inventario/{inventarioId}")
     @Operation(summary = "Listar movimientos por ID de inventario")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #inventarioId))")
     public ResponseEntity<List<MovimientoInventarioResponseDto>> listarMovimientosPorInventarioId(
             @PathVariable Long inventarioId) {
 
@@ -88,6 +97,7 @@ public class MovimientoInventarioController {
 
     @GetMapping("/inventario/{inventarioId}/paginado")
     @Operation(summary = "Listar movimientos por ID de inventario paginados (contrato A-19)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #inventarioId))")
     public ResponseEntity<PageResponseDto<MovimientoInventarioResponseDto>> listarMovimientosPorInventarioIdPaginado(
             @PathVariable Long inventarioId,
             @RequestParam(defaultValue = "0") Integer page,
@@ -103,6 +113,7 @@ public class MovimientoInventarioController {
 
     @GetMapping("/paginado")
     @Operation(summary = "Listar movimientos de inventario paginados (contrato A-19)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
     public ResponseEntity<PageResponseDto<MovimientoInventarioResponseDto>> listarMovimientosPaginado(
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
@@ -112,7 +123,28 @@ public class MovimientoInventarioController {
             @RequestParam(required = false) String tipo,
             @RequestParam(required = false) String motivo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
+            Authentication authentication) {
+        boolean esAdmin = autorizacion != null
+                ? autorizacion.isAdmin(authentication)
+                : authentication != null && authentication.getAuthorities().stream()
+                        .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (!esAdmin) {
+            if (autorizacion == null) {
+                throw new AccessDeniedException("Autorización de inventario no disponible");
+            }
+            boolean tieneFiltroInventarioId = inventarioId != null;
+            boolean tieneFiltroInventarioIds = inventarioIds != null && !inventarioIds.isEmpty();
+            if (!tieneFiltroInventarioId && !tieneFiltroInventarioIds) {
+                throw new AccessDeniedException("Debe consultar movimientos únicamente de los inventarios de su empresa");
+            }
+            if (tieneFiltroInventarioId && !autorizacion.canManageInventario(authentication, inventarioId)) {
+                throw new AccessDeniedException("No puede consultar movimientos de inventario de otra empresa");
+            }
+            if (tieneFiltroInventarioIds && !autorizacion.canManageAllInventarios(authentication, inventarioIds)) {
+                throw new AccessDeniedException("No puede consultar movimientos de inventario de otra empresa");
+            }
+        }
         Pageable pageable = PaginationUtils.createPageable(
                 page, size, sort,
                 PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
@@ -137,6 +169,7 @@ public class MovimientoInventarioController {
 
     @GetMapping
     @Operation(summary = "Listar todos los movimientos de inventario")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<MovimientoInventarioResponseDto>> listarMovimientos() {
         List<MovimientoInventario> movimientos = movimientoService.listarTodos();
 

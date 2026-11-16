@@ -196,12 +196,14 @@ const CategoriasPage: React.FC = () => {
     const leftToolbarTemplate = () => {
         return (
             <div className="flex align-items-center gap-2">
-                <Button 
-                    label="Nueva Categoría" 
-                    icon="pi pi-plus" 
-                    className="p-button-success"
-                    onClick={() => router.push('/emprendedor/categorias/crear')}
-                />
+                {isAdmin && (
+                    <Button 
+                        label="Nueva Categoría" 
+                        icon="pi pi-plus" 
+                        className="p-button-success"
+                        onClick={() => router.push('/emprendedor/categorias/crear')}
+                    />
+                )}
                 <Button 
                     label="Actualizar" 
                     icon="pi pi-refresh" 

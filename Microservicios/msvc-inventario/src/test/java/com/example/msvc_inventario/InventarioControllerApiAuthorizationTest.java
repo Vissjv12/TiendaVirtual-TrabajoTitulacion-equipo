@@ -111,13 +111,13 @@ class InventarioControllerApiAuthorizationTest {
     }
 
     @Test
-    void preflightCorsDelBatchDeCantidadesEsPermitido() throws Exception {
+    void preflightCorsDirectoNoEmiteCabeceraCorsDesdeElMicroservicio() throws Exception {
         mockMvc.perform(options("/api/inventarios/cantidad/batch")
                         .header(HttpHeaders.ORIGIN, "http://localhost:3000")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"))
-                .andExpect(status().isOk())
-                .andExpect(header().exists(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
     }
 
     @Test
@@ -126,7 +126,8 @@ class InventarioControllerApiAuthorizationTest {
                         .header(HttpHeaders.ORIGIN, "http://localhost:3000")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
 
         mockMvc.perform(post("/api/inventarios")
                         .header(HttpHeaders.ORIGIN, "http://localhost:3000")

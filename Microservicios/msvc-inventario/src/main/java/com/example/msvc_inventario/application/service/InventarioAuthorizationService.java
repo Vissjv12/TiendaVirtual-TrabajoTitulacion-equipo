@@ -5,19 +5,20 @@ import com.example.msvc_inventario.application.dto.ProductoDto;
 import com.example.msvc_inventario.application.dto.SalidaInventarioItemDto;
 import com.example.msvc_inventario.application.dto.SalidaInventarioLoteRequestDto;
 import com.example.msvc_inventario.domain.repository.InventarioRepository;
-import lombok.RequiredArgsConstructor;
+import com.example.msvc_inventario.domain.repository.MovimientoInventarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
- * Reglas de autorización de propiedad sobre operaciones de stock de inventario (A-24).
+ * Reglas de autorización de propiedad sobre operaciones y consultas de inventario (A-24 / T07).
  */
 @Service("inventarioAuthorizationService")
-@RequiredArgsConstructor
 public class InventarioAuthorizationService {
 
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
@@ -25,6 +26,17 @@ public class InventarioAuthorizationService {
 
     private final ProductoClient productoClient;
     private final InventarioRepository inventarioRepository;
+
+    @Autowired(required = false)
+    private MovimientoInventarioRepository movimientoRepository;
+
+    @Autowired
+    public InventarioAuthorizationService(
+            ProductoClient productoClient,
+            InventarioRepository inventarioRepository) {
+        this.productoClient = productoClient;
+        this.inventarioRepository = inventarioRepository;
+    }
 
     public boolean isAdmin(Authentication authentication) {
         return hasAuthority(authentication, ROLE_ADMIN);
@@ -96,6 +108,33 @@ public class InventarioAuthorizationService {
         }
         for (SalidaInventarioItemDto item : requestDto.getItems()) {
             if (item == null || !canManageProduct(authentication, item.getProductoId())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean canManageMovimiento(Authentication authentication, Long movimientoId) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+        if (!isEmprendedor(authentication) || movimientoId == null || movimientoRepository == null) {
+            return false;
+        }
+        return movimientoRepository.findById(movimientoId)
+                .map(mov -> canManageInventario(authentication, mov.getInventarioId()))
+                .orElse(false);
+    }
+
+    public boolean canManageAllInventarios(Authentication authentication, List<Long> inventarioIds) {
+        if (isAdmin(authentication)) {
+            return true;
+        }
+        if (!isEmprendedor(authentication) || inventarioIds == null || inventarioIds.isEmpty()) {
+            return false;
+        }
+        for (Long inventarioId : inventarioIds) {
+            if (!canManageInventario(authentication, inventarioId)) {
                 return false;
             }
         }

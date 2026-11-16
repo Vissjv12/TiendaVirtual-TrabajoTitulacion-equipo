@@ -39,7 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/metrics", "/actuator/metrics/**")
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/actuator/**").denyAll()
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/productos", "/api/categorias", "/api/empresas").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/productos/*", "/api/categorias/*", "/api/empresas/*",
                                 "/api/empresas/*/contacto").authenticated()

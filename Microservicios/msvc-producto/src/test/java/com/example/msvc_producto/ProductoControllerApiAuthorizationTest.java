@@ -170,7 +170,19 @@ class ProductoControllerApiAuthorizationTest {
     }
 
     @Test
-    void emprendedorPuedeCrearCategoria() throws Exception {
+    void emprendedorNoPuedeCrearCategoria() throws Exception {
+        mockMvc.perform(post("/api/categorias")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CATEGORIA_VALIDA))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(categoriaService);
+    }
+
+    @Test
+    void administradorPuedeCrearCategoria() throws Exception {
         Categoria categoria = new Categoria();
         categoria.setId(15L);
         when(categoriaMapper.toEntity(any())).thenReturn(categoria);
@@ -178,11 +190,20 @@ class ProductoControllerApiAuthorizationTest {
         when(categoriaMapper.toDto(any())).thenReturn(new CategoriaResponseDto());
 
         mockMvc.perform(post("/api/categorias")
-                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
-                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CATEGORIA_VALIDA))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void swaggerYApiDocsNoSonPublicos() throws Exception {
+        mockMvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api-docs")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))))
+                .andExpect(status().isForbidden());
     }
 
     private static final String EMPRESA_CONTACTO = """

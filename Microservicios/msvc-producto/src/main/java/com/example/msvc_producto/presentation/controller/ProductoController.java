@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 import org.slf4j.LoggerFactory;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/productos")
 @Tag(name = "Productos", description = "API para gestionar productos")
 public class ProductoController {

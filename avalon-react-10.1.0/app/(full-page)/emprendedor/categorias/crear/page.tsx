@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
@@ -11,10 +11,22 @@ import { Toast } from 'primereact/toast';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Divider } from 'primereact/divider';
 import categoriasEmpresasService, { CategoriaRequest } from '../../../../../services/categoriasEmpresasService';
+import authService from '../../../../../services/authService';
 
 const CrearCategoriaPage: React.FC = () => {
     const router = useRouter();
     const toast = useRef<Toast>(null);
+    const isAdmin = authService.isAdmin();
+
+    useEffect(() => {
+        if (!isAdmin) {
+            router.replace('/emprendedor/categorias');
+        }
+    }, [isAdmin, router]);
+
+    if (!isAdmin) {
+        return null;
+    }
 
     // Estados del formulario
     const [formData, setFormData] = useState<CategoriaRequest>({
