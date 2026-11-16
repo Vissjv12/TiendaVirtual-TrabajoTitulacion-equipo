@@ -982,3 +982,93 @@ Se contrasto la seccion 5.0.12 contra el codigo actual y contra los problemas de
 **Resultado:** las dos actividades pueden cerrarse tecnicamente en codigo. La documentacion de pruebas registra las suites especificas como exitosas (12/12, 2/2, 13/13 y 6/6), pero esos resultados se consideran evidencia documentada y no una nueva ejecucion realizada durante esta revision.
 
 **Pendiente antes de commit final:** corregir los avisos de git diff --check en los archivos modificados, especialmente EmpresaController.java, y volver a ejecutar la comprobacion. No se detectaron errores en el analizador Java para los archivos revisados.
+
+### 5.0.14 Estado de tareas 4 y 5 frente a Stripe (2026-11-15)
+
+Se reviso el estado de las tareas relacionadas con pagos con tarjeta y generacion de facturas.
+
+**Tarea 4, descuento de stock:** la nueva ruta generica de pago de pasarela (PagoPasarelaService) ya descuenta el stock mediante la credencial interna, utiliza bloqueo de la venta e idempotencia, y deja STOCK_PENDIENTE si el inventario no esta disponible. Esto cubre PayPhone y las pasarelas que utilicen esa ruta.
+
+Sin embargo, el flujo antiguo de Stripe sigue presente en PagoService.procesarPagoTarjeta y StripeController: marca el pago y la venta como completados, pero no invoca el descuento de inventario. Por tanto, la tarea 4 no esta cerrada globalmente mientras /api/stripe/** siga habilitado.
+
+**Tarea 5, factura:** la ruta nueva de pasarela usa TransactionSynchronizationManager para generar la factura despues del commit. El flujo antiguo de Stripe todavia contiene new Thread y Thread.sleep(100) para generar la factura. Por tanto, la sustitucion no es completa mientras el flujo Stripe permanezca activo.
+
+**Decision recomendada si Stripe no se utilizara:** no implementar ni probar Stripe. Se debe desactivar o retirar completamente su superficie de ejecucion: endpoints /api/stripe/**, StripeController, StripeService, DTOs y dependencia/configuracion de Stripe, segun el alcance que apruebe el equipo. La ruta webhook no debe permanecer permitAll si el servicio no se utiliza. Despues de esa retirada, las tareas 4 y 5 se cierran para el medio de pago vigente (PayPhone) y Stripe queda documentado como no aplicable.
+
+**Criterio de cierre:** no basta con ocultar Stripe en el frontend. Debe comprobarse que una peticion directa al backend no pueda ejecutar el flujo antiguo y que una busqueda de new Thread/Thread.sleep en codigo fuente no encuentre la implementacion de factura de pagos.
+
+### 5.0.15 Cierre de tareas 4 y 5: Stripe inactivo y factura tras commit en todos los flujos (2026-11-15, sin commit)
+
+Se aplicó la decisión recomendada en 5.0.14: Stripe queda **inactivo por decisión del proyecto, conservado para evaluación futura**. Además se corrigió el mismo patrón de factura en los flujos de transferencia y Deuna, que son los métodos que se usarán mientras no exista token de PayPhone.
+
+**1. Stripe deshabilitado (backend, Gateway, configuración y frontend)**
+
+| Capa | Cambio |
+|---|---|
+| Bandera | `stripe.enabled=${STRIPE_ENABLED:false}`; las claves pasan a ser opcionales (`${STRIPE_API_KEY:}`). |
+| msvc-ventas | `StripeController` y `StripeService` con `@ConditionalOnProperty(stripe.enabled=true)`. Deshabilitado, ningún bean de Stripe existe y el servicio arranca sin claves. Si se activa sin `STRIPE_API_KEY`, el arranque falla. |
+| Webhook | Se retiró `permitAll` de `/api/stripe/webhook` y el propio endpoint (respondía 200 sin verificar la firma). |
+| Atajo de pago | Se eliminó `PagoService.procesarPagoTarjeta` (completaba la venta sin descontar stock y generaba la factura en un hilo con espera). Aunque se active la bandera, `confirm-payment` responde 501 hasta integrarse con `PagoPasarelaService`. |
+| Gateway | Se eliminó `location /api/stripe`: la ruta cae en el 404 JSON por defecto. Se retiró la cabecera `Stripe-Signature` de CORS y del proxy. |
+| Despliegue | `.env.example`, `docker-compose.yml` y `docker-compose.light.yml` ya no exigen claves de Stripe (antes `docker compose` fallaba sin `STRIPE_API_KEY`). |
+| Frontend | Las dos páginas de checkout ya no importan `stripeService` ni `StripeCheckoutForm`, no tienen rama `TARJETA` y rechazan cualquier método distinto de transferencia o Deuna antes de crear la venta. PayPhone conserva su propio flujo. `StripeCheckoutForm.tsx` y `stripeService.ts` se conservan sin uso. |
+
+Comportamiento verificado con Stripe deshabilitado: `/api/stripe/**` responde **401 sin token y 404 con token** (incluido ADMIN), sin invocar `StripeService` ni `PagoService`.
+
+**2. Factura después del commit en todos los flujos (tarea 5)**
+
+Nuevo componente `GeneradorFacturaTrasCommit`:
+- Programa la factura en `afterCommit`; si hay rollback no se genera.
+- La ejecuta en un ejecutor acotado propio (1–2 hilos, cola de 200, `CallerRunsPolicy`), sin bloquear la respuesta ni crear hilos sin límite.
+- Un error al generar se registra y no afecta a la venta confirmada.
+
+| Flujo | Antes | Ahora |
+|---|---|---|
+| `PagoService.aprobarPago` (transferencia / Deuna) | hilo + `sleep(100)` | `generadorFactura.programar` |
+| `VentaServiceImpl.completarVenta` | hilo + `sleep(100)` | `generadorFactura.programar` |
+| `PagoPasarelaService` (PayPhone) | `afterCommit` síncrono | mismo componente (ya no bloquea la respuesta) |
+| `PagoService.procesarPagoTarjeta` (Stripe) | hilo + `sleep(100)` | eliminado |
+
+Una búsqueda de `new Thread(` / `Thread.sleep` en `src/main/java` de los microservicios solo encuentra la fábrica de hilos del ejecutor acotado.
+
+**3. Pago creado en la misma transacción que la venta**
+
+`VentaApplicationService.crearVenta` creaba el pago PENDIENTE en un hilo con `sleep(500)`. Si fallaba, la venta quedaba sin pago y no aparecía en "pagos pendientes" del emprendedor. Ahora el pago se crea dentro de la transacción de la venta: si falla, la venta hace rollback. Un método desconocido sigue creando la venta sin pago, igual que antes.
+
+**4. Correcciones adicionales encontradas durante el cambio**
+
+- **Doble aprobación:** `aprobarPago` leía el pago sin bloquear la venta. Dos aprobaciones simultáneas (doble clic, dos pestañas o aprobación junto a `completarVenta`) podían descontar stock dos veces. Ahora bloquea la fila de la venta (`findByIdForUpdate`) antes de leer el pago, con la misma estrategia que `completarVenta` y `PagoPasarelaService`.
+- **Venta cancelada:** aprobar el pago de una venta CANCELADA la dejaba COMPLETADA sin descontar stock. Ahora se rechaza.
+- **Rutas inexistentes:** el `GlobalExceptionHandler` de ventas convertía en 500 las rutas inexistentes, los métodos no permitidos y los tipos de contenido no soportados. Ahora responde con su código 4xx (404/405/415).
+
+**5. Pruebas**
+
+| Suite | Casos | Verifica |
+|---|---|---|
+| `StripeDeshabilitadoTest` | 5 | Sin bandera o con `false` no hay beans; con `true` y sin clave falla el arranque; con clave se registra; ya no existen el webhook ni `procesarPagoTarjeta`. |
+| `VentaControllerApiAuthorizationTest` (caso Stripe reescrito) | 1 | 401 sin token; 404 en webhook, create-payment-intent, confirm-payment (ADMIN) y payment-intent; sin interacción con servicios. |
+| `GeneradorFacturaTrasCommitTest` | 4 | Solo tras commit; nada con rollback; inmediato sin transacción; un error no se propaga. |
+| `PagoServiceAprobarPagoTest` | 5 | Bloqueo antes de leer el pago; segunda aprobación sin descuento; cancelada rechazada; otro emprendedor rechazado; fallo de inventario sin factura. |
+| `VentaApplicationServicePagoSincronoTest` | 3 | Pago creado antes de responder; fallo del pago propaga la excepción (rollback); método desconocido sin pago. |
+| `tests/stripeInactivo.test.mjs` (frontend) | 6 | Checkouts sin Stripe ni `TARJETA`; guardia antes de `processCheckout`; selectores sin opción Stripe. |
+
+Resultados: **msvc-ventas 70/70** (incluye `MsvcVentasApplicationTests`, que arranca el contexto completo sin claves de Stripe), **frontend 41/41**, **`tsc --noEmit` sin errores**, `git diff --check` sin avisos de espacios.
+
+**6. Estado resultante**
+
+| Hallazgo | Estado |
+|---|---|
+| C-01 Deuna | Cerrado en código. |
+| C-02 PayPhone | Cerrado en código; pendiente rotación y validación externa. |
+| A-01 Inventario | Cerrado. |
+| A-02 Empresa / RUC / activo | Cerrado. |
+| A-03 Validación del pago | Cerrado para PayPhone; Stripe inactivo y sin ruta de aprobación. |
+| A-04 Descuento de stock | Cerrado para PayPhone y para la aprobación manual (con bloqueo); Stripe inactivo. |
+| A-05 Factura tras commit | Cerrado en todos los flujos activos (PayPhone, transferencia, Deuna, completar venta). |
+| Pendientes operativos | Variables reales, credenciales, sandbox de PayPhone y pruebas de producción. |
+| Redis | Siguiente etapa. |
+
+**Efectos en el uso:**
+- Si en el futuro se reactiva Stripe, no basta con `STRIPE_ENABLED=true`: hay que integrar `confirm-payment` con `PagoPasarelaService` (monto verificado, credencial interna e idempotencia) y reimplementar un webhook con verificación de firma.
+- Aprobar el pago de una venta cancelada ahora responde 400.
+- Una ruta inexistente en ventas responde 404 en lugar de 500.

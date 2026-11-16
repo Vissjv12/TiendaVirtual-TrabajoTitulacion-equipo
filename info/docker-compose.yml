@@ -132,8 +132,9 @@ services:
       - APP_MSVC_PRODUCTO_URL=http://msvc-producto:8081
       - APP_MSVC_INVENTARIO_URL=http://msvc-inventario:8082
       - APP_MSVC_AUTH_SERVICE_URL=${MSVC_AUTH_SERVICE_URL:?MSVC_AUTH_SERVICE_URL debe apuntar al auth-service accesible desde msvc-ventas}
-      - STRIPE_API_KEY=${STRIPE_API_KEY:?STRIPE_API_KEY debe definirse en .env}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:?STRIPE_WEBHOOK_SECRET debe definirse en .env}
+      - STRIPE_ENABLED=${STRIPE_ENABLED:-false}
+      - STRIPE_API_KEY=${STRIPE_API_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - FACTURA_DIRECTORIO=/app/facturas
       - CAMUNDA_BPM_ADMIN_USER_ID=${CAMUNDA_BPM_ADMIN_USER_ID:-admin}
       - CAMUNDA_BPM_ADMIN_USER_PASSWORD=${CAMUNDA_BPM_ADMIN_USER_PASSWORD:?CAMUNDA_BPM_ADMIN_USER_PASSWORD debe definirse en .env}

@@ -7,7 +7,6 @@ import com.example.msvc_ventas.application.dto.SalidaInventarioLoteRequestDto;
 import com.example.msvc_ventas.application.dto.VentaResumenPagoDto;
 import com.example.msvc_ventas.domain.model.DetalleVenta;
 import com.example.msvc_ventas.domain.repository.DetalleVentaRepository;
-import com.example.msvc_ventas.domain.service.FacturaService;
 import com.example.msvc_ventas.domain.service.SeguimientoLogisticaService;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
 import com.example.msvc_ventas.infrastructure.persistence.entity.VentaEntity;
@@ -17,8 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -49,7 +46,7 @@ public class PagoPasarelaService {
     private final DetalleVentaRepository detalleVentaRepository;
     private final InventarioClient inventarioClient;
     private final SeguimientoLogisticaService seguimientoLogisticaService;
-    private final FacturaService facturaService;
+    private final GeneradorFacturaTrasCommit generadorFactura;
 
     @Transactional(readOnly = true)
     public VentaResumenPagoDto obtenerResumen(Long ventaId) {
@@ -172,25 +169,9 @@ public class PagoPasarelaService {
         inventarioClient.procesarSalidaLote(salida);
     }
 
-    /** La factura se genera después del commit, sin hilos con sleep (relacionado con A-05). */
+    /** La factura se genera después del commit, sin hilos con sleep (A-05). */
     private void generarFacturaTrasCommit(Long ventaId) {
-        Runnable generar = () -> {
-            try {
-                facturaService.generarFacturaPDF(ventaId);
-            } catch (Exception e) {
-                log.error("Error al generar factura de la venta {}", ventaId, e);
-            }
-        };
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    generar.run();
-                }
-            });
-        } else {
-            generar.run();
-        }
+        generadorFactura.programar(ventaId);
     }
 
     static long aCentavos(BigDecimal valor) {

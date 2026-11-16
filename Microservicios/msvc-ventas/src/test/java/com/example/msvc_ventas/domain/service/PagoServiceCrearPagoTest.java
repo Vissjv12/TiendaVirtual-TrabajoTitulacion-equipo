@@ -36,7 +36,7 @@ class PagoServiceCrearPagoTest {
     @Mock private DetalleVentaRepository detalleVentaRepository;
     @Mock private InventarioClient inventarioClient;
     @Mock private SeguimientoLogisticaService seguimientoLogisticaService;
-    @Mock private FacturaService facturaService;
+    @Mock private com.example.msvc_ventas.application.service.GeneradorFacturaTrasCommit generadorFactura;
 
     @InjectMocks
     private PagoService pagoService;

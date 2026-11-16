@@ -6,7 +6,6 @@ import com.example.msvc_ventas.application.dto.RegistrarPagoPasarelaResponseDto;
 import com.example.msvc_ventas.application.dto.SalidaInventarioLoteRequestDto;
 import com.example.msvc_ventas.domain.model.DetalleVenta;
 import com.example.msvc_ventas.domain.repository.DetalleVentaRepository;
-import com.example.msvc_ventas.domain.service.FacturaService;
 import com.example.msvc_ventas.domain.service.SeguimientoLogisticaService;
 import com.example.msvc_ventas.infrastructure.persistence.entity.ClienteEntity;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
@@ -50,7 +49,7 @@ class PagoPasarelaServiceTest {
     @Mock private DetalleVentaRepository detalleVentaRepository;
     @Mock private InventarioClient inventarioClient;
     @Mock private SeguimientoLogisticaService seguimientoLogisticaService;
-    @Mock private FacturaService facturaService;
+    @Mock private GeneradorFacturaTrasCommit generadorFactura;
 
     @InjectMocks
     private PagoPasarelaService service;

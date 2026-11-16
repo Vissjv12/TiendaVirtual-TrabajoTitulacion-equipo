@@ -58,6 +58,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -387,26 +388,30 @@ class VentaControllerApiAuthorizationTest {
     }
 
     @Test
-    void stripeWebhookEsPublicoPeroIntentsYCamundaEstanRestringidos() throws Exception {
-        when(stripeService.crearPaymentIntent(any(BigDecimal.class), anyLong(), anyLong()))
-                .thenReturn(Map.of("clientSecret", "sec", "paymentIntentId", "pi_123"));
-
+    void stripeDeshabilitadoNoExponeRutasYCamundaSigueRestringido() throws Exception {
+        // Stripe inactivo (stripe.enabled=false): el webhook ya no es publico y ninguna ruta existe,
+        // aunque StripeController este en la lista de controladores de la prueba.
         mockMvc.perform(post("/api/stripe/webhook")
                         .header("Stripe-Signature", "sig_test")
                         .content("{}"))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(post("/api/stripe/create-payment-intent")
-                        .with(jwtUser("otro@test.com"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"ventaId\":50,\"clienteId\":10,\"monto\":20}"))
-                .andExpect(status().isForbidden());
-
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/stripe/webhook")
+                        .with(jwtUser("cliente@test.com"))
+                        .content("{}"))
+                .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/stripe/create-payment-intent")
                         .with(jwtUser("cliente@test.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"ventaId\":50,\"clienteId\":10,\"monto\":20}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/stripe/confirm-payment")
+                        .with(jwtAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ventaId\":50,\"paymentIntentId\":\"pi_1\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/stripe/payment-intent/pi_1").with(jwtUser("cliente@test.com")))
+                .andExpect(status().isNotFound());
+        verifyNoInteractions(stripeService, pagoService);
 
         ProcessInstance instance = mock(ProcessInstance.class);
         when(instance.getId()).thenReturn("proc-1");
