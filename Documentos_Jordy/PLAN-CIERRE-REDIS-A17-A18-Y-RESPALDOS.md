@@ -80,7 +80,6 @@ El trabajo se mantiene primero en local con datos sintéticos y servicios aislad
 1. Ejecutar el conjunto de pruebas de los servicios y las pruebas Redis/HTTP/autorización que cubren los criterios anteriores.
 2. Corregir fallos antes de actualizar el reporte; guardar comando, commit, fecha y resultado.
 3. Actualizar R01–R16 y A15–A18: cada requisito debe quedar implementado y probado, pendiente con razón, o explícitamente diferido.
-4. No incluir Stripe: no se usa en el proyecto.
 
 **Verificación:** suite reproducible sin depender de servicios institucionales y documentación sin resultados presentados como actuales cuando no se repitieron.
 
@@ -91,10 +90,10 @@ El trabajo se mantiene primero en local con datos sintéticos y servicios aislad
 3. Documentar que el dump actual restaurado no cubre usuarios/grants globales; preparar, revisar y probar su recuperación sin guardar contraseñas en el repo.
 4. Hacer ensayo de restauración de JARs, frontend, unidades systemd, configuración Nginx y material de Certbot desde las copias existentes; no basta con validar que el tar se pueda listar.
 5. Mantener una copia fuera del servidor y del mismo disco. La carpeta de respaldos en el disco del servidor no protege frente a pérdida de esa VM/disco.
-6. La partición manual de respaldo sigue pendiente: primero resolver GPT/PMBR y acordar una recuperación de VM con el administrador. No ejecutar `sfdisk`, `parted`, `growpart` ni escritura de tabla mientras eso siga abierto.
+6. No crear una partición de respaldo en el servidor. El usuario decidió conservar copias en la laptop; la advertencia GPT/PMBR y la falta de consola VMware además hacen insegura cualquier escritura de tabla. No ejecutar `sfdisk`, `parted`, `growpart` ni comandos equivalentes.
 7. No automatizar respaldos: dejar instructivo manual, ubicación, permisos, retención acordada y comando de verificación.
 
-**Verificación:** acta de restauración con alcance/limitaciones; checksum y ubicación de copia externa; decisión explícita sobre la partición.
+**Verificación:** acta local de restauración con alcance/limitaciones, huellas SHA-256 y ACL privada confirmadas.
 
 ### 9. Preparación del runtime del servidor (sin activar caché)
 
@@ -112,10 +111,24 @@ Solo proponer activar Redis después de: R06/R12/R14/R15 cerrados; pruebas de re
 
 En la ventana: dejar el caché apagado al desplegar, validar Gateway, login, productos, categorías y flujos relacionados; activar primero de forma limitada, observar errores/latencias/consultas; desactivar el flag si hay inconsistencia, 5xx o regresión. Redis no debe ser fuente de verdad. No realizar cambios de partición durante esta ventana.
 
-## Estado de respaldos al iniciar este plan
+## Estado de respaldos verificado el 15 de noviembre de 2026
 
-Ya hay dump comprimido de `auth_service`, `inventario`, `productos` y `ventas` restaurado en un MySQL aislado, con 64 tablas verificadas; también hay copias locales de JARs, frontend, systemd, Nginx, certificados y tabla de particiones. Las copias de los archivos de producción ya se transfirieron al PC; falta recalcular allí los SHA-256 para confirmar su integridad, ensayar la restauración de artefactos y preparar la recuperación de usuarios/grants. Antes de la ventana se hará un dump manual nuevo. La partición sigue bloqueada por GPT/PMBR y falta coordinar una recuperación de la VM. Ningún respaldo real debe subirse a GitHub.
+El dump de las cuatro bases se restauró en MySQL aislado y verificó 64 tablas. Las copias locales de JAR, frontend, systemd, Nginx, certificados y tabla de particiones se verificaron por SHA-256 y estructura; el dump del 15 de noviembre coincide con la huella recibida del servidor. Se decidió no crear una partición y conservar los respaldos en la laptop, fuera de GitHub. La reconsulta SSH posterior falló por DNS, así que no se confirmó ni retiró una copia temporal que pudiera seguir en el servidor. Antes de una ventana se hará un dump manual nuevo, se copiará y verificará en local y luego se retirará la copia temporal remota. El fixture de SQL trackeado por el repositorio no es un respaldo de producción.
 
 ## Criterio de cierre
 
 El trabajo queda listo para revisión cuando las pruebas pendientes tengan evidencia reproducible, la matriz R01–R16 esté actualizada, las limitaciones del benchmark sean claras, los respaldos tengan restauración ensayada y el caché permanezca apagado hasta la aprobación de la ventana de producción.
+
+
+## Avance y hallazgos verificados el 15 de noviembre de 2026
+
+- Se hizo git pull --ff-only de integration/version-estable-deuna-pulido; quedó al día en bdb79ab799aaf82305bd1fd3a698410da9bf2636.
+- En una red local sintética, la suite de Producto terminó 33/33 y la suite Redis/HTTP/autorización 49/49; el empaquetado Maven también pasó. Estas cifras no acreditan comportamiento en el servidor.
+- El contrato de caché aprobado por el equipo ahora coincide con ProductoCatalogoPublicoDto y CategoriaResponseDto. La aprobación de campos no amplía por sí misma la visibilidad HTTP. La proyección de producto excluye inventarioCantidad.
+- R06 sigue pendiente: no se inyectó una demora Redis superior a 500 ms. R12 requiere fallo real de MySQL observado por HTTP. R14 necesita una matriz completa de actores y permisos por Gateway. R15 tiene pruebas automatizadas de TTL/invalidez/carrera, pero la aceptación de su ventana de datos obsoletos aún debe quedar registrada.
+- El Compose del Gateway pasó validación y /health respondió 200 en una instancia local temporal. El servidor sigue sin Docker/Podman y su NGINX aún no envía /api/ al Gateway. La configuración predeterminada de puerto 8080 puede chocar con Auth.
+- El servidor reportó 1.7 GiB de memoria disponible de 5.5 GiB totales. No es una medición de capacidad para carga.
+- Las copias locales suman 27 archivos y 1,328,027,567 bytes. Se recalculó SHA-256 y pasó la lectura de 12 archivos comprimidos/JAR; el dump reciente coincide con la huella recibida por SSH. La restauración aislada de base ya verificó 64 tablas. Falta ensayar extracción/validación de todos los artefactos y una recuperación Linux integral.
+- Se reorganizó la preparación local en backups servidor tienda sigchos y programa tienda sigchos. Los residuos .tmp-jdk17 y el worktree Redis están bloqueados por Windows; se conservan intactos hasta que el proceso que los usa libere sus archivos.
+- Se detuvieron seis contenedores locales identificados como parte de la prueba. En la comprobación final el motor Docker no respondió; no se eliminaron contenedores ni volúmenes.
+- Se decidió conservar respaldos únicamente en la laptop. La copia local está verificada, pero la reconsulta SSH falló por DNS; no se confirmó ni borró la copia temporal remota.

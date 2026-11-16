@@ -138,3 +138,10 @@ Esta sección registra el estado del checkout `integration/avance-hasta-redis`. 
 Las pruebas locales verifican invalidación al crear/actualizar/desactivar producto; renombrar/desactivar categoría; y renombrar/desactivar empresa. El endpoint `DELETE` de producto realiza baja lógica. Se probó también el rollback, el error al invalidar después del commit y la carrera de publicación vieja. R15 muestra que un fallo post-commit puede dejar una entrada anterior hasta que venza el TTL de su último `SET`; no se añadió outbox ni se aprobó esa ventana.
 
 El listado es compartido por sus actores permitidos porque la ruta actual es pública. La prueba sintética confirma que no incluye `emprendedorId` ni stock en el JSON guardado. La presencia de `precio` y `empresaId` en la proyección es un hecho del código, no aprobación del propietario del dato.
+
+
+## Confirmación posterior de campos y revisión de implementación (15 de noviembre de 2026)
+
+El equipo aprobó para el diseño de caché la proyección pública de producto con id, nombre, descripcion, precio, imagen, categoriaNombre, empresaNombre y empresaId; para categoría aprobó id, nombre, descripcion, activo, fechaCreacion y fechaActualizacion. Esta decisión reemplaza las menciones anteriores de campos pendientes en este borrador. No autoriza a hacer públicos por API campos que hoy no sean visibles ni permite cachear existencias, propietario interno, ventas o datos privados.
+
+La revisión del código de integration/version-estable-deuna-pulido encontró que ProductoCatalogoPublicoDto contiene exactamente los ocho campos aprobados y no incluye inventarioCantidad. CategoriaCatalogoQueryService serializa CategoriaResponseDto, cuyos seis campos coinciden con la lista aprobada. El flag de cada recurso sigue apagado por defecto; la aprobación del modelo no es autorización de despliegue.

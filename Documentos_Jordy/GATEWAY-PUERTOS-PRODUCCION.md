@@ -1,32 +1,23 @@
-# Puertos del Gateway en producción
+# Puertos del Gateway en local y producción
 
-## Mapa de tráfico
+## Qué hace el Compose
 
-- El navegador entra por `https://tienda.gadmsigchos.gob.ec:444`, que es el puerto HTTPS público observado en el servidor.
-- El Nginx frontal del servidor conserva TLS y reenvía las rutas `/api/` al Gateway en `http://127.0.0.1:8080`.
-- El Gateway escucha en `8080` de forma interna. `docker-compose.gateway.yml` lo publica solo en loopback para que no quede expuesto directamente a Internet.
-- Para desarrollo local se conserva `http://localhost:8080`.
+El archivo docker-compose.gateway.yml ejecuta un contenedor NGINX para el API Gateway. Su mapeo publica solo en loopback, con la forma 127.0.0.1:<GATEWAY_PORT>:8080; si no se define GATEWAY_PORT, el host usa 8080. El puerto 8080 dentro del contenedor es fijo; GATEWAY_PORT cambia el puerto de acceso desde el host.
 
-## Variables del frontend
+La configuración del contenedor enruta al backend en los puertos 8081–8084 mediante host.docker.internal. El servicio /health confirma la disponibilidad del Gateway. El Compose no edita el NGINX instalado en el host, no instala un runtime de contenedores, no modifica unidades systemd ni configura certificados. La prueba realizada en esta revisión fue local, aislada y temporal.
 
-Copiar `.env.production.example` a `.env.production` antes de compilar el frontend. `NEXT_PUBLIC_GATEWAY_URL` se incorpora al bundle del navegador; `GATEWAY_INTERNAL_URL` configura los rewrites del servidor Next.js. No usar `localhost` como URL pública del navegador en producción.
+## Estado observado en el servidor el 15 de noviembre de 2026
 
-## Nginx frontal
+El NGINX del servidor pasa su prueba de sintaxis y escucha en los puertos 80 y 444; el HTTPS público usa :444. Las ubicaciones observadas llevan rutas conocidas directamente a servicios locales, por ejemplo productos/categorías/empresas a 8081 e inventario a 8082; no hay una ubicación general /api/ que envíe las solicitudes al Gateway. La ubicación de autenticación usa localhost:8080, así que el puerto predeterminado del Compose podría entrar en conflicto con el servicio que ya atiende ahí.
 
-Dentro del `server` HTTPS que escucha en `444`, la ruta API debe apuntar al Gateway local:
+En el servidor no están instalados Docker ni Podman. Por tanto, el Gateway todavía no está ejecutándose allí y NGINX no se ha conectado a él. La reconsulta SSH posterior falló por resolución DNS, así que estas observaciones deben verificarse de nuevo antes de una ventana. La consulta de memoria reportó 5.5 GiB totales, 3.8 GiB usados y 1.7 GiB disponibles; hay 3.9 GiB de swap, con 11 MiB usados.
 
-```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
+## Ruta prevista si se decide desplegar el Gateway
 
-Revisar la configuración vigente y reemplazar la ubicación `/api/` existente; no crear dos bloques `location` iguales. Mantener el Gateway accesible solo desde el host y verificar `/health` local y una ruta `/api/` a través de HTTPS antes de aceptar el despliegue.
+1. Confirmar con el responsable si se instalará un runtime en el servidor o se usará una unidad de servicio compatible con el entorno actual.
+2. Consultar en el host que un puerto elegido esté libre. No asumir 8080; la configuración de Auth ya apunta a ese puerto. GATEWAY_PORT=8090 es solo un candidato hasta comprobarlo.
+3. Publicar el contenedor únicamente en 127.0.0.1 y comprobar desde el host /health y una lectura API.
+4. En el bloque HTTPS de NGINX, reemplazar las ubicaciones actuales que correspondan y enviar /api/ al puerto loopback elegido. No dejar rutas duplicadas ni exponer directamente el Gateway.
+5. Ejecutar nginx -t antes de recargar NGINX y probar login, productos, categorías y las rutas que sigan habilitadas.
 
-## Límite del cambio
-
-Esta corrección alinea las URLs y el mapeo de puertos del repositorio. No instala Docker ni cambia `systemd` o Nginx en el servidor. Las salidas previas indicaron que el servidor opera con `systemd` y no tenía Docker/Podman disponibles; por eso `docker-compose.gateway.yml` no podrá ejecutarse allí hasta que exista un runtime autorizado o se prepare una unidad de servicio compatible. No ejecutar en producción el Compose general que crea otro contenedor MySQL.
+Esta revisión no cambió el Compose, el NGINX del servidor ni systemd. La configuración propuesta sigue siendo de despliegue; la comprobación local no demuestra que el servidor esté listo.

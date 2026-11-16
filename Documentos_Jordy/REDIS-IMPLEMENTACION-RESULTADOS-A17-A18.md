@@ -63,3 +63,10 @@ Para carga k6, salud, Gateway y pruebas manuales se usaron únicamente Producto 
 - `Documentos_Jordy/A16-MODELO-DE-CACHE.md`
 - `Documentos_Jordy/A16-SEGURIDAD-CONEXION-Y-PRUEBAS.md`
 - `Documentos_Jordy/REDIS-PRUEBA-INSTITUCIONAL-Y-ROLLBACK.md`
+
+
+## Actualización de revisión del 15 de noviembre de 2026
+
+Después del pull de integration/version-estable-deuna-pulido en bdb79ab799aaf82305bd1fd3a698410da9bf2636, las pruebas locales sintéticas pasaron 33/33 y 49/49 y el paquete Maven se generó correctamente. El equipo confirmó los campos aprobados que constaban pendientes en este informe: producto (id, nombre, descripcion, precio, imagen, categoriaNombre, empresaNombre, empresaId) y categoría (id, nombre, descripcion, activo, fechaCreacion, fechaActualizacion). Las corridas históricas y los porcentajes k6 anteriores no se repitieron.
+
+R06, R12 y R14 siguen abiertos según REDIS-RESULTADOS-A18.md. El Gateway solo se probó localmente; el servidor aún no tiene runtime Docker/Podman ni ruta NGINX conectada al contenedor. Redis continúa sin habilitación en producción.
