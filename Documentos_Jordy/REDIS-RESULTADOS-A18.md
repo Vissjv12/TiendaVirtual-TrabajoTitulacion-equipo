@@ -142,3 +142,10 @@ Las métricas `/actuator/metrics/**` requieren autoridad `ROLE_ADMIN`. Las prueb
 5. Repetir la línea base, miss y hit al menos tres veces con tráfico y distribución fijos; medir también el listado únicamente y contenido idéntico.
 6. Hacer la comparación completa de activos/inactivos y la matriz de autorización por Gateway.
 7. Obtener acceso y autorización institucional, identificar la versión desplegada y acordar una ventana/respaldo. Esta guía local no autoriza conexión, despliegue ni modificación del servidor.
+
+
+## Revisión adicional en la rama estable (15 de noviembre de 2026)
+
+Esta corrida local se hizo después del pull de integration/version-estable-deuna-pulido en bdb79ab799aaf82305bd1fd3a698410da9bf2636, con MySQL y Redis sintéticos. La suite completa pasó 33/33; la suite enfocada en Redis, HTTP y autorización pasó 49/49; Maven empaquetó el JAR. No se repitió k6 en esta revisión y las métricas históricas de este informe no se presentan como mediciones nuevas.
+
+La decisión de campos que antes constaba pendiente fue aprobada después de la fecha de las corridas históricas. Las proyecciones actuales de producto y categoría coinciden con lo aprobado; producto omite inventarioCantidad. Esto actualiza el estado de diseño, pero no cierra R06, R12 ni R14: no hubo timeout Redis lento medido, fallo real de MySQL por HTTP ni matriz completa de autorización a través del Gateway. R15 mantiene el límite histórico: falta que el responsable acepte expresamente la ventana de datos obsoletos posterior a fallo de invalidación.
