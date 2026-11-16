@@ -1,6 +1,12 @@
 // services/pagoService.ts
 import authService from './authService';
 import { GATEWAY_API_URL, PageResponse, PaginationParams, buildPaginationQuery } from './apiConfig';
+import {
+    DisponibilidadMetodo,
+    MOTIVO_DEUNA_SIN_CONFIGURAR,
+    MOTIVO_TRANSFERENCIA_SIN_CONFIGURAR,
+    verificarDisponibilidadMetodo
+} from './checkoutEmpresa';
 
 const API_BASE_URL = GATEWAY_API_URL;
 
@@ -73,66 +79,69 @@ export const formatAccountTypeLabel = (tipoCuenta?: string): string => {
 };
 
 /**
- * Obtiene las cuentas bancarias reales configuradas por los emprendedores de los productos del carrito.
+ * Obtiene la URL del QR de Deuna configurado por la empresa.
+ * Devuelve null si la empresa no lo configuró (404). Lanza error ante fallos de red/servidor.
  */
-export const obtenerDatosBancariosCheckout = async (
-    cartItems: Array<{ producto?: any }>
-): Promise<DatosBancariosPublico[]> => {
-    const empresasMap = new Map<number, string | undefined>();
-    for (const item of cartItems || []) {
-        const producto = item?.producto;
-        const empresaId = Number(
-            producto?.empresa?.id || producto?.empresaId || producto?.emprendedorId || 0
-        );
-        if (empresaId > 0 && !empresasMap.has(empresaId)) {
-            empresasMap.set(empresaId, producto?.empresa?.nombre);
-        }
+export const obtenerQrDeunaEmpresa = async (empresaId: number): Promise<string | null> => {
+    const response = await fetch(`${API_BASE_URL}/emprendedor/configuracion-pagos/deuna-qr/${empresaId}`);
+    if (response.status === 404) {
+        return null;
     }
-
-    if (empresasMap.size === 0) {
-        return [];
+    if (!response.ok) {
+        throw new Error('No se pudo cargar el código QR de Deuna');
     }
-
-    const responses = await Promise.all(
-        Array.from(empresasMap.entries()).map(async ([empresaId, empresaNombre]) => {
-            const response = await fetch(
-                `${API_BASE_URL}/emprendedor/configuracion-pagos/bancarios/${empresaId}`
-            );
-
-            if (response.status === 404) {
-                return null;
-            }
-            if (!response.ok) {
-                throw new Error('No se pudieron cargar los datos bancarios del emprendedor');
-            }
-
-            const data = await response.json();
-            if (!data || !data.banco || !data.numeroCuenta) {
-                return null;
-            }
-
-            return {
-                empresaId,
-                empresaNombre,
-                banco: data.banco,
-                tipoCuenta: data.tipoCuenta,
-                numeroCuenta: data.numeroCuenta,
-                titular: data.titular,
-                cedulaRuc: data.cedulaRuc,
-                email: data.email
-            } as DatosBancariosPublico;
-        })
-    );
-
-    const seen = new Set<string>();
-    return responses.filter((cuenta): cuenta is DatosBancariosPublico => {
-        if (!cuenta) return false;
-        const key = `${cuenta.banco}|${cuenta.numeroCuenta}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+    const data = await response.json();
+    return typeof data?.qrUrl === 'string' && data.qrUrl ? data.qrUrl : null;
 };
+
+/**
+ * Obtiene la cuenta bancaria configurada por la empresa.
+ * Devuelve null si la empresa no la configuró (404). Lanza error ante fallos de red/servidor.
+ */
+export const obtenerDatosBancariosEmpresa = async (
+    empresaId: number,
+    empresaNombre?: string
+): Promise<DatosBancariosPublico | null> => {
+    const response = await fetch(`${API_BASE_URL}/emprendedor/configuracion-pagos/bancarios/${empresaId}`);
+    if (response.status === 404) {
+        return null;
+    }
+    if (!response.ok) {
+        throw new Error('No se pudieron cargar los datos bancarios del emprendedor');
+    }
+    const data = await response.json();
+    if (!data || !data.banco || !data.numeroCuenta) {
+        return null;
+    }
+    return {
+        empresaId,
+        empresaNombre,
+        banco: data.banco,
+        tipoCuenta: data.tipoCuenta,
+        numeroCuenta: data.numeroCuenta,
+        titular: data.titular,
+        cedulaRuc: data.cedulaRuc,
+        email: data.email
+    };
+};
+
+/**
+ * Deuna disponible solo si todo el carrito pertenece a una única empresa identificable
+ * y esa empresa tiene QR. Si el carrito no resuelve una empresa, NO se consulta el backend.
+ */
+export const verificarDisponibilidadDeuna = (
+    cartItems: Array<{ producto?: any }>
+): Promise<DisponibilidadMetodo<string>> =>
+    verificarDisponibilidadMetodo(cartItems, (empresaId) => obtenerQrDeunaEmpresa(empresaId), MOTIVO_DEUNA_SIN_CONFIGURAR);
+
+/**
+ * Transferencia disponible con la misma regla que Deuna: una única empresa identificable
+ * con cuenta bancaria. Si el carrito no resuelve una empresa, NO se consulta el backend.
+ */
+export const verificarDisponibilidadTransferencia = (
+    cartItems: Array<{ producto?: any }>
+): Promise<DisponibilidadMetodo<DatosBancariosPublico>> =>
+    verificarDisponibilidadMetodo(cartItems, obtenerDatosBancariosEmpresa, MOTIVO_TRANSFERENCIA_SIN_CONFIGURAR);
 
 export const crearPago = async (pago: PagoRequest): Promise<PagoResponse> => {
     const response = await fetch(`${API_BASE_URL}/pagos`, {
@@ -325,5 +334,8 @@ export default {
     procesarPagoSimulado,
     formatBankLabel,
     formatAccountTypeLabel,
-    obtenerDatosBancariosCheckout
+    obtenerQrDeunaEmpresa,
+    obtenerDatosBancariosEmpresa,
+    verificarDisponibilidadDeuna,
+    verificarDisponibilidadTransferencia
 };

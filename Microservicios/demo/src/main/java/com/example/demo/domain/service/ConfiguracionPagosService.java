@@ -3,6 +3,7 @@ package com.example.demo.domain.service;
 import com.example.demo.application.dto.ConfiguracionPagosDto;
 import com.example.demo.application.dto.DatosBancariosDto;
 import com.example.demo.application.dto.PayphoneDto;
+import com.example.demo.application.dto.PayphoneEstadoDto;
 import com.example.demo.domain.model.ConfiguracionMetodosPago;
 import com.example.demo.domain.repository.ConfiguracionMetodosPagoRepository;
 import com.example.demo.infrastructure.config.StaticResourceConfiguration;
@@ -19,7 +20,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -87,19 +87,62 @@ public class ConfiguracionPagosService {
     }
 
     /**
-     * Guardar o actualizar datos de Payphone
+     * Guardar o actualizar las credenciales de Payphone (hallazgo C-02).
+     * El token es de solo escritura: si llega vacío se conserva el ya guardado, de modo que
+     * el frontend nunca necesita leerlo para editar el App ID. La primera vez es obligatorio.
      */
     @Transactional
     public ConfiguracionPagosDto guardarPayphone(Long emprendedorId, PayphoneDto payphoneDto) {
+        if (payphoneDto == null) {
+            throw new IllegalArgumentException("Datos de Payphone requeridos");
+        }
         ConfiguracionMetodosPago config = configuracionRepository.findByEmprendedorId(emprendedorId)
                 .orElse(new ConfiguracionMetodosPago());
-        
+
+        String appId = recortarONulo(payphoneDto.getPayphoneAppId());
+        String token = recortarONulo(payphoneDto.getPayphoneToken());
+        if (token == null && recortarONulo(config.getPayphoneToken()) == null) {
+            throw new IllegalArgumentException("El token de Payphone es obligatorio");
+        }
+        if (token != null && token.length() > 4096) {
+            throw new IllegalArgumentException("El token de Payphone es demasiado largo");
+        }
+
         config.setEmprendedorId(emprendedorId);
-        config.setPayphoneAppId(payphoneDto.getPayphoneAppId());
-        config.setPayphoneToken(payphoneDto.getPayphoneToken());
-        
+        config.setPayphoneAppId(appId);
+        if (token != null) {
+            config.setPayphoneToken(token);
+        }
+
         config = configuracionRepository.save(config);
         return convertirADto(config);
+    }
+
+    /**
+     * Indica si la empresa acepta Payphone (tiene token). Uso público en el checkout.
+     */
+    @Transactional(readOnly = true)
+    public boolean payphoneDisponiblePorEmpresa(Long empresaId) {
+        return obtenerTokenPayphonePorEmpresa(empresaId).isPresent();
+    }
+
+    /**
+     * Token de Payphone de la empresa. USO EXCLUSIVO DEL BACKEND (PayphonePagoService):
+     * nunca debe devolverse en una respuesta HTTP ni escribirse en logs (hallazgo C-02).
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> obtenerTokenPayphonePorEmpresa(Long empresaId) {
+        return obtenerConfiguracionPorEmpresa(empresaId)
+                .map(ConfiguracionMetodosPago::getPayphoneToken)
+                .map(this::recortarONulo);
+    }
+
+    private String recortarONulo(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        String recortado = valor.trim();
+        return recortado.isEmpty() ? null : recortado;
     }
 
     /**
@@ -178,56 +221,36 @@ public class ConfiguracionPagosService {
     }
 
     /**
-     * Obtener QR de Deuna resolviendo por empresaId -> emprendedorId y verificando existencia en disco.
+     * Obtener el QR de Deuna de la empresa indicada (checkout).
+     * Se resuelve ÚNICAMENTE empresaId -> emprendedor -> configuración. Sin fallback a otro
+     * emprendedor ni reinterpretación del id como emprendedorId (corrige hallazgo C-01):
+     * si la empresa no tiene QR válido en disco, se devuelve vacío y el controlador responde 404.
      */
     @Transactional(readOnly = true)
-    public Optional<String> obtenerQrDeuna(Long idOrEmpresaId) {
-        // Nivel 1: resolver por empresa_id (flujo estándar del carrito en checkout)
-        Optional<String> qrPorEmpresa = emprendedorRepository.findByEmpresaId(idOrEmpresaId)
-                .flatMap(emprendedor -> configuracionRepository.findByEmprendedorId(emprendedor.getId()))
+    public Optional<String> obtenerQrDeunaPorEmpresa(Long empresaId) {
+        return obtenerConfiguracionPorEmpresa(empresaId)
                 .map(ConfiguracionMetodosPago::getQrDeunaUrl)
                 .filter(this::archivoQrExiste);
-        if (qrPorEmpresa.isPresent()) {
-            return qrPorEmpresa;
-        }
-
-        // Nivel 2: resolver directamente por emprendedor_id
-        Optional<String> qrDirecto = configuracionRepository.findByEmprendedorId(idOrEmpresaId)
-                .map(ConfiguracionMetodosPago::getQrDeunaUrl)
-                .filter(this::archivoQrExiste);
-        if (qrDirecto.isPresent()) {
-            return qrDirecto;
-        }
-
-        // Nivel 3: respaldo activo en ambiente local cuando otro emprendedor ya tiene QR válido en disco
-        return configuracionRepository.findAll().stream()
-                .filter(config -> archivoQrExiste(config.getQrDeunaUrl()))
-                .sorted(Comparator.comparing(
-                                ConfiguracionMetodosPago::getUpdatedAt,
-                                Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(
-                                ConfiguracionMetodosPago::getId,
-                                Comparator.nullsLast(Comparator.reverseOrder())))
-                .map(ConfiguracionMetodosPago::getQrDeunaUrl)
-                .findFirst();
     }
 
     /**
-     * Obtener datos bancarios de un emprendedor (resolviendo por empresaId o emprendedorId)
+     * Obtener los datos bancarios de la empresa indicada (checkout).
+     * Misma regla que el QR: solo por empresaId, sin reinterpretar el id (corrige hallazgo C-01).
      */
     @Transactional(readOnly = true)
-    public Optional<DatosBancariosDto> obtenerDatosBancarios(Long idOrEmpresaId) {
-        Optional<ConfiguracionMetodosPago> configPorEmpresa = emprendedorRepository.findByEmpresaId(idOrEmpresaId)
-                .flatMap(emprendedor -> configuracionRepository.findByEmprendedorId(emprendedor.getId()))
-                .filter(config -> config.getBanco() != null && !config.getBanco().isBlank());
-
-        if (configPorEmpresa.isPresent()) {
-            return configPorEmpresa.map(this::mapearDatosBancarios);
-        }
-
-        return configuracionRepository.findByEmprendedorId(idOrEmpresaId)
+    public Optional<DatosBancariosDto> obtenerDatosBancariosPorEmpresa(Long empresaId) {
+        return obtenerConfiguracionPorEmpresa(empresaId)
                 .filter(config -> config.getBanco() != null && !config.getBanco().isBlank())
+                .filter(config -> config.getNumeroCuenta() != null && !config.getNumeroCuenta().isBlank())
                 .map(this::mapearDatosBancarios);
+    }
+
+    private Optional<ConfiguracionMetodosPago> obtenerConfiguracionPorEmpresa(Long empresaId) {
+        if (empresaId == null || empresaId <= 0) {
+            return Optional.empty();
+        }
+        return emprendedorRepository.findByEmpresaId(empresaId)
+                .flatMap(emprendedor -> configuracionRepository.findByEmprendedorId(emprendedor.getId()));
     }
 
     private ValidatedQrImage validarYExtraerImagenQr(MultipartFile archivo) throws IOException {
@@ -378,10 +401,10 @@ public class ConfiguracionPagosService {
         }
         
         if (config.getPayphoneAppId() != null || config.getPayphoneToken() != null) {
-            PayphoneDto payphone = new PayphoneDto();
-            payphone.setPayphoneAppId(config.getPayphoneAppId());
-            payphone.setPayphoneToken(config.getPayphoneToken());
-            dto.setPayphone(payphone);
+            // Nunca se copia el token al DTO de respuesta (hallazgo C-02)
+            dto.setPayphone(new PayphoneEstadoDto(
+                    config.getPayphoneAppId(),
+                    recortarONulo(config.getPayphoneToken()) != null));
         }
         
         return dto;

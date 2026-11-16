@@ -11,7 +11,6 @@ import com.example.msvc_ventas.domain.model.Venta;
 import com.example.msvc_ventas.domain.repository.DetalleVentaRepository;
 import com.example.msvc_ventas.domain.repository.VentaRepository;
 import com.example.msvc_ventas.domain.service.ClienteService;
-import com.example.msvc_ventas.domain.service.FacturaService;
 import com.example.msvc_ventas.domain.service.SeguimientoLogisticaService;
 import com.example.msvc_ventas.domain.service.VentaService;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
@@ -40,8 +39,9 @@ public class VentaServiceImpl implements VentaService {
     private final DetalleVentaRepository detalleVentaRepository;
     private final ClienteService clienteService;
     private final PagoRepository pagoRepository;
+    private final com.example.msvc_ventas.infrastructure.persistence.repository.VentaJpaRepository ventaJpaRepository;
     private final SeguimientoLogisticaService seguimientoLogisticaService;
-    private final FacturaService facturaService;
+    private final GeneradorFacturaTrasCommit generadorFactura;
     @Qualifier("com.example.msvc_ventas.application.client.ProductoClient")
     private final ProductoClient productoClient;
     @Qualifier("com.example.msvc_ventas.application.client.InventarioClient")
@@ -200,6 +200,9 @@ public class VentaServiceImpl implements VentaService {
     @Override
     @Transactional
     public Venta completarVenta(Long id) {
+        // Bloqueo de fila: evita que esta finalización y la de la pasarela descuenten stock dos veces
+        ventaJpaRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new NoSuchElementException("Venta no encontrada con ID: " + id));
         Venta venta = obtenerVentaPorId(id);
 
         // Verificar que la venta está en estado pendiente
@@ -269,16 +272,8 @@ public class VentaServiceImpl implements VentaService {
             log.error("Error al inicializar seguimiento logístico al completar venta ID: {}", id, e);
         }
 
-        // Generar factura PDF en segundo plano sin bloquear la respuesta
-        final Long ventaIdFinal = ventaGuardada.getId();
-        new Thread(() -> {
-            try {
-                Thread.sleep(100);
-                facturaService.generarFacturaPDF(ventaIdFinal);
-            } catch (Exception e) {
-                log.error("Error al generar factura PDF al completar venta ID: {}", ventaIdFinal, e);
-            }
-        }).start();
+        // Factura después del commit (A-05), sin hilos con sleep: si hay rollback no se genera
+        generadorFactura.programar(ventaGuardada.getId());
 
         return ventaGuardada;
     }

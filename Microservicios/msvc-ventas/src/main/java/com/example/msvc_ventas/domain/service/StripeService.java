@@ -6,6 +6,7 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -13,15 +14,20 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Stripe inactivo por defecto: el bean solo existe con stripe.enabled=true (ver StripeController). */
 @Service
 @Slf4j
+@ConditionalOnProperty(name = "stripe.enabled", havingValue = "true")
 public class StripeService {
 
-    @Value("${stripe.api.key}")
+    @Value("${stripe.api.key:}")
     private String stripeApiKey;
 
     @PostConstruct
     public void init() {
+        if (stripeApiKey == null || stripeApiKey.isBlank()) {
+            throw new IllegalStateException("stripe.enabled=true requiere STRIPE_API_KEY");
+        }
         Stripe.apiKey = stripeApiKey;
         log.info("Stripe API inicializado");
     }

@@ -42,10 +42,13 @@ public class MovimientoInventarioController {
 
     @PostMapping
     @Operation(summary = "Registrar un nuevo movimiento de inventario")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_ADMIN') or (hasAuthority('ROLE_EMP') and @inventarioAuthorizationService.canManageInventario(authentication, #requestDto.inventarioId))")
     public ResponseEntity<MovimientoInventarioResponseDto> registrarMovimiento(
             @Valid @RequestBody MovimientoInventarioRequestDto requestDto) {
 
         MovimientoInventario movimiento = movimientoMapper.toEntity(requestDto);
+        // El autor del movimiento es siempre el usuario del JWT, nunca un valor del cuerpo (A-01)
+        movimiento.setUsuarioId(com.example.msvc_inventario.application.service.UsuarioAutenticado.id());
         MovimientoInventario movimientoRegistrado = movimientoService.registrarMovimiento(movimiento);
 
         return new ResponseEntity<>(

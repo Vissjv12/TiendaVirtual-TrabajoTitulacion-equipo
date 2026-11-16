@@ -169,4 +169,23 @@ class VentaAuthorizationServiceTest {
         assertTrue(authorizationService.canUploadComprobantePago(admin, 300L));
         assertFalse(authorizationService.canUploadComprobantePago(intruso, 300L));
     }
+
+    // --- Credencial interna de servicio de pagos (A-04) ---
+
+    @Test
+    void credencialDeServicioConRolYClaimTipoEsAceptada() {
+        Jwt jwt = Jwt.withTokenValue("t").header("alg", "HS256").subject("servicio:pagos")
+                .claim("scope", "ROLE_SERVICIO_PAGOS").claim("tipo", "servicio").build();
+        assertTrue(authorizationService.isServicioPagos(
+                new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_SERVICIO_PAGOS")))));
+    }
+
+    @Test
+    void tokensDeUsuarioNuncaSonCredencialDeServicio() {
+        assertFalse(authorizationService.isServicioPagos(jwtAuth("ROLE_ADMIN", "admin@test.com", null)));
+        assertFalse(authorizationService.isServicioPagos(jwtAuth("ROLE_EMP", "emp@test.com", 1L)));
+        // Rol de servicio sin el claim tipo=servicio tampoco basta
+        assertFalse(authorizationService.isServicioPagos(jwtAuth("ROLE_SERVICIO_PAGOS", "x@test.com", null)));
+        assertFalse(authorizationService.isServicioPagos(null));
+    }
 }

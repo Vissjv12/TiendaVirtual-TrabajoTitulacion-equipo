@@ -15,7 +15,11 @@ import java.util.Optional;
 public interface PagoRepository extends JpaRepository<PagoEntity, Long> {
     
     Optional<PagoEntity> findByVentaId(Long ventaId);
-    
+
+    /** Solo el id de la venta, sin cargar entidades: permite bloquear la venta antes de leer el pago. */
+    @Query("SELECT p.venta.id FROM PagoEntity p WHERE p.id = :pagoId")
+    Optional<Long> findVentaIdByPagoId(@Param("pagoId") Long pagoId);
+
     List<PagoEntity> findByEstadoPago(PagoEntity.EstadoPago estadoPago);
 
     @Query(value = "SELECT p FROM PagoEntity p JOIN FETCH p.venta v LEFT JOIN FETCH v.cliente WHERE p.estadoPago = :estadoPago",

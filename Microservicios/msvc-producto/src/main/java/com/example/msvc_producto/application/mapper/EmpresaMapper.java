@@ -17,7 +17,9 @@ public class EmpresaMapper {
         empresa.setDireccion(dto.getDireccion());
         empresa.setTelefono(dto.getTelefono());
         empresa.setEmail(dto.getEmail());
-        empresa.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
+        // Sin valor por defecto: al crear, el servicio fija activo=true; al actualizar (ADMIN),
+        // un valor ausente conserva el estado actual en lugar de reactivar la empresa (A-02).
+        empresa.setActivo(dto.getActivo());
         return empresa;
     }
 

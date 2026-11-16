@@ -11,6 +11,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface VentaJpaRepository extends JpaRepository<VentaEntity, Long> {
+
+    /**
+     * Lee la venta con bloqueo de escritura (SELECT ... FOR UPDATE) para que dos
+     * finalizaciones concurrentes (retorno del navegador + webhook, o EMP + pasarela)
+     * no descuenten stock dos veces (A-04).
+     */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM VentaEntity v WHERE v.id = :id")
+    Optional<VentaEntity> findByIdForUpdate(@Param("id") Long id);
     Optional<VentaEntity> findByNumeroFactura(String numeroFactura);
     List<VentaEntity> findByClienteId(Long clienteId);
     List<VentaEntity> findByEmprendedorId(Long emprendedorId);

@@ -96,13 +96,27 @@ public class ProductoServiceImpl implements ProductoService {
         Producto productoGuardado = productoRepository.save(producto);
         invalidarCatalogoDespuesDeCommit();
 
-        // Crear registro en inventario (si el microservicio está disponible)
-        try {
-            // Enviar un stock inicial de 0 al inventario
-            inventarioClient.crearInventarioParaProducto(productoGuardado.getId(), 0);
-        } catch (FeignException e) {
-            // Loguear error pero continuar con la creación del producto
-            logger.warn("No se pudo crear el inventario para el producto: {}", e.getMessage());
+        // Crear el registro de inventario (stock 0) DESPUÉS del commit: inventario valida que el
+        // producto pertenezca a la empresa del JWT (A-01) y para eso el producto debe existir ya.
+        final Long productoId = productoGuardado.getId();
+        Runnable crearInventario = () -> {
+            try {
+                inventarioClient.crearInventarioParaProducto(productoId, 0);
+            } catch (FeignException e) {
+                // Si falla, el primer ajuste de stock desde la interfaz crea el inventario
+                logger.warn("No se pudo crear el inventario para el producto {}: HTTP {}", productoId, e.status());
+            }
+        };
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            crearInventario.run();
+                        }
+                    });
+        } else {
+            crearInventario.run();
         }
 
         return productoGuardado;

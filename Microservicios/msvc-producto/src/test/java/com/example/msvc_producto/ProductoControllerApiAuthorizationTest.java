@@ -185,34 +185,105 @@ class ProductoControllerApiAuthorizationTest {
                 .andExpect(status().isCreated());
     }
 
+    private static final String EMPRESA_CONTACTO = """
+            {
+              "nombre": "Sigcholac",
+              "direccion": "Produccion de lacteos artesanales",
+              "telefono": "0992000198",
+              "email": "sigcholac@gmail.com"
+            }
+            """;
+
+    // ---------------------------------------------------------------- A-02: datos de contacto (EMP)
+
     @Test
-    void emprendedorPuedeActualizarSuPropiaEmpresa() throws Exception {
+    void emprendedorPuedeActualizarLosDatosDeContactoDeSuEmpresa() throws Exception {
         Empresa empresa = new Empresa();
         empresa.setId(2L);
         when(productoAuthorizationService.canManageCompany(any(), eq(2L))).thenReturn(true);
-        when(empresaMapper.toEntity(any(), eq(2L))).thenReturn(empresa);
-        when(empresaService.actualizarEmpresa(eq(2L), any())).thenReturn(empresa);
+        when(empresaService.actualizarDatosContacto(eq(2L), any(), any(), any(), any())).thenReturn(empresa);
         when(empresaMapper.toDto(any())).thenReturn(new EmpresaResponseDto());
+
+        mockMvc.perform(put("/api/empresas/2/contacto")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EMPRESA_CONTACTO))
+                .andExpect(status().isOk());
+
+        org.mockito.Mockito.verify(empresaService).actualizarDatosContacto(2L, "Sigcholac",
+                "Produccion de lacteos artesanales", "0992000198", "sigcholac@gmail.com");
+    }
+
+    @Test
+    void emprendedorNoPuedeActualizarContactoDeOtraEmpresa() throws Exception {
+        when(productoAuthorizationService.canManageCompany(any(), eq(1L))).thenReturn(false);
+
+        mockMvc.perform(put("/api/empresas/1/contacto")
+                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EMPRESA_CONTACTO))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(empresaService);
+    }
+
+    @Test
+    void emprendedorQueEnviaRucOActivoEsRechazadoSinCambios() throws Exception {
+        when(productoAuthorizationService.canManageCompany(any(), eq(2L))).thenReturn(true);
+
+        for (String extra : new String[]{"\"ruc\": \"1799999999001\"", "\"activo\": true", "\"id\": 7"}) {
+            String cuerpo = EMPRESA_CONTACTO.replace("\"nombre\"", extra + ",\n  \"nombre\"");
+            mockMvc.perform(put("/api/empresas/2/contacto")
+                            .with(jwt().jwt(token -> token.claim("empresaId", 2L))
+                                    .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpo))
+                    .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(empresaService);
+    }
+
+    // ---------------------------------------------------------------- A-02: actualización administrativa
+
+    @Test
+    void emprendedorNoPuedeUsarLaActualizacionAdministrativaNiSobreSuEmpresa() throws Exception {
+        when(productoAuthorizationService.canManageCompany(any(), eq(2L))).thenReturn(true);
 
         mockMvc.perform(put("/api/empresas/2")
                         .with(jwt().jwt(token -> token.claim("empresaId", 2L))
                                 .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(EMPRESA_VALIDA))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(empresaService);
+    }
+
+    @Test
+    void administradorPuedeActualizarRucYEstado() throws Exception {
+        Empresa empresa = new Empresa();
+        empresa.setId(2L);
+        when(empresaMapper.toEntity(any(), eq(2L))).thenReturn(empresa);
+        when(empresaService.actualizarEmpresa(eq(2L), any())).thenReturn(empresa);
+        when(empresaMapper.toDto(any())).thenReturn(new EmpresaResponseDto());
+
+        mockMvc.perform(put("/api/empresas/2")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EMPRESA_VALIDA))
                 .andExpect(status().isOk());
     }
 
     @Test
-    void emprendedorNoPuedeActualizarOtraEmpresa() throws Exception {
-        when(productoAuthorizationService.canManageCompany(any(), eq(1L))).thenReturn(false);
-
-        mockMvc.perform(put("/api/empresas/1")
-                        .with(jwt().jwt(token -> token.claim("empresaId", 2L))
-                                .authorities(new SimpleGrantedAuthority("ROLE_EMP")))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(EMPRESA_VALIDA))
-                .andExpect(status().isForbidden());
-
+    void sinTokenNoSeActualizaNinguna() throws Exception {
+        mockMvc.perform(put("/api/empresas/2/contacto")
+                        .contentType(MediaType.APPLICATION_JSON).content(EMPRESA_CONTACTO))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/empresas/2")
+                        .contentType(MediaType.APPLICATION_JSON).content(EMPRESA_VALIDA))
+                .andExpect(status().isUnauthorized());
         verifyNoInteractions(empresaService);
     }
 }

@@ -29,6 +29,8 @@ public class VentaAuthorizationService {
 
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
     private static final String ROLE_EMP = "ROLE_EMP";
+    /** Rol exclusivo de la credencial de servicio emitida por auth-service para pagos (A-04). */
+    public static final String ROLE_SERVICIO_PAGOS = "ROLE_SERVICIO_PAGOS";
 
     private final VentaRepository ventaRepository;
     private final ClienteRepository clienteRepository;
@@ -40,6 +42,15 @@ public class VentaAuthorizationService {
 
     public boolean isEmprendedor(Authentication authentication) {
         return hasAuthority(authentication, ROLE_EMP);
+    }
+
+    /**
+     * Credencial interna de servicio (auth-service -> msvc-ventas) para registrar pagos de pasarela.
+     * Exige el rol de servicio Y el claim tipo=servicio, que los tokens de usuario nunca contienen.
+     */
+    public boolean isServicioPagos(Authentication authentication) {
+        return hasAuthority(authentication, ROLE_SERVICIO_PAGOS)
+                && "servicio".equals(getStringClaim(authentication, "tipo"));
     }
 
     /**

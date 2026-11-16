@@ -248,6 +248,32 @@ class CategoriasEmpresasService {
         });
     }
 
+    /**
+     * Datos que el EMPRENDEDOR puede editar de su empresa (A-02): nombre y contacto.
+     * El RUC y el estado activo solo los cambia el administrador con actualizarEmpresa().
+     */
+    async actualizarDatosContactoEmpresa(
+        id: number,
+        datos: { nombre: string; direccion?: string; telefono?: string; email?: string }
+    ): Promise<ApiResponse<Empresa>> {
+        if (!authService.isAdmin() && !authService.canManageEmpresa(id)) {
+            return {
+                success: false,
+                status: 403,
+                message: 'Acceso denegado (403): No tienes permisos para modificar los datos de otra empresa.'
+            };
+        }
+        return this.makeRequest<Empresa>(`/empresas/${id}/contacto`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                nombre: datos.nombre,
+                direccion: datos.direccion,
+                telefono: datos.telefono,
+                email: datos.email
+            }),
+        });
+    }
+
     async eliminarEmpresa(id: number): Promise<ApiResponse<void>> {
         if (!authService.isAdmin()) {
             return {

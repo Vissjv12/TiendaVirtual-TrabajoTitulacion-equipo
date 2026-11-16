@@ -3,7 +3,6 @@ package com.example.msvc_ventas.domain.service;
 import com.example.msvc_ventas.application.client.InventarioClient;
 import com.example.msvc_ventas.application.dto.SalidaInventarioLoteRequestDto;
 import com.example.msvc_ventas.domain.model.DetalleVenta;
-import com.example.msvc_ventas.domain.model.SeguimientoLogistica;
 import com.example.msvc_ventas.domain.repository.DetalleVentaRepository;
 import com.example.msvc_ventas.infrastructure.persistence.entity.PagoEntity;
 import com.example.msvc_ventas.infrastructure.persistence.entity.VentaEntity;
@@ -31,12 +30,12 @@ public class PagoService {
     private final DetalleVentaRepository detalleVentaRepository;
     private final InventarioClient inventarioClient;
     private final SeguimientoLogisticaService seguimientoLogisticaService;
-    private final FacturaService facturaService;
+    private final com.example.msvc_ventas.application.service.GeneradorFacturaTrasCommit generadorFactura;
 
     /**
      * Crear un nuevo pago asociado a una venta
      * - TRANSFERENCIA/DEUNA: Estado PENDIENTE (requiere aprobación manual)
-     * - TARJETA: Estado APROBADO automático (procesado por pasarela)
+     * - TARJETA: también PENDIENTE; solo PagoPasarelaService lo aprueba tras verificar el cobro
      */
     @Transactional
     public PagoEntity crearPago(Long ventaId, PagoEntity.MetodoPago metodoPago, String comprobanteUrl) {
@@ -45,10 +44,14 @@ public class PagoService {
         VentaEntity venta = ventaJpaRepository.findById(ventaId)
                 .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada: " + ventaId));
 
-        // Determinar estado inicial según método de pago
-        PagoEntity.EstadoPago estadoInicial = (metodoPago == PagoEntity.MetodoPago.TARJETA) 
-                ? PagoEntity.EstadoPago.APROBADO 
-                : PagoEntity.EstadoPago.PENDIENTE;
+        // Todo pago nace PENDIENTE. Antes TARJETA se aprobaba y completaba la venta al crearla,
+        // sin cobro verificado ni descuento de stock (A-03/A-04). Ahora un pago con tarjeta solo
+        // se aprueba cuando la pasarela lo confirma en el servidor (PagoPasarelaService).
+        if (pagoRepository.findByVentaId(ventaId).isPresent()) {
+            log.info("La venta {} ya tiene un pago registrado; no se crea otro", ventaId);
+            return pagoRepository.findByVentaId(ventaId).get();
+        }
+        PagoEntity.EstadoPago estadoInicial = PagoEntity.EstadoPago.PENDIENTE;
 
         PagoEntity pago = PagoEntity.builder()
                 .venta(venta)
@@ -60,33 +63,8 @@ public class PagoService {
                 .fechaActualizacion(LocalDateTime.now())
                 .build();
 
-        // Si es pago con tarjeta, establecer fecha de pago inmediata
-        if (metodoPago == PagoEntity.MetodoPago.TARJETA) {
-            pago.setFechaPago(LocalDateTime.now());
-        }
-
         PagoEntity pagoGuardado = pagoRepository.save(pago);
         log.info("Pago creado con ID: {} en estado {}", pagoGuardado.getId(), estadoInicial);
-        
-        // Si es pago con tarjeta, actualizar venta a COMPLETADA y APROBADO automáticamente
-        if (metodoPago == PagoEntity.MetodoPago.TARJETA) {
-            venta.setEstado(VentaEntity.EstadoVenta.COMPLETADA);
-            venta.setEstadoPago(VentaEntity.EstadoPago.APROBADO);
-            venta.setFechaActualizacion(LocalDateTime.now());
-            ventaJpaRepository.save(venta);
-            
-            // Inicializar seguimiento logístico automáticamente
-            try {
-                seguimientoLogisticaService.inicializarSeguimientoPorPagoAprobado(
-                        venta.getId(), 
-                        "Pago automático con tarjeta"
-                );
-                log.info("Seguimiento logístico inicializado automáticamente para venta ID: {}", venta.getId());
-            } catch (Exception e) {
-                log.error("Error al inicializar seguimiento logístico para venta ID: {}", venta.getId(), e);
-            }
-        }
-        
         return pagoGuardado;
     }
 
@@ -97,11 +75,17 @@ public class PagoService {
     public PagoEntity aprobarPago(Long pagoId, Long emprendedorId) {
         log.info("Aprobando pago ID: {} por emprendedor ID: {}", pagoId, emprendedorId);
         
+        // Bloqueo de la fila de la venta ANTES de leer el pago: dos aprobaciones simultáneas (doble clic,
+        // dos pestañas) o una aprobación junto a completarVenta/la pasarela ya no descuentan stock dos veces.
+        Long ventaId = pagoRepository.findVentaIdByPagoId(pagoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado: " + pagoId));
+        VentaEntity venta = ventaJpaRepository.findByIdForUpdate(ventaId)
+                .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada: " + ventaId));
         PagoEntity pago = pagoRepository.findById(pagoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado: " + pagoId));
 
         // Verificar que el pago pertenece al emprendedor
-        if (!pago.getVenta().getEmprendedorId().equals(emprendedorId)) {
+        if (!venta.getEmprendedorId().equals(emprendedorId)) {
             throw new IllegalStateException("El pago no pertenece a este emprendedor");
         }
 
@@ -109,8 +93,12 @@ public class PagoService {
             throw new IllegalStateException("Solo se pueden aprobar pagos en estado PENDIENTE");
         }
 
+        // Una venta cancelada no se reactiva aprobando su pago (antes quedaba COMPLETADA sin descontar stock)
+        if (venta.getEstado() == VentaEntity.EstadoVenta.CANCELADA) {
+            throw new IllegalStateException("No se puede aprobar el pago de una venta cancelada");
+        }
+
         // Descontar inventario si la venta aún estaba PENDIENTE
-        VentaEntity venta = pago.getVenta();
         if (venta.getEstado() == VentaEntity.EstadoVenta.PENDIENTE) {
             List<DetalleVenta> detalles = detalleVentaRepository.findByVentaId(venta.getId());
             if (detalles != null && !detalles.isEmpty()) {
@@ -160,18 +148,9 @@ public class PagoService {
             // No fallar la transacción si falla el seguimiento
         }
         
-        // 🧾 GENERAR FACTURA PDF DE FORMA ASÍNCRONA (no bloquea la respuesta)
-        final Long ventaIdFinal = venta.getId();
-        new Thread(() -> {
-            try {
-                Thread.sleep(100); // Pequeña pausa para asegurar que la transacción se complete
-                String rutaFactura = facturaService.generarFacturaPDF(ventaIdFinal);
-                log.info("✅ Factura generada en segundo plano: {}", rutaFactura);
-            } catch (Exception e) {
-                log.error("⚠️ Error al generar factura PDF para venta ID: {}", ventaIdFinal, e);
-            }
-        }).start();
-        
+        // 🧾 Factura después del commit (A-05): si la aprobación hace rollback no se genera
+        generadorFactura.programar(venta.getId());
+
         log.info("Pago ID: {} aprobado exitosamente", pagoId);
         return pagoActualizado;
     }
@@ -284,61 +263,7 @@ public class PagoService {
         return pagoRepository.findByEstadoPago(estado, pageable);
     }
 
-    /**
-     * Procesar pago con tarjeta (Stripe/pasarela de pagos)
-     * Este método es específico para pagos ya procesados por la pasarela
-     */
-    @Transactional
-    public PagoEntity procesarPagoTarjeta(Long ventaId, String referenciaTransaccion, String comprobanteUrl) {
-        log.info("Procesando pago con tarjeta para venta ID: {}, referencia: {}", ventaId, referenciaTransaccion);
-        
-        VentaEntity venta = ventaJpaRepository.findById(ventaId)
-                .orElseThrow(() -> new IllegalArgumentException("Venta no encontrada: " + ventaId));
-
-        // Crear pago directamente APROBADO
-        PagoEntity pago = PagoEntity.builder()
-                .venta(venta)
-                .monto(venta.getTotal())
-                .metodoPago(PagoEntity.MetodoPago.TARJETA)
-                .estadoPago(PagoEntity.EstadoPago.APROBADO)
-                .referenciaTransaccion(referenciaTransaccion)
-                .comprobanteUrl(comprobanteUrl)
-                .fechaPago(LocalDateTime.now())
-                .fechaCreacion(LocalDateTime.now())
-                .fechaActualizacion(LocalDateTime.now())
-                .build();
-
-        PagoEntity pagoGuardado = pagoRepository.save(pago);
-        
-        // Actualizar venta a COMPLETADA
-        venta.setEstado(VentaEntity.EstadoVenta.COMPLETADA);
-        venta.setFechaActualizacion(LocalDateTime.now());
-        ventaJpaRepository.save(venta);
-        
-        // Inicializar seguimiento logístico
-        try {
-            seguimientoLogisticaService.inicializarSeguimientoPorPagoAprobado(
-                    venta.getId(), 
-                    "Pago procesado con tarjeta: " + referenciaTransaccion
-            );
-            log.info("Seguimiento logístico inicializado para venta ID: {}", venta.getId());
-        } catch (Exception e) {
-            log.error("Error al inicializar seguimiento logístico para venta ID: {}", venta.getId(), e);
-        }
-        
-        // 🧾 GENERAR FACTURA PDF DE FORMA ASÍNCRONA (no bloquea la respuesta)
-        final Long ventaIdFinal = venta.getId();
-        new Thread(() -> {
-            try {
-                Thread.sleep(100); // Pequeña pausa para asegurar que la transacción se complete
-                String rutaFactura = facturaService.generarFacturaPDF(ventaIdFinal);
-                log.info("✅ Factura generada en segundo plano: {}", rutaFactura);
-            } catch (Exception e) {
-                log.error("⚠️ Error al generar factura PDF para venta ID: {}", ventaIdFinal, e);
-            }
-        }).start();
-        
-        log.info("Pago con tarjeta procesado exitosamente. Pago ID: {}, Estado: APROBADO", pagoGuardado.getId());
-        return pagoGuardado;
-    }
+    // procesarPagoTarjeta (usado solo por Stripe) se eliminó: aprobaba el pago y completaba la venta sin
+    // descontar inventario y generaba la factura en un hilo manual con espera. Todo pago con tarjeta se aprueba
+    // únicamente con PagoPasarelaService.registrarPagoAprobado (monto verificado, stock e idempotencia).
 }

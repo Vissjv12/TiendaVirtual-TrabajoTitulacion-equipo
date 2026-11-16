@@ -2,8 +2,14 @@ package com.example.demo.presentation.controller;
 
 import com.example.demo.application.dto.ConfiguracionPagosDto;
 import com.example.demo.application.dto.DatosBancariosDto;
+import com.example.demo.application.dto.PayphoneConfirmacionDto;
+import com.example.demo.application.dto.PayphoneConfirmarRequestDto;
+import com.example.demo.application.dto.PayphoneDisponibilidadDto;
 import com.example.demo.application.dto.PayphoneDto;
+import com.example.demo.application.dto.PayphonePrepararResponseDto;
 import com.example.demo.domain.service.ConfiguracionPagosService;
+import com.example.demo.domain.service.PayphonePagoService;
+import jakarta.validation.Valid;
 import com.example.demo.infrastructure.persistence.repository.EmprendedorJpaRepository;
 import com.example.demo.infrastructure.persistence.repository.UsuarioJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +30,7 @@ import java.util.Map;
 public class ConfiguracionPagosController {
 
     private final ConfiguracionPagosService configuracionPagosService;
+    private final PayphonePagoService payphonePagoService;
     private final UsuarioJpaRepository usuarioRepository;
     private final EmprendedorJpaRepository emprendedorRepository;
 
@@ -111,43 +118,85 @@ public class ConfiguracionPagosController {
     }
 
     /**
-     * Obtener QR de Deuna de un emprendedor (para clientes)
-     * Este endpoint es público o puede requerir autenticación según tu lógica
+     * Obtener el QR de Deuna de una empresa (público, para el checkout).
+     * El parámetro es SIEMPRE empresa.id del producto. Si esa empresa no tiene QR configurado
+     * se responde 404; nunca se devuelve el QR de otro emprendedor (hallazgo C-01).
      */
-    @GetMapping("/deuna-qr/{emprendedorId}")
-    public ResponseEntity<?> obtenerQrDeunaPorEmprendedor(@PathVariable Long emprendedorId) {
-        return configuracionPagosService.obtenerQrDeuna(emprendedorId)
+    @GetMapping("/deuna-qr/{empresaId}")
+    public ResponseEntity<Map<String, String>> obtenerQrDeunaPorEmpresa(@PathVariable Long empresaId) {
+        return configuracionPagosService.obtenerQrDeunaPorEmpresa(empresaId)
                 .map(qrUrl -> ResponseEntity.ok(Map.of("qrUrl", qrUrl)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     /**
-     * Obtener datos bancarios de un emprendedor (para clientes)
+     * Obtener los datos bancarios de una empresa (público, para el checkout).
+     * El parámetro es SIEMPRE empresa.id del producto; 404 si la empresa no los configuró.
      */
-    @GetMapping("/bancarios/{emprendedorId}")
-    public ResponseEntity<DatosBancariosDto> obtenerDatosBancariosPorEmprendedor(@PathVariable Long emprendedorId) {
-        return configuracionPagosService.obtenerDatosBancarios(emprendedorId)
+    @GetMapping("/bancarios/{empresaId}")
+    public ResponseEntity<DatosBancariosDto> obtenerDatosBancariosPorEmpresa(@PathVariable Long empresaId) {
+        return configuracionPagosService.obtenerDatosBancariosPorEmpresa(empresaId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     /**
-     * Obtener configuración de Payphone de un emprendedor por empresa_id (para clientes en el checkout).
-     * El frontend envía empresa.id del producto - que coincide con empresa_id en la tabla emprendedores.
+     * Disponibilidad PÚBLICA de Payphone para una empresa (checkout).
+     * Solo responde si la empresa acepta Payphone; nunca expone token ni App ID (hallazgo C-02).
      */
     @GetMapping("/payphone/{empresaId}")
-    public ResponseEntity<PayphoneDto> obtenerPayphonePorEmprendedor(@PathVariable Long empresaId) {
-        // Resolver emprendedor_id a partir de empresa_id
-        var emprendedorOpt = emprendedorRepository.findByEmpresaId(empresaId);
-        if (emprendedorOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<PayphoneDisponibilidadDto> obtenerDisponibilidadPayphone(@PathVariable Long empresaId) {
+        return ResponseEntity.ok(new PayphoneDisponibilidadDto(
+                empresaId, configuracionPagosService.payphoneDisponiblePorEmpresa(empresaId)));
+    }
+
+    /**
+     * Prepara el cobro Payphone de una venta YA CREADA (A-03): el monto lo calcula el backend
+     * a partir de la venta; el navegador no envía importes. Solo el comprador de la venta.
+     */
+    @PostMapping("/payphone/ventas/{ventaId}/preparar")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PayphonePrepararResponseDto> prepararPagoPayphone(
+            @PathVariable Long ventaId,
+            Authentication authentication) {
+        return ResponseEntity.ok(payphonePagoService.preparar(ventaId, emailDe(authentication)));
+    }
+
+    /**
+     * Confirma con Payphone, en el servidor, la transacción devuelta en la URL de respuesta y
+     * finaliza la venta de forma idempotente (A-04). Devuelve un resultado saneado.
+     */
+    @PostMapping("/payphone/confirmar")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PayphoneConfirmacionDto> confirmarPagoPayphone(
+            @Valid @RequestBody PayphoneConfirmarRequestDto solicitud) {
+        return ResponseEntity.ok(payphonePagoService.confirmar(solicitud));
+    }
+
+    /**
+     * URL de notificación de Payphone (M-06). Pública: su contenido no se da por cierto, solo
+     * dispara la verificación servidor-a-servidor con Payphone y la reconciliación de la venta.
+     * Responde 503 si un servicio interno no está disponible, para que Payphone reintente.
+     */
+    @PostMapping("/payphone/notificacion")
+    public ResponseEntity<Map<String, Object>> notificacionPayphone(
+            @RequestBody(required = false) com.fasterxml.jackson.databind.JsonNode cuerpo) {
+        var resultado = payphonePagoService.procesarNotificacion(cuerpo);
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("recibido", true);
+        resultado.map(PayphoneConfirmacionDto::getResultadoVenta)
+                .ifPresent(r -> respuesta.put("resultadoVenta", r));
+        return ResponseEntity.ok(respuesta);
+    }
+
+    private String emailDe(Authentication authentication) {
+        if (authentication instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwt) {
+            Object email = jwt.getToken().getClaims().get("email");
+            if (email != null && !email.toString().isBlank()) {
+                return email.toString();
+            }
         }
-        Long emprendedorId = emprendedorOpt.get().getId();
-        
-        return configuracionPagosService.obtenerConfiguracion(emprendedorId)
-                .filter(config -> config.getPayphone() != null)
-                .map(config -> ResponseEntity.ok(config.getPayphone()))
-                .orElse(ResponseEntity.notFound().build());
+        return null;
     }
 
     /**

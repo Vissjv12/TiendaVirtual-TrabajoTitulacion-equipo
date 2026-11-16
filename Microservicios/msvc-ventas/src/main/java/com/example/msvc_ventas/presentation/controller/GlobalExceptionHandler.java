@@ -72,6 +72,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        // Excepciones propias de Spring MVC con su estado HTTP (ruta inexistente -> 404, método no
+        // permitido -> 405, tipo de contenido -> 415...). Antes caían aquí y respondían 500.
+        if (ex instanceof org.springframework.web.ErrorResponse respuestaMvc) {
+            HttpStatus estado = HttpStatus.resolve(respuestaMvc.getStatusCode().value());
+            if (estado != null && estado.is4xxClientError()) {
+                return new ResponseEntity<>(new ErrorResponse(estado.name(), "Solicitud no válida para este recurso"), estado);
+            }
+        }
         log.error("Error no controlado en msvc-ventas", ex);
         ErrorResponse error = new ErrorResponse("INTERNAL_SERVER_ERROR",
                 "Ha ocurrido un error inesperado");

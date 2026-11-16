@@ -107,22 +107,20 @@ public class VentaApplicationService {
                 ventaCreada.getId(), ventaCreada.getNumeroFactura());
         log.info("Venta creada con ID: {}", ventaCreada.getId());
 
-        // 5. Crear el pago de forma asíncrona (en segundo plano)
+        // 5. Crear el pago PENDIENTE en la MISMA transacción que la venta (A-05).
+        // Antes se creaba en un hilo con sleep(500): si fallaba, la venta quedaba sin pago y el emprendedor
+        // no la veía en "pagos pendientes"; y una aprobación rápida podía encontrarse sin pago todavía.
+        // Si crear el pago falla, la venta tampoco se guarda.
         if (requestDto.getMetodoPago() != null && !requestDto.getMetodoPago().isEmpty()) {
+            PagoEntity.MetodoPago metodoPago = null;
             try {
-                PagoEntity.MetodoPago metodoPago = PagoEntity.MetodoPago.valueOf(requestDto.getMetodoPago().toUpperCase());
-                // Crear pago de forma no bloqueante
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(500);
-                        pagoService.crearPago(ventaCreada.getId(), metodoPago, requestDto.getComprobanteUrl());
-                        log.info("Pago creado en estado PENDIENTE para venta ID: {}", ventaCreada.getId());
-                    } catch (Exception e) {
-                        log.error("Error al crear pago para venta ID: {}", ventaCreada.getId(), e);
-                    }
-                }).start();
+                metodoPago = PagoEntity.MetodoPago.valueOf(requestDto.getMetodoPago().trim().toUpperCase());
             } catch (IllegalArgumentException e) {
                 log.warn("Método de pago inválido: {}, se creará la venta sin pago", requestDto.getMetodoPago());
+            }
+            if (metodoPago != null) {
+                pagoService.crearPago(ventaCreada.getId(), metodoPago, requestDto.getComprobanteUrl());
+                log.info("Pago creado en estado PENDIENTE para venta ID: {}", ventaCreada.getId());
             }
         }
 

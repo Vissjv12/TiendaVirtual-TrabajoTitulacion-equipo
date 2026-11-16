@@ -14,7 +14,7 @@ import {
     DatosBancariosPublico,
     formatAccountTypeLabel,
     formatBankLabel,
-    obtenerDatosBancariosCheckout
+    verificarDisponibilidadTransferencia
 } from '../../../../services/pagoService';
 import {
     isValidBankAccount,
@@ -67,9 +67,14 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
         setLoadingCuentas(true);
         setCuentasError(null);
         try {
-            const cartItems = cartService.getCart();
-            const cuentas = await obtenerDatosBancariosCheckout(cartItems);
-            setCuentasBancarias(cuentas);
+            // Una sola empresa identificable por carrito; si no, se bloquea sin consultar (hallazgo C-01)
+            const disponibilidad = await verificarDisponibilidadTransferencia(cartService.getCart());
+            if (disponibilidad.disponible && disponibilidad.datos) {
+                setCuentasBancarias([disponibilidad.datos]);
+            } else {
+                setCuentasBancarias([]);
+                setCuentasError(disponibilidad.motivo || 'Transferencia bancaria no disponible para este carrito');
+            }
         } catch (err: any) {
             setCuentasError(err?.message || 'No se pudieron cargar los datos bancarios del emprendedor');
             setCuentasBancarias([]);
@@ -80,11 +85,12 @@ const TransferenciaBancariaForm: React.FC<TransferenciaBancariaFormProps> = ({
 
     useEffect(() => {
         validateForm();
-    }, [banco, numeroCuenta, numeroReferencia, comprobante]);
+    }, [banco, numeroCuenta, numeroReferencia, comprobante, cuentasBancarias, cuentasError, loadingCuentas]);
 
     const validateForm = () => {
         const newErrors: any = {};
-        let isValid = true;
+        // Sin una cuenta destino válida de la empresa del carrito no se puede pagar por transferencia
+        let isValid = !loadingCuentas && !cuentasError && cuentasBancarias.length === 1;
 
         if (!banco) {
             newErrors.banco = 'Selecciona un banco';

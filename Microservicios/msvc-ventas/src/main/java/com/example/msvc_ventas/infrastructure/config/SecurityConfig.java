@@ -44,7 +44,6 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/metrics", "/actuator/metrics/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/actuator/**").denyAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/stripe/webhook").permitAll()
                         .requestMatchers("/engine-rest/**", "/camunda/**", "/app/**", "/lib/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/bpm/ventas/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()

@@ -15,4 +15,8 @@ public interface EmpresaJpaRepository extends JpaRepository<EmpresaEntity, Long>
            "       OR LOWER(COALESCE(e.email, '')) LIKE LOWER(CONCAT('%', :q, '%')) " +
            "       OR LOWER(COALESCE(e.direccion, '')) LIKE LOWER(CONCAT('%', :q, '%')))")
     Page<EmpresaEntity> findPaginado(@Param("q") String q, Pageable pageable);
+
+    boolean existsByRuc(String ruc);
+
+    boolean existsByRucAndIdNot(String ruc, Long id);
 }
