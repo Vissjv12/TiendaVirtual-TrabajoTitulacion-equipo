@@ -15,6 +15,12 @@ public class ProductoClientFallback implements ProductoClient {
     }
 
     @Override
+    public java.util.List<Long> obtenerIdsProductosPorEmpresa(Long empresaId) {
+        // Sin el servicio de productos no se puede demostrar la propiedad: null = denegar (fail-closed)
+        return null;
+    }
+
+    @Override
     public void actualizarStockProducto(Long id, Integer stock) {
         // Fallback: no hacer nada si el servicio de productos no está disponible
         System.out.println("Fallback: No se pudo sincronizar stock para producto " + id);

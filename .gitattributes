@@ -1,0 +1,5 @@
+# Scripts y unidades que se ejecutan en el servidor Linux: siempre con saltos de línea LF
+scripts/prod/*.sh text eol=lf
+scripts/prod/systemd/* text eol=lf
+scripts/prod/*.env.example text eol=lf
+scripts/prod/pruebas/*.sh text eol=lf

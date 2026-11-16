@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/actuator/**").denyAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").hasAuthority("ROLE_ADMIN")
+                        // Ids de productos por empresa (T07): uso interno de autorización, nunca anónimo
+                        .requestMatchers(HttpMethod.GET, "/api/productos/empresa/*/ids").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/productos", "/api/categorias", "/api/empresas").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/productos/*", "/api/categorias/*", "/api/empresas/*",
                                 "/api/empresas/*/contacto").authenticated()

@@ -11,6 +11,10 @@ import java.util.List;
 
 public interface ProductoJpaRepository extends JpaRepository<ProductoEntity, Long> {
     List<ProductoEntity> findByEmpresaId(Long empresaId);
+
+    /** Solo los ids (activos e inactivos) de una empresa: lo usa inventario para autorizar en lote (T07). */
+    @Query("SELECT p.id FROM ProductoEntity p WHERE p.empresa.id = :empresaId")
+    List<Long> findIdsByEmpresaId(@Param("empresaId") Long empresaId);
     List<ProductoEntity> findByCategoriaId(Long categoriaId);
 
     @Query(value = "SELECT p FROM ProductoEntity p " +

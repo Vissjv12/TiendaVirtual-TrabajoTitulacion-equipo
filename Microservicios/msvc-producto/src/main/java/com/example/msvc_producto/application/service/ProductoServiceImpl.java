@@ -182,6 +182,12 @@ public class ProductoServiceImpl implements ProductoService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Long> listarIdsProductosPorEmpresa(Long empresaId) {
+        return productoRepository.findIdsByEmpresaId(empresaId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Producto> buscarProductosPorCategoria(Long categoriaId) {
         return productoRepository.findByCategoriaId(categoriaId);
     }

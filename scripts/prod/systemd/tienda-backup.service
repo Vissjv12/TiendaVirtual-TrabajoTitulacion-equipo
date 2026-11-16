@@ -1,0 +1,30 @@
+[Unit]
+Description=Tienda Virtual - respaldo de bases de datos (T01)
+Documentation=file:///opt/tienda/scripts/prod/INSTALACION-RESPALDOS.md
+Wants=network-online.target
+After=network-online.target mysqld.service
+
+[Service]
+Type=oneshot
+User=tienda-backup
+Group=tienda-backup
+EnvironmentFile=/etc/tienda-backup/backup.env
+ExecStart=/opt/tienda/scripts/prod/backup-db.sh
+# Menor prioridad para no afectar a la tienda durante el volcado
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=2h
+
+# Endurecimiento: solo puede escribir en el directorio de respaldos
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/backups/tienda
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+UMask=0077

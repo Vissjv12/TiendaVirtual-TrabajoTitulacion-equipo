@@ -55,6 +55,9 @@ class UsuarioPaginationTest {
     @MockitoBean
     private PasswordResetService passwordResetService;
 
+    @MockitoBean
+    private com.example.demo.application.service.EmprendedorEmpresaService emprendedorEmpresaService;
+
     @Test
     void usuariosPaginadoRequiereAdminYRechazaNoAutorizados() throws Exception {
         mockMvc.perform(get("/api/usuarios/paginado"))

@@ -13,6 +13,17 @@ export interface Usuario {
     apellido: string;
     activo: boolean;
     roles: string[]; 
+    empresaId?: number | null; // T11: empresa vinculada si es emprendedor
+}
+
+/** T11: respuesta de PUT/DELETE/GET /api/usuarios/{id}/empresa */
+export interface EmpresaVinculada {
+    usuarioId: number;
+    empresaId: number | null;
+    empresaNombre: string | null;
+    empresaAnteriorId: number | null;
+    resultado: 'VINCULADA' | 'REASIGNADA' | 'SIN_CAMBIOS' | 'DESVINCULADA' | 'CONSULTA';
+    requiereNuevoLogin: boolean;
 }
 
 export interface CrearUsuarioRequest {
@@ -178,6 +189,20 @@ class UsuariosService {
 
     async eliminarUsuario(id: number): Promise<ApiResponse<void>> {
         return this.makeRequest<void>(`/api/usuarios/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // T11: vinculación emprendedor-empresa (solo ADMIN)
+    async vincularEmpresa(usuarioId: number, empresaId: number): Promise<ApiResponse<EmpresaVinculada>> {
+        return this.makeRequest<EmpresaVinculada>(`/api/usuarios/${usuarioId}/empresa`, {
+            method: 'PUT',
+            body: JSON.stringify({ empresaId }),
+        });
+    }
+
+    async desvincularEmpresa(usuarioId: number): Promise<ApiResponse<EmpresaVinculada>> {
+        return this.makeRequest<EmpresaVinculada>(`/api/usuarios/${usuarioId}/empresa`, {
             method: 'DELETE',
         });
     }

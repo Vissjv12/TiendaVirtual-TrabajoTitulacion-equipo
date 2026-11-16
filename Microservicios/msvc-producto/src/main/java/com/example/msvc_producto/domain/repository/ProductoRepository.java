@@ -13,6 +13,7 @@ public interface ProductoRepository {
     Optional<Producto> findById(Long id);
     List<Producto> findAll();
     List<Producto> findByEmpresaId(Long empresaId);
+    List<Long> findIdsByEmpresaId(Long empresaId);
     List<Producto> findByCategoriaId(Long categoriaId);
     void deleteById(Long id);
 

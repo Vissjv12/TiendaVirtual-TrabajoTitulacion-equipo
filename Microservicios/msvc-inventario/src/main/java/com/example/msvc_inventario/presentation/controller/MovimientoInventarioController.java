@@ -11,7 +11,6 @@ import com.example.msvc_inventario.domain.service.MovimientoInventarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -26,7 +25,9 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -37,14 +38,15 @@ public class MovimientoInventarioController {
     private final MovimientoInventarioService movimientoService;
     private final MovimientoInventarioMapper movimientoMapper;
 
-    @Autowired(required = false)
-    private InventarioAuthorizationService autorizacion;
+    private final InventarioAuthorizationService autorizacion;
 
     public MovimientoInventarioController(
             MovimientoInventarioService movimientoService,
-            MovimientoInventarioMapper movimientoMapper) {
+            MovimientoInventarioMapper movimientoMapper,
+            InventarioAuthorizationService autorizacion) {
         this.movimientoService = movimientoService;
         this.movimientoMapper = movimientoMapper;
+        this.autorizacion = autorizacion;
     }
 
     @PostMapping
@@ -125,24 +127,24 @@ public class MovimientoInventarioController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
             Authentication authentication) {
-        boolean esAdmin = autorizacion != null
-                ? autorizacion.isAdmin(authentication)
-                : authentication != null && authentication.getAuthorities().stream()
-                        .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-        if (!esAdmin) {
-            if (autorizacion == null) {
-                throw new AccessDeniedException("Autorización de inventario no disponible");
-            }
-            boolean tieneFiltroInventarioId = inventarioId != null;
-            boolean tieneFiltroInventarioIds = inventarioIds != null && !inventarioIds.isEmpty();
-            if (!tieneFiltroInventarioId && !tieneFiltroInventarioIds) {
-                throw new AccessDeniedException("Debe consultar movimientos únicamente de los inventarios de su empresa");
-            }
-            if (tieneFiltroInventarioId && !autorizacion.canManageInventario(authentication, inventarioId)) {
+        // T07: para ROLE_EMP los inventarios de su empresa se calculan en el servidor (empresa del JWT,
+        // una llamada a productos y una consulta agrupada). Los filtros del navegador solo pueden
+        // RESTRINGIR ese conjunto: un inventario de otra empresa sigue respondiendo 403.
+        boolean sinResultados = false;
+        if (!autorizacion.isAdmin(authentication)) {
+            Set<Long> propios = autorizacion.inventariosDeEmpresaDelToken(authentication)
+                    .orElseThrow(() -> new AccessDeniedException(
+                            "No se pudo verificar la empresa de los inventarios"));
+            if (inventarioId != null && !propios.contains(inventarioId)) {
                 throw new AccessDeniedException("No puede consultar movimientos de inventario de otra empresa");
             }
-            if (tieneFiltroInventarioIds && !autorizacion.canManageAllInventarios(authentication, inventarioIds)) {
-                throw new AccessDeniedException("No puede consultar movimientos de inventario de otra empresa");
+            if (inventarioIds != null && !inventarioIds.isEmpty()) {
+                if (inventarioIds.stream().anyMatch(id -> id == null || !propios.contains(id))) {
+                    throw new AccessDeniedException("No puede consultar movimientos de inventario de otra empresa");
+                }
+            } else if (inventarioId == null) {
+                inventarioIds = new ArrayList<>(propios);
+                sinResultados = propios.isEmpty();
             }
         }
         Pageable pageable = PaginationUtils.createPageable(
@@ -162,8 +164,10 @@ public class MovimientoInventarioController {
         LocalDateTime desde = fechaDesde != null ? fechaDesde.atStartOfDay() : null;
         LocalDateTime hasta = fechaHasta != null ? fechaHasta.atTime(23, 59, 59, 999_999_999) : null;
 
-        Page<MovimientoInventario> result = movimientoService.listarPaginado(
-                inventarioId, inventarioIds, tipoEnum, motivo, desde, hasta, pageable);
+        // Una empresa sin inventarios no consulta la base: una lista vacía no debe convertirse en "sin filtro"
+        Page<MovimientoInventario> result = sinResultados
+                ? Page.empty(pageable)
+                : movimientoService.listarPaginado(inventarioId, inventarioIds, tipoEnum, motivo, desde, hasta, pageable);
         return ResponseEntity.ok(PageResponseDto.fromPage(result, movimientoMapper::toDto));
     }
 

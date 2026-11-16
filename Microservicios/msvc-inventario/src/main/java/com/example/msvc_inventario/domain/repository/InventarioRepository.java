@@ -15,4 +15,8 @@ public interface InventarioRepository {
     Page<Inventario> findPaginado(Boolean soloActivos, Pageable pageable);
     void deleteById(Long id);
     List<Inventario> findByProductoIdIn(List<Long> productosIds);
+    /** Pares (id, productoId) de los inventarios indicados, en una sola consulta (T07). */
+    java.util.Map<Long, Long> findProductoIdPorInventarioId(java.util.Collection<Long> inventarioIds);
+    /** Ids de los inventarios de los productos indicados, en una sola consulta (T07). */
+    List<Long> findIdsByProductoIdIn(java.util.Collection<Long> productosIds);
 }

@@ -9,7 +9,11 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "emprendedores")
+// T11: una empresa pertenece a un solo emprendedor (MySQL admite varios NULL en un índice único).
+// ddl-auto=validate no crea el índice: en bases existentes aplicar
+// scripts/prod/migraciones/T11-emprendedores-empresa-unica.sql
+@Table(name = "emprendedores",
+        uniqueConstraints = @UniqueConstraint(name = "uk_emprendedor_empresa", columnNames = "empresa_id"))
 @Data
 @Builder
 @NoArgsConstructor

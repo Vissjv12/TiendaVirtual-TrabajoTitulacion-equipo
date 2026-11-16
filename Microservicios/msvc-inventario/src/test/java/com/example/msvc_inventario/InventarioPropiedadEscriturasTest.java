@@ -52,6 +52,7 @@ class InventarioPropiedadEscriturasTest {
     @MockitoBean private InventarioMapper inventarioMapper;
     @MockitoBean private ProductoClient productoClient;
     @MockitoBean private InventarioRepository inventarioRepository;
+    @MockitoBean private com.example.msvc_inventario.domain.repository.MovimientoInventarioRepository movimientoRepository;
     @MockitoBean private JwtDecoder jwtDecoder;
 
     @BeforeEach

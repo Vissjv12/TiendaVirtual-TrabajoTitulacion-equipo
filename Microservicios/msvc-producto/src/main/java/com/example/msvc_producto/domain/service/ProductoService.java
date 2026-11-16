@@ -15,6 +15,7 @@ public interface ProductoService {
     List<Producto> listarProductos();
     Page<Producto> listarProductosPaginado(String q, Long empresaId, Long categoriaId, Boolean activo, Pageable pageable);
     List<Producto> buscarProductosPorEmpresa(Long empresaId);
+    List<Long> listarIdsProductosPorEmpresa(Long empresaId);
     List<Producto> buscarProductosPorCategoria(Long categoriaId);
     void eliminarProducto(Long id);
 

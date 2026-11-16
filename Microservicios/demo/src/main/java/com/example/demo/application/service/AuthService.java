@@ -47,6 +47,9 @@ public class AuthService {
     @Value("${google.client-id:}")
     private String googleClientId;
 
+    @Value("${jwt.access-token-ttl-seconds:900}")
+    private long accessTokenTtlSeconds;
+
     private static final String GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token=";
 
     public TokenResponseDto login(LoginRequestDto loginRequest) {
@@ -186,7 +189,7 @@ public class AuthService {
 
     private TokenResponseDto generateToken(Authentication authentication, Usuario usuario, Long empresaId) {
         Instant now = Instant.now();
-        long expiresIn = 3600; // 1 hora
+        long expiresIn = accessTokenTtlSeconds;
 
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)

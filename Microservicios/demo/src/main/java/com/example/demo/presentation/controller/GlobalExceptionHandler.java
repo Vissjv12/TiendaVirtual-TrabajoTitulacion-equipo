@@ -45,6 +45,20 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    @ExceptionHandler(com.example.demo.infrastructure.producto.ProductoNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> handleProductoNoDisponible(
+            com.example.demo.infrastructure.producto.ProductoNoDisponibleException ex) {
+        ErrorResponse error = new ErrorResponse("SERVICE_UNAVAILABLE", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(com.example.demo.application.service.VinculacionEmpresaConflictoException.class)
+    public ResponseEntity<ErrorResponse> handleVinculacionConflicto(
+            com.example.demo.application.service.VinculacionEmpresaConflictoException ex) {
+        ErrorResponse error = new ErrorResponse("CONFLICT", ex.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentialsException(BadCredentialsException ex) {
         ErrorResponse error = new ErrorResponse("UNAUTHORIZED", "Credenciales inválidas", LocalDateTime.now());

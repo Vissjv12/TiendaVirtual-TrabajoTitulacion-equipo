@@ -206,6 +206,14 @@ Leyenda:
 
 ---
 
+## 9. Actualización de la rama de estabilización
+
+La tabla anterior conserva el corte documental del commit `432f92b`. Después de ese corte, la rama `feature/version-estable-seguridad-pagos-pulido` incorporó correcciones de T01, T07, T08, T09 y T11, además del cierre de Stripe, la generación de facturas posterior al commit y la creación transaccional del pago.
+
+En este corte actualizado, T01 queda preparado para systemd y AlmaLinux, T07 queda cerrado en código con autorización en lote, T08 y T09 quedan preparados en código, y T11 queda cerrado en código con migración SQL pendiente de aplicar. El administrador conserva acceso global por decisión del equipo. Redis permanece desactivado por defecto y no forma parte de la activación de producción de esta etapa.
+
+Las pruebas locales completas, las pruebas con varios emprendedores, la rotación de credenciales y el despliegue se mantienen como actividades posteriores de validación e implementación.
+
 ## 8. Limitaciones de este análisis
 
 - No se levantó el sistema. Los estados "hecho" se basan en código y en evidencias registradas por el equipo; los marcados "(local)" no tienen validación en producción.

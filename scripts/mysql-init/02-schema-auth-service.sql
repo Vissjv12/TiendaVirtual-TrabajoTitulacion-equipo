@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS emprendedores (
     
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
     INDEX idx_emprendedores_usuario_id (usuario_id),
-    INDEX idx_emprendedores_empresa_id (empresa_id)
+    -- T11: una empresa pertenece a un solo emprendedor (varios NULL permitidos)
+    UNIQUE KEY uk_emprendedor_empresa (empresa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================

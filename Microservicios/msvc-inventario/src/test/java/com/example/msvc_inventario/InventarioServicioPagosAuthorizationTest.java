@@ -21,7 +21,8 @@ class InventarioServicioPagosAuthorizationTest {
 
     private final InventarioAuthorizationService service =
             new InventarioAuthorizationService(mock(ProductoClient.class),
-                    mock(com.example.msvc_inventario.domain.repository.InventarioRepository.class));
+                    mock(com.example.msvc_inventario.domain.repository.InventarioRepository.class),
+                    mock(com.example.msvc_inventario.domain.repository.MovimientoInventarioRepository.class));
 
     private static JwtAuthenticationToken token(String rol, String tipo) {
         Jwt.Builder b = Jwt.withTokenValue("t").header("alg", "HS256").subject("s").claim("scope", rol);

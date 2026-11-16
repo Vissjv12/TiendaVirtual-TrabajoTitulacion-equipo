@@ -74,6 +74,9 @@ class InventarioControllerApiAuthorizationTest {
     @MockitoBean
     private InventarioRepository inventarioRepository;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.example.msvc_inventario.domain.repository.MovimientoInventarioRepository movimientoRepository;
+
     @MockitoBean
     private JwtDecoder jwtDecoder;
 
@@ -183,6 +186,8 @@ class InventarioControllerApiAuthorizationTest {
         producto.setId(1L);
         producto.setEmpresa(new ProductoDto.EmpresaDto(1L));
         when(productoClient.obtenerProducto(1L)).thenReturn(producto);
+        // T07: la salida en lote se autoriza con una sola consulta de los productos de la empresa del JWT
+        when(productoClient.obtenerIdsProductosPorEmpresa(1L)).thenReturn(List.of(1L));
         when(inventarioService.procesarSalidaLote(any(), any())).thenReturn(List.of());
 
         mockMvc.perform(post("/api/inventarios/salida-lote")

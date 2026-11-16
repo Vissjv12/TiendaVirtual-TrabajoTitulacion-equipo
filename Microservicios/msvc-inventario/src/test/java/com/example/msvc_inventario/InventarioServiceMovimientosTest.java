@@ -46,7 +46,7 @@ class InventarioServiceMovimientosTest {
         movimientoRepository = mock(MovimientoInventarioRepository.class);
         productoClient = mock(ProductoClient.class);
         service = new InventarioServiceImpl(inventarioRepository, movimientoRepository, productoClient,
-                new com.example.msvc_inventario.application.service.InventarioAuthorizationService(productoClient, inventarioRepository));
+                new com.example.msvc_inventario.application.service.InventarioAuthorizationService(productoClient, inventarioRepository, movimientoRepository));
 
         ProductoDto producto = new ProductoDto();
         producto.setId(1L);

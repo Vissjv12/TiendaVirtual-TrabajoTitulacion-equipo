@@ -307,4 +307,26 @@ class ProductoControllerApiAuthorizationTest {
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(empresaService);
     }
+    @Test
+    void idsDeProductosPorEmpresaSoloParaAdminOElEmprendedorDeEsaEmpresa() throws Exception {
+        // T07: lo consume msvc-inventario reenviando el JWT del usuario
+        when(productoService.listarIdsProductosPorEmpresa(1L)).thenReturn(List.of(5L, 6L));
+        when(productoAuthorizationService.canManageCompany(any(), eq(1L))).thenReturn(true);
+        when(productoAuthorizationService.canManageCompany(any(), eq(2L))).thenReturn(false);
+
+        mockMvc.perform(get("/api/productos/empresa/1/ids"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/productos/empresa/2/ids")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(t -> t.claim("empresaId", 1L))))
+                .andExpect(status().isForbidden());
+        org.mockito.Mockito.verify(productoService, org.mockito.Mockito.never()).listarIdsProductosPorEmpresa(2L);
+
+        mockMvc.perform(get("/api/productos/empresa/1/ids")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(t -> t.claim("empresaId", 1L))))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0]").value(5))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[1]").value(6));
+    }
 }

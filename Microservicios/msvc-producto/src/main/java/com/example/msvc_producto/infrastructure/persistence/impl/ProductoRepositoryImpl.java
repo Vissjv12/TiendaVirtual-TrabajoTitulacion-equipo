@@ -47,6 +47,11 @@ public class ProductoRepositoryImpl implements ProductoRepository {
     }
 
     @Override
+    public List<Long> findIdsByEmpresaId(Long empresaId) {
+        return jpaRepository.findIdsByEmpresaId(empresaId);
+    }
+
+    @Override
     public List<Producto> findByEmpresaId(Long empresaId) {
         return jpaRepository.findByEmpresaId(empresaId).stream()
                 .map(mapper::toDomain)

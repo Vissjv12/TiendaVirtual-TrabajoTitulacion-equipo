@@ -75,6 +75,9 @@ class MovimientoPropiedadTest {
         inv20.setProductoId(2L);
         when(inventarioRepository.findById(10L)).thenReturn(Optional.of(inv10));
         when(inventarioRepository.findById(20L)).thenReturn(Optional.of(inv20));
+        // T07: la empresa 1 tiene el producto 1 (inventario 10); el producto 2 / inventario 20 es de la empresa 99
+        when(productoClient.obtenerIdsProductosPorEmpresa(1L)).thenReturn(List.of(1L));
+        when(inventarioRepository.findIdsByProductoIdIn(any())).thenReturn(List.of(10L));
     }
 
     @Test
@@ -136,10 +139,6 @@ class MovimientoPropiedadTest {
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
                                 .jwt(t -> t.claim("empresaId", 1L))))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/movimientos/paginado")
-                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
-                                .jwt(t -> t.claim("empresaId", 1L))))
-                .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/movimientos/paginado").param("inventarioIds", "10,20")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
                                 .jwt(t -> t.claim("empresaId", 1L))))
@@ -152,6 +151,15 @@ class MovimientoPropiedadTest {
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
                                 .jwt(t -> t.claim("empresaId", 1L))))
                 .andExpect(status().isForbidden());
+
+        // T07: sin filtro, el EMP ya no recibe 403: el servidor limita la consulta a SUS inventarios
+        org.mockito.Mockito.clearInvocations(movimientoService);
+        mockMvc.perform(get("/api/movimientos/paginado")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))
+                                .jwt(t -> t.claim("empresaId", 1L))))
+                .andExpect(status().isOk());
+        verify(movimientoService).listarPaginado(org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.eq(List.of(10L)), any(), any(), any(), any(), any());
 
         // EMP sí puede consultar los de su inventario
         mockMvc.perform(get("/api/movimientos/paginado").param("inventarioIds", "10")

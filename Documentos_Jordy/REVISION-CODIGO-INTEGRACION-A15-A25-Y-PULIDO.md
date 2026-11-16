@@ -1072,3 +1072,9 @@ Resultados: **msvc-ventas 70/70** (incluye `MsvcVentasApplicationTests`, que arr
 - Si en el futuro se reactiva Stripe, no basta con `STRIPE_ENABLED=true`: hay que integrar `confirm-payment` con `PagoPasarelaService` (monto verificado, credencial interna e idempotencia) y reimplementar un webhook con verificación de firma.
 - Aprobar el pago de una venta cancelada ahora responde 400.
 - Una ruta inexistente en ventas responde 404 en lugar de 500.
+
+### 6.2 Actualización posterior del código de estabilización
+
+La rama actual incorpora cambios posteriores al corte descrito en esta sección. T01 está preparado para systemd y AlmaLinux; T07 optimiza la autorización de inventario en lote; T08 elimina los comodines CORS y configura los encabezados reenviados; T09 incorpora la plantilla de Gateway y sus límites; y T11 implementa la vinculación administrativa entre emprendedor y empresa con índice único y migración.
+
+El administrador conserva acceso global sobre productos e inventarios por decisión del equipo. Las categorías permanecen restringidas a `ROLE_ADMIN`. Redis queda desactivado por defecto y se reserva para una etapa posterior. La reducción del TTL del access token a 15 minutos por defecto reduce la ventana de una vinculación anterior, pero no implementa revocación inmediata.

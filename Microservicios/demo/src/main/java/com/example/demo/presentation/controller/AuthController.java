@@ -39,6 +39,7 @@ public class AuthController {
     private final AuthService authService;
     private final UsuarioMapper usuarioMapper;
     private final PasswordResetService passwordResetService;
+    private final com.example.demo.application.service.EmprendedorEmpresaService emprendedorEmpresaService;
 
     // =====================================
     // ENDPOINTS DE AUTENTICACIÓN PÚBLICA
@@ -72,6 +73,10 @@ public class AuthController {
             if (usuarioOpt.isPresent()) {
                 Usuario usuario = usuarioOpt.get();
                 UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuario);
+                // T11: conservar el empresaId resuelto al emitir el JWT (antes se perdía aquí y llegaba null)
+                if (tokenResponse.getUsuario() != null) {
+                    usuarioDto.setEmpresaId(tokenResponse.getUsuario().getEmpresaId());
+                }
                 tokenResponse.setUsuario(usuarioDto);
             }
 
@@ -192,7 +197,9 @@ public class AuthController {
                 PaginationUtils.DEFAULT_MANAGEMENT_SIZE,
                 "id", Sort.Direction.DESC, USUARIO_SORT_FIELDS);
         Page<Usuario> result = usuarioService.obtenerUsuariosPaginado(q, rol, activo, pageable);
-        return ResponseEntity.ok(PageResponseDto.fromPage(result, usuarioMapper::toResponseDto));
+        PageResponseDto<UsuarioResponseDto> pagina = PageResponseDto.fromPage(result, usuarioMapper::toResponseDto);
+        emprendedorEmpresaService.completarEmpresa(pagina.getContent());
+        return ResponseEntity.ok(pagina);
     }
 
     @GetMapping("/usuarios")
@@ -204,6 +211,7 @@ public class AuthController {
             List<UsuarioResponseDto> usuariosDto = usuarios.stream()
                     .map(usuarioMapper::toResponseDto)
                     .collect(Collectors.toList());
+            emprendedorEmpresaService.completarEmpresa(usuariosDto);
 
             return ResponseEntity.ok(usuariosDto);
         } catch (Exception e) {
@@ -220,6 +228,7 @@ public class AuthController {
 
             if (usuarioOpt.isPresent()) {
                 UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioOpt.get());
+                emprendedorEmpresaService.completarEmpresa(List.of(usuarioDto));
                 return ResponseEntity.ok(usuarioDto);
             } else {
                 return ResponseEntity.notFound().build();
@@ -258,6 +267,7 @@ public class AuthController {
 
             Usuario usuarioActualizado = usuarioService.actualizarUsuario(id, actualizarDto);
             UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioActualizado);
+            emprendedorEmpresaService.completarEmpresa(List.of(usuarioDto));
 
             return ResponseEntity.ok(usuarioDto);
         } catch (IllegalStateException e) {
@@ -276,6 +286,7 @@ public class AuthController {
         try {
             Usuario usuarioActualizado = usuarioService.cambiarEstado(id, estadoDto.isActivo());
             UsuarioResponseDto usuarioDto = usuarioMapper.toResponseDto(usuarioActualizado);
+            emprendedorEmpresaService.completarEmpresa(List.of(usuarioDto));
 
             return ResponseEntity.ok(usuarioDto);
         } catch (IllegalStateException e) {
@@ -312,6 +323,7 @@ public class AuthController {
             List<UsuarioResponseDto> usuariosDto = usuarios.stream()
                     .map(usuarioMapper::toResponseDto)
                     .collect(Collectors.toList());
+            emprendedorEmpresaService.completarEmpresa(usuariosDto);
 
             return ResponseEntity.ok(usuariosDto);
         } catch (Exception e) {
@@ -328,6 +340,7 @@ public class AuthController {
             List<UsuarioResponseDto> usuariosDto = usuarios.stream()
                     .map(usuarioMapper::toResponseDto)
                     .collect(Collectors.toList());
+            emprendedorEmpresaService.completarEmpresa(usuariosDto);
 
             return ResponseEntity.ok(usuariosDto);
         } catch (Exception e) {

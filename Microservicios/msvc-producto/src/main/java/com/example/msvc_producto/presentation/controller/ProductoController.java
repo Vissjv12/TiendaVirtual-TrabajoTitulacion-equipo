@@ -294,6 +294,20 @@ public class ProductoController {
         return ResponseEntity.ok(responseDtos);
     }
 
+    /**
+     * Ids de TODOS los productos (activos e inactivos) de una empresa, en una sola consulta.
+     * Lo consume msvc-inventario para autorizar operaciones sobre varios inventarios con una
+     * única llamada (T07). Solo ADMIN o el emprendedor de esa empresa.
+     */
+    @GetMapping("/empresa/{empresaId}/ids")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Ids de productos de una empresa (uso interno de autorización)")
+    public ResponseEntity<List<Long>> listarIdsProductosPorEmpresa(
+            @PathVariable Long empresaId, Authentication authentication) {
+        assertCompanyAccess(authentication, empresaId);
+        return ResponseEntity.ok(productoService.listarIdsProductosPorEmpresa(empresaId));
+    }
+
     @GetMapping("/categoria/{categoriaId}")
     @Operation(summary = "Buscar productos por categoría")
     public ResponseEntity<List<ProductoResponseDto>> buscarProductosPorCategoria(@PathVariable Long categoriaId) {
