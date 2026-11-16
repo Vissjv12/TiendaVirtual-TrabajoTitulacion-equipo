@@ -114,7 +114,7 @@ En la ventana: dejar el caché apagado al desplegar, validar Gateway, login, pro
 
 ## Estado de respaldos al iniciar este plan
 
-Ya hay dump comprimido de `auth_service`, `inventario`, `productos` y `ventas` restaurado en un MySQL aislado, con 64 tablas verificadas; también hay copias locales de JARs, frontend, systemd, Nginx, certificados y tabla de particiones. Eso demuestra que existe material de recuperación, pero **no significa que el plan de respaldos esté terminado**: faltan ensayos de restauración de artefactos, recuperación de usuarios/grants, una copia externa vigente y resolver el bloqueo de la partición. Ningún respaldo real debe subirse a GitHub.
+Ya hay dump comprimido de `auth_service`, `inventario`, `productos` y `ventas` restaurado en un MySQL aislado, con 64 tablas verificadas; también hay copias locales de JARs, frontend, systemd, Nginx, certificados y tabla de particiones. Las copias de los archivos de producción ya se transfirieron al PC; falta recalcular allí los SHA-256 para confirmar su integridad, ensayar la restauración de artefactos y preparar la recuperación de usuarios/grants. Antes de la ventana se hará un dump manual nuevo. La partición sigue bloqueada por GPT/PMBR y falta coordinar una recuperación de la VM. Ningún respaldo real debe subirse a GitHub.
 
 ## Criterio de cierre
 
