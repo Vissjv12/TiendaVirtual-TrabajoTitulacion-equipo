@@ -144,3 +144,14 @@ La ejecución final confirmó:
 
 La ejecución parcial se conserva como evidencia de disponibilidad incompleta; la ejecución `43/43` es la evidencia válida para el cierre funcional de A-14.
 
+## 5. Aclaración de despliegue: Gateway local frente a producción
+
+`docker-compose.gateway.yml` levanta únicamente un contenedor NGINX llamado `gateway-feria-digital`. No levanta Auth, Productos, Inventario, Ventas, Eureka ni MySQL. Su función es ofrecer un punto de entrada único y reenviar las rutas hacia los servicios que escuchan en los puertos `8081`, `8082`, `8083` y `8084` del host.
+
+En el entorno local, el Compose permite validar el Gateway en `http://127.0.0.1:8090` o en el puerto configurado por `GATEWAY_PORT`. La configuración usa `host.docker.internal` y `extra_hosts` para que el contenedor alcance los microservicios ejecutados directamente en el equipo.
+
+La documentación de despliegue del servidor registra otra arquitectura: los microservicios se ejecutan como servicios `systemd`, MySQL es nativo y NGINX del sistema atiende HTTPS/SSL. Bajo esa arquitectura no es necesario instalar Docker solo para publicar cambios de Java o frontend, ni ejecutar `docker-compose.gateway.yml`. El NGINX nativo cumple el papel de reverse proxy/gateway y debe conservar reglas equivalentes de enrutamiento, CORS, SSL y bloqueo perimetral.
+
+Docker solo sería necesario en producción si el equipo decide adoptar explícitamente el Gateway contenedorizado. En ese caso habría que instalar Docker Compose, adaptar los upstream a la red real del servidor, evitar conflictos con el NGINX/SSL existente, definir reinicio y logs, y validar firewall, healthcheck y rutas antes del cambio. No es una consecuencia automática de esta rama.
+
+**Conclusión:** para el servidor actual, primero se debe confirmar la configuración activa de `/etc/nginx` y los servicios `systemd`; no se debe instalar Docker ni reemplazar el reverse proxy de producción sin una decisión de infraestructura separada.
