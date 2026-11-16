@@ -211,18 +211,27 @@ class VentaControllerApiAuthorizationTest {
     }
 
     @Test
-    void preflightCorsEsPermitidoSinAbrirEscrituraReal() throws Exception {
+    void preflightCorsDirectoNoEmiteCabeceraCorsYNoAbreEscrituraReal() throws Exception {
         mockMvc.perform(options("/api/ventas")
                         .header(HttpHeaders.ORIGIN, "http://localhost:3000")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
 
         mockMvc.perform(post("/api/ventas")
                         .header(HttpHeaders.ORIGIN, "http://localhost:3000")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VENTA_REQUEST))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void swaggerYApiDocsNoSonPublicos() throws Exception {
+        mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api-docs")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EMP"))))
+                .andExpect(status().isForbidden());
     }
 
     @Test

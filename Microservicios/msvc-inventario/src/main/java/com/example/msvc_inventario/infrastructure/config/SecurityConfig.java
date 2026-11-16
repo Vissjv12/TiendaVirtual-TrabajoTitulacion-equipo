@@ -41,8 +41,11 @@ public class SecurityConfig {
                         // Preflight CORS del navegador: no lleva Authorization y no ejecuta
                         // lógica de negocio; si se rechaza, el POST/PUT real nunca se envía.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/inventarios/**", "/api/movimientos/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**")
+                        .hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/inventarios/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/movimientos/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_EMP")
                         .requestMatchers(HttpMethod.POST, "/api/inventarios/cantidad/batch").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/inventarios/salida-lote")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_EMP")

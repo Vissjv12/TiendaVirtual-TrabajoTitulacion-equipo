@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/ventas")
 @RequiredArgsConstructor
 @Tag(name = "Ventas", description = "API para gestionar ventas")

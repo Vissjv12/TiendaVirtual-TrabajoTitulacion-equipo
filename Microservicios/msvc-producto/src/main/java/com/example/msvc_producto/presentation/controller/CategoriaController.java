@@ -26,7 +26,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/categorias")
 @Tag(name = "Categorías", description = "API para gestionar categorías de productos")
-@CrossOrigin(originPatterns = "*")
 public class CategoriaController {
 
     @Autowired
@@ -38,7 +37,7 @@ public class CategoriaController {
 
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_EMP')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @Operation(summary = "Crear una nueva categoría")
     public ResponseEntity<CategoriaResponseDto> crearCategoria(@Valid @RequestBody CategoriaRequestDto requestDto) {
         Categoria categoria = categoriaMapper.toEntity(requestDto);

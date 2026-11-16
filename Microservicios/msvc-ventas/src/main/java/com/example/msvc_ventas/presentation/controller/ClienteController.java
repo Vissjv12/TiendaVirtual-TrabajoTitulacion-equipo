@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/clientes")
 @RequiredArgsConstructor
 @Tag(name = "Clientes", description = "API para gestionar clientes")

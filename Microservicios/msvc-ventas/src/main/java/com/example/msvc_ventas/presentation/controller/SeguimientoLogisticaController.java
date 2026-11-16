@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/seguimiento-logistica")
 @RequiredArgsConstructor
 @Slf4j

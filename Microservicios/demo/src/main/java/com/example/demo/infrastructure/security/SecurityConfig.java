@@ -43,7 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/registro", "/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/google").permitAll()
                         .requestMatchers("/api/auth/recuperar-password/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").hasAuthority("ROLE_ADMIN")
                         // Endpoints públicos para clientes en el checkout y recursos de QR Deuna
                         // Solo la disponibilidad (GET) y la notificación de Payphone son públicas;
                         // preparar y confirmar exigen usuario autenticado (C-02 / A-03)

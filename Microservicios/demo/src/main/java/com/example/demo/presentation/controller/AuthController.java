@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@CrossOrigin(originPatterns = "*")
 @Tag(name = "Gestión de Usuarios", description = "API para gestión de usuarios por administradores")
 public class AuthController {
 

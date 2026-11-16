@@ -24,7 +24,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/inventarios")
 @Tag(name = "Inventarios", description = "API para gestionar inventarios")
 public class InventarioController {
