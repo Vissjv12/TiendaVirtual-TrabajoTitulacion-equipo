@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_EMP")
                         .requestMatchers(HttpMethod.POST, "/api/inventarios/cantidad/batch").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/inventarios/salida-lote")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_EMP")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_EMP", "ROLE_SERVICIO_PAGOS")
                         .requestMatchers(HttpMethod.PUT, "/api/inventarios/producto/*/stock")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_EMP")
                         .requestMatchers(HttpMethod.POST, "/api/inventarios/**")

@@ -200,6 +200,38 @@ class InventarioControllerApiAuthorizationTest {
     }
 
     @Test
+    void salidaDeInventarioConCredencialDeServicioPagosEsPermitida() throws Exception {
+        when(inventarioService.procesarSalidaLote(any(), any())).thenReturn(List.of());
+
+        mockMvc.perform(post("/api/inventarios/salida-lote")
+                        .with(jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_SERVICIO_PAGOS"))
+                                .jwt(token -> token.claim("tipo", "servicio")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SALIDA_VALIDA))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void salidaDeInventarioConRolServicioPagosSinClaimTipoEsRechazada() throws Exception {
+        mockMvc.perform(post("/api/inventarios/salida-lote")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SERVICIO_PAGOS")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SALIDA_VALIDA))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void actualizarStockConRolServicioPagosEsRechazado() throws Exception {
+        mockMvc.perform(put("/api/inventarios/producto/1/stock")
+                        .param("cantidad", "5")
+                        .with(jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_SERVICIO_PAGOS"))
+                                .jwt(token -> token.claim("tipo", "servicio"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void actualizarStockConRolClienteEsRechazado() throws Exception {
         mockMvc.perform(put("/api/inventarios/producto/1/stock")
                         .param("cantidad", "5")
