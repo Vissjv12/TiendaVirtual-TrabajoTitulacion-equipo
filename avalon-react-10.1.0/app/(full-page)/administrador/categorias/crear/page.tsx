@@ -248,7 +248,7 @@ const CrearCategoriaPage: React.FC = () => {
                                 <div className="mb-3">
                                     <strong className="text-primary">Nombre:</strong>
                                     <p className="text-600 mt-1 mb-0">
-                                        Debe ser único y descriptivo. Ejemplo: "Smartphones", "Ropa Deportiva"
+                                        Debe ser único y descriptivo. Ejemplo: &quot;Smartphones&quot;, &quot;Ropa Deportiva&quot;
                                     </p>
                                 </div>
                                 <div className="mb-3">

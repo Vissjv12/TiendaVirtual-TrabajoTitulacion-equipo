@@ -236,7 +236,7 @@ const EditarCategoriaPage: React.FC = () => {
                     </h1>
                 </div>
                 <p className="text-600 text-lg ml-6">
-                    Modifica los datos de la categoría "{originalData?.nombre}"
+                    Modifica los datos de la categoría &quot;{originalData?.nombre}&quot;
                 </p>
             </div>
 

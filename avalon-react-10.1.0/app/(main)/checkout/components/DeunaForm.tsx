@@ -146,7 +146,7 @@ const DeunaForm: React.FC<DeunaFormProps> = ({
                                     <strong>Abre la aplicación de Deuna</strong> en tu dispositivo móvil
                                 </li>
                                 <li className="mb-2">
-                                    <strong>Selecciona "Escanear QR"</strong> en el menú principal
+                                    <strong>Selecciona &quot;Escanear QR&quot;</strong> en el menú principal
                                 </li>
                                 <li className="mb-2">
                                     <strong>Escanea el código</strong> mostrado arriba

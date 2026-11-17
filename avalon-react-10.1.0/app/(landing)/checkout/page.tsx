@@ -817,7 +817,7 @@ const CheckoutPage: React.FC = () => {
                                             <i className="pi pi-info-circle mr-2 text-orange-500 mt-1"></i>
                                             <div>
                                                 <strong className="text-orange-700">Estado: Pago Pendiente</strong>
-                                                <p className="text-sm text-600 m-0 mt-2">Puedes revisar el estado de tu orden en cualquier momento desde "Mi Cuenta" → "Historial de Compras"</p>
+                                                <p className="text-sm text-600 m-0 mt-2">Puedes revisar el estado de tu orden en cualquier momento desde &quot;Mi Cuenta&quot; → &quot;Historial de Compras&quot;</p>
                                             </div>
                                         </div>
                                     </div>
