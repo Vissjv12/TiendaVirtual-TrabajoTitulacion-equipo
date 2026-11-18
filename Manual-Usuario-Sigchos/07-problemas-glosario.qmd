@@ -1,0 +1,87 @@
+# Problemas frecuentes y glosario
+
+## Problemas frecuentes
+
+**No puedo iniciar sesión.**
+
+Verifique que el usuario y la contraseña estén escritos correctamente. Si utiliza el acceso con Google, confirme que está seleccionando la cuenta de Gmail autorizada. Si el problema continúa, solicite apoyo al administrador.
+
+**No encuentro un producto.**
+
+Utilice la barra de búsqueda o los filtros por categoría y empresa. También puede revisar que el producto se encuentre disponible en el catálogo.
+
+**El carrito no muestra el total esperado.**
+
+Revise las cantidades seleccionadas y confirme que los productos sigan disponibles. Recuerde que el total puede incluir impuestos y costo de envío.
+
+**No puedo agregar un producto al carrito.**
+
+Para agregar productos y realizar una compra es necesario iniciar sesión. Si ya inició sesión, revise que el producto tenga existencias y vuelva a seleccionar el botón **Agregar**.
+
+**No veo la pantalla de compra.**
+
+Revise que tenga productos en el carrito y seleccione la opción para continuar con la compra. Si la cuenta no está activa, inicie sesión antes de continuar.
+
+**El pago no se confirma.**
+
+Revise su conexión a internet y los datos ingresados. En pagos con transferencia bancaria o Deuna, compruebe que el número de cuenta, la referencia y el comprobante sean correctos. En pagos con Payphone, siga las instrucciones de la pantalla segura y espere la respuesta de la pasarela.
+
+**El pago por transferencia o Deuna aparece pendiente.**
+
+Estos métodos requieren que el emprendedor revise la información y verifique el pago. Conserve el comprobante y espere la validación, que puede tardar normalmente hasta 24 horas.
+
+**El pedido no cambia de estado.**
+
+El estado se actualiza cuando el emprendedor registra el avance de la preparación, el envío o la entrega. Si el pago todavía no ha sido aprobado, el pedido puede permanecer pendiente.
+
+**Las visitas del sitio no aumentan inmediatamente.**
+
+El contador de visitas evita registrar varias veces al mismo visitante durante un intervalo de tiempo establecido. Por esta razón, ingresar nuevamente o recargar la página en poco tiempo no siempre incrementa el contador. Espere el tiempo correspondiente o consulte el dato posteriormente desde el panel de administración.
+
+**No puedo ver mi factura.**
+
+Ingrese al historial o al detalle de la compra y revise si la factura ya fue generada. Si el pago aún está en proceso de verificación, espere a que la compra sea confirmada.
+
+**La información de logística no está actualizada.**
+
+El emprendedor debe registrar cada cambio desde la opción **Logística**. Si ya realizó la actualización y no se refleja, recargue la pantalla y vuelva a consultar el pedido.
+
+\begin{infobox}[Soporte técnico]
+Si ninguna de las soluciones mencionadas resuelve el inconveniente, contacte al administrador del sistema o al responsable de la plataforma para recibir asistencia.
+\end{infobox}
+
+## Glosario básico
+
+\begin{importantbox}[Definiciones clave]
+Estos términos ayudan a comprender las principales opciones del Sistema Sigchos E-Commerce y a seguir correctamente las instrucciones del manual.
+\end{importantbox}
+
+**Catálogo:** Listado de productos disponibles en la plataforma.
+
+**Carrito:** Espacio donde se guardan los productos seleccionados antes de confirmar una compra.
+
+**Checkout:** Pantalla del proceso de compra donde se revisan los datos de envío, los productos y el total.
+
+**Pasarela de pago:** Servicio que procesa o facilita el pago de una compra mediante un método autorizado.
+
+**Payphone:** Método de pago que permite completar una compra mediante la aplicación Payphone o una tarjeta, según las opciones disponibles.
+
+**Transferencia bancaria:** Pago realizado desde la cuenta del cliente hacia una cuenta bancaria registrada por el emprendimiento.
+
+**Deuna:** Método de pago que utiliza la aplicación Deuna y un código QR para realizar la operación.
+
+**Código QR:** Imagen que puede escanearse con una aplicación compatible para acceder a los datos de una operación de pago.
+
+**Comprobante:** Evidencia de una transferencia o pago, que puede registrarse mediante una referencia, imagen o archivo PDF.
+
+**Factura:** Comprobante generado por la compra realizada.
+
+**Logística:** Proceso de preparación, envío y entrega del pedido.
+
+**Estado del pedido:** Etapa en la que se encuentra la compra, por ejemplo, pago aprobado, en preparación, listo para envío, en camino o entregado.
+
+**Visitas del sitio:** Registro de accesos a la plataforma. El sistema aplica un intervalo de control para evitar contabilizar varias veces la misma visita en un periodo corto.
+
+**Panel de administración:** Área desde la cual se supervisan usuarios, productos, inventario, ventas y métricas generales del sistema.
+
+**Emprendedor:** Usuario que administra sus productos, pagos, pedidos y procesos de entrega desde el panel correspondiente.
