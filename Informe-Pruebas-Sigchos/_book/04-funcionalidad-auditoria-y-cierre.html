@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>4&nbsp; Paginación, Seguridad en Ventas, Auditoría y Respaldos – Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./05-pruebas-produccion.html" rel="next">
+<link href="./03-rendimiento-y-redis.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-c05a8afb666c08ce7683c7e666d21d95.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No se han encontrado resultados",
+    "search-matching-documents-text": "documentos encontrados",
+    "search-copy-link-title": "Copiar el enlace en la búsqueda",
+    "search-hide-matches-text": "Ocultar resultados adicionales",
+    "search-more-match-text": "resultado adicional en este documento",
+    "search-more-matches-text": "resultados adicionales en este documento",
+    "search-clear-button-title": "Borrar",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancelar",
+    "search-submit-button-title": "Enviar",
+    "search-label": "Buscar"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="custom.scss">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Saltar al contenido principal</a>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav" aria-label="Barra de herramientas">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Alternar barra lateral" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./04-funcionalidad-auditoria-y-cierre.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Paginación, Seguridad en Ventas, Auditoría y Respaldos</span></a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Buscar" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Sitio web">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Buscar"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introducción y Alcance de las Pruebas</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./02-seguridad-y-gateway.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Seguridad Base, Aislamiento y API Gateway</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./03-rendimiento-y-redis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Línea Base y Piloto Redis en Local</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./04-funcionalidad-auditoria-y-cierre.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Paginación, Seguridad en Ventas, Auditoría y Respaldos</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./05-pruebas-produccion.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Pruebas en Producción</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./06-conclusiones-y-pendientes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Conclusiones, Hallazgos Menores y Pendientes</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./referencias.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Referencias y Trazabilidad</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">Tabla de contenidos</h2>
+   
+  <ul>
+  <li><a href="#etapa-6-paginación-server-side-a-19-a-a-22" id="toc-etapa-6-paginación-server-side-a-19-a-a-22" class="nav-link active" data-scroll-target="#etapa-6-paginación-server-side-a-19-a-a-22"><span class="header-section-number">4.1</span> Etapa 6: Paginación Server-Side (<code>A-19</code> a <code>A-22</code>)</a></li>
+  <li><a href="#etapa-7-seguridad-en-ventas-y-regresión-a-24-y-a-25" id="toc-etapa-7-seguridad-en-ventas-y-regresión-a-24-y-a-25" class="nav-link" data-scroll-target="#etapa-7-seguridad-en-ventas-y-regresión-a-24-y-a-25"><span class="header-section-number">4.2</span> Etapa 7: Seguridad en Ventas y Regresión (<code>A-24</code> y <code>A-25</code>)</a></li>
+  <li><a href="#pulido-pre-integración-featurepulido-export-validaciones-404" id="toc-pulido-pre-integración-featurepulido-export-validaciones-404" class="nav-link" data-scroll-target="#pulido-pre-integración-featurepulido-export-validaciones-404"><span class="header-section-number">4.3</span> Pulido Pre-Integración (<code>feature/pulido-export-validaciones-404</code>)</a></li>
+  <li><a href="#cierre-de-auditoría-de-código-y-tareas-de-endurecimiento" id="toc-cierre-de-auditoría-de-código-y-tareas-de-endurecimiento" class="nav-link" data-scroll-target="#cierre-de-auditoría-de-código-y-tareas-de-endurecimiento"><span class="header-section-number">4.4</span> Cierre de Auditoría de Código y Tareas de Endurecimiento</a></li>
+  <li><a href="#ensayo-de-integridad-y-restauración-de-respaldos-reales-2026-11-15" id="toc-ensayo-de-integridad-y-restauración-de-respaldos-reales-2026-11-15" class="nav-link" data-scroll-target="#ensayo-de-integridad-y-restauración-de-respaldos-reales-2026-11-15"><span class="header-section-number">4.5</span> Ensayo de Integridad y Restauración de Respaldos Reales (2026-11-15)</a></li>
+  <li><a href="#consolidado-global-de-suites-automatizadas-del-repositorio" id="toc-consolidado-global-de-suites-automatizadas-del-repositorio" class="nav-link" data-scroll-target="#consolidado-global-de-suites-automatizadas-del-repositorio"><span class="header-section-number">4.6</span> Consolidado Global de Suites Automatizadas del Repositorio</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content" tabindex="-1">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Paginación, Seguridad en Ventas, Auditoría y Respaldos</span></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Código</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="etapa-6-paginación-server-side-a-19-a-a-22" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="etapa-6-paginación-server-side-a-19-a-a-22"><span class="header-section-number">4.1</span> Etapa 6: Paginación Server-Side (<code>A-19</code> a <code>A-22</code>)</h2>
+<p>Se implementaron <strong>18 endpoints <code>/paginado</code></strong> en los 4 microservicios bajo el contrato común <code>PageResponseDto&lt;T&gt;</code> (8 campos) y <code>PaginationUtils</code> (tamaño <code>12</code> en vitrina y <code>10</code> en gestión, tope máximo estricto <code>MAX_SIZE = 50</code>, normalización de <code>page &lt; 0</code> a <code>0</code> y validación <code>sort</code> contra lista blanca), integrados en 17 vistas del frontend.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 42%">
+<col style="width: 10%">
+<col style="width: 15%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Microservicio</th>
+<th>Clases probadas (<code>A-22</code>)</th>
+<th style="text-align: right;">Ejecutadas</th>
+<th style="text-align: right;">Fallos / Errores</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>msvc-producto</code></td>
+<td><code>ProductoPaginationTest</code>, <code>ProductoAuthorizationServiceTest</code>, <code>ProductoControllerApiAuthorizationTest</code>, <code>ProductoCatalogoCacheServiceTest</code>, <code>ProductoServiceInventoryBatchTest</code>, <code>RedisCacheConfigTest</code></td>
+<td style="text-align: right;"><strong>32</strong></td>
+<td style="text-align: right;">0 / 0</td>
+<td><code>BUILD SUCCESS</code></td>
+</tr>
+<tr class="even">
+<td><code>msvc-inventario</code></td>
+<td><code>InventarioPaginationTest</code>, <code>InventarioControllerApiAuthorizationTest</code></td>
+<td style="text-align: right;"><strong>10</strong></td>
+<td style="text-align: right;">0 / 0</td>
+<td><code>BUILD SUCCESS</code></td>
+</tr>
+<tr class="odd">
+<td><code>msvc-ventas</code></td>
+<td><code>VentaPaginationTest</code>, <code>VentaServiceTest</code></td>
+<td style="text-align: right;"><strong>14</strong></td>
+<td style="text-align: right;">0 / 0</td>
+<td><code>BUILD SUCCESS</code></td>
+</tr>
+<tr class="even">
+<td><code>demo</code> (<code>auth-service</code>)</td>
+<td><code>UsuarioPaginationTest</code></td>
+<td style="text-align: right;"><strong>2</strong></td>
+<td style="text-align: right;">0 / 0</td>
+<td><code>BUILD SUCCESS</code></td>
+</tr>
+<tr class="odd">
+<td><strong>Total Etapa 6</strong></td>
+<td>—</td>
+<td style="text-align: right;"><strong>58</strong></td>
+<td style="text-align: right;"><strong>0 / 0</strong></td>
+<td><strong>58 / 58 PASS</strong></td>
+</tr>
+</tbody>
+</table>
+<p>En frontend (<code>avalon-react-10.1.0</code>), <code>tsc --noEmit</code> finalizó con <code>0</code> errores y <code>next build --no-lint</code> generó las <code>105</code> páginas estáticas; los errores previos de <code>react/no-unescaped-entities</code> quedaron resueltos antes del despliegue en el commit <code>b60b307</code>.</p>
+<hr>
+</section>
+<section id="etapa-7-seguridad-en-ventas-y-regresión-a-24-y-a-25" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="etapa-7-seguridad-en-ventas-y-regresión-a-24-y-a-25"><span class="header-section-number">4.2</span> Etapa 7: Seguridad en Ventas y Regresión (<code>A-24</code> y <code>A-25</code>)</h2>
+<p>Se habilitó Resource Server JWT (HS256) en <code>msvc-ventas</code>, restringiendo Camunda/BPM exclusivamente a <code>ROLE_ADMIN</code>, incorporando <code>VentaAuthorizationService</code> para scoping de empresa y cliente, y endureciendo <code>/salida-lote</code> y ajuste de stock en <code>msvc-inventario</code>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 34%">
+<col style="width: 49%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Módulo</th>
+<th>Suites incluidas</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Microservicios/msvc-ventas</code></td>
+<td><code>VentaAuthorizationServiceTest</code> (<code>4</code>), <code>VentaControllerApiAuthorizationTest</code> (<code>6</code>), <code>VentaIntegrationTest</code> (<code>14</code> con JWT H2), <code>VentaServiceTest</code> (<code>12</code>), <code>VentaPaginationTest</code> (<code>2</code>), <code>MsvcVentasApplicationTests</code> (<code>1</code>)</td>
+<td><strong>39 / 39 PASS</strong></td>
+</tr>
+<tr class="even">
+<td><code>Microservicios/msvc-inventario</code></td>
+<td><code>InventarioControllerApiAuthorizationTest</code> (<code>15</code>), <code>InventarioPaginationTest</code> (<code>2</code>), <code>MsvcInventarioApplicationTests</code> (<code>1</code>)</td>
+<td><strong>18 / 18 PASS</strong></td>
+</tr>
+<tr class="odd">
+<td><code>Microservicios/msvc-producto</code></td>
+<td>Paginación, autorización y caché</td>
+<td><strong>32 / 32 PASS</strong></td>
+</tr>
+<tr class="even">
+<td><code>Microservicios/demo</code></td>
+<td><code>UsuarioPaginationTest</code></td>
+<td><strong>2 / 2 PASS</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="pulido-pre-integración-featurepulido-export-validaciones-404" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="pulido-pre-integración-featurepulido-export-validaciones-404"><span class="header-section-number">4.3</span> Pulido Pre-Integración (<code>feature/pulido-export-validaciones-404</code>)</h2>
+<ul>
+<li><strong>Backend <code>demo</code> (<code>12 / 12 PASS</code>):</strong> <code>UsuarioServiceImplTest</code> (<code>9</code>), <code>AuthServiceDisabledUserTest</code> (<code>1</code>, verificando rechazo <code>403</code> para usuarios desactivados) y <code>UsuarioPaginationTest</code> (<code>2</code>, protegiendo también al último <code>ROLE_ADMIN</code> activo contra eliminación o desactivación).</li>
+<li><strong>Backend <code>msvc-producto</code> (<code>19 / 19 PASS</code>):</strong> <code>ProductoAuthorizationServiceTest</code> (<code>7</code>), <code>ProductoControllerApiAuthorizationTest</code> (<code>8</code>), <code>ProductoPaginationTest</code> (<code>4</code>).</li>
+<li><strong>Helpers de frontend (<code>verify_helpers.js</code>):</strong> <strong><code>22 / 22 aserciones aprobadas</code></strong> verificando <code>csvExport.ts</code> (RFC 4180, BOM UTF-8 y neutralización de inyección de fórmulas <code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>) y <code>formValidations.ts</code> (cédula/RUC ecuatoriano, teléfono, cuentas bancarias y referencias).</li>
+<li><strong>Prueba en Chrome headless (<code>repro404.js</code> sobre <code>next start -p 3099</code>):</strong> navegación a <code>/checkout/fse</code> y clic en <code>"Ir al Inicio"</code> completados con código de salida <code>0</code>, verificando la eliminación de la excepción de cliente <code>removeChild</code>.</li>
+</ul>
+<hr>
+</section>
+<section id="cierre-de-auditoría-de-código-y-tareas-de-endurecimiento" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="cierre-de-auditoría-de-código-y-tareas-de-endurecimiento"><span class="header-section-number">4.4</span> Cierre de Auditoría de Código y Tareas de Endurecimiento</h2>
+<p>La revisión estática exhaustiva (<code>REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md</code>, 2026-11-15) detectó hallazgos críticos y altos que fueron resueltos y blindados con pruebas automatizadas antes de subir a producción:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 39%">
+<col style="width: 39%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Hallazgo / Tarea</th>
+<th>Regla verificada en pruebas</th>
+<th>Suite y resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><code>C-01</code> — QR DeUna y datos bancarios</strong></td>
+<td>Eliminados los fallbacks globales (<code>findAll()</code>) y la reinterpretación <code>empresaId</code>/<code>emprendedorId</code>; fallo cerrado con <code>404</code> y deshabilitación en carritos sin configuración o multi-empresa (<code>checkoutEmpresa.ts</code>).</td>
+<td><code>ConfiguracionPagosServiceEmpresaTest</code> (<strong>10/10</strong>), <code>ConfiguracionPagosControllerEmpresaTest</code> (<strong>4/4</strong>), <code>tests/checkoutEmpresa.test.mjs</code> (<strong>20/20</strong>)</td>
+</tr>
+<tr class="even">
+<td><strong><code>C-02</code>, <code>A-03</code>, <code>A-04</code>, <code>M-06</code> y AES-256 — PayPhone</strong></td>
+<td>Token privado solo en <code>auth-service</code>, cifrado en BD con AES-256-GCM (<code>enc:v1:</code>); orden <code>PENDIENTE</code> creada antes de <code>Prepare</code> con importes autoritativos; credencial efímera <code>ROLE_SERVICIO_PAGOS</code>; webhook idempotente que reconsulta a PayPhone; bloqueo <code>SELECT ... FOR UPDATE</code>.</td>
+<td><code>PayphoneTokenNoExpuestoTest</code> (<strong>7/7</strong>), <code>PayphonePagoServiceTest</code> (<strong>19/19</strong>), <code>PayphoneTokenCifradoTest</code> (<strong>8/8</strong>), <code>VentasInternoClientTest</code> (<strong>3/3</strong>), <code>ConfiguracionPagosControllerPayphoneTest</code> (<strong>10/10</strong>), <code>PagoPasarelaServiceTest</code> (<strong>10/10</strong>), <code>InventarioServicioPagosAuthorizationTest</code> (<strong>5/5</strong> tras fix <code>eac5ec7</code>), <code>tests/payphone.test.mjs</code> (<strong>18/18</strong>)</td>
+</tr>
+<tr class="odd">
+<td><strong><code>A-01</code> y <code>A-02</code> — Inventario y RUC/estado empresa</strong></td>
+<td>Autorización por empresa en todas las rutas <code>POST</code>/<code>PUT</code>/<code>DELETE</code> de inventario y movimientos (<code>delta</code> firmado y usuario del JWT); <code>PUT /api/empresas/{id}</code> exclusivo de <code>ROLE_ADMIN</code>; <code>/contacto</code> rechaza propiedades extra (<code>ruc</code>/<code>activo</code>) con <code>400</code>.</td>
+<td><code>InventarioPropiedadEscriturasTest</code> (<strong>12/12</strong>), <code>MovimientoPropiedadTest</code> (<strong>3/3</strong>), <code>InventarioServiceMovimientosTest</code> (<strong>13/13</strong>), <code>EmpresaListaBlancaTest</code> (<strong>6/6</strong>), <code>ProductoControllerApiAuthorizationTest</code> (<strong>15/15</strong>), script <code>pruebas-a01-a02-gateway.ps1</code></td>
+</tr>
+<tr class="even">
+<td><strong>Stripe inactivo y Facturas tras commit (<code>A-05</code>)</strong></td>
+<td>Con <code>STRIPE_ENABLED=false</code>, cero beans de Stripe y <code>401</code>/<code>404</code> en <code>/api/stripe/**</code>; facturas ejecutadas vía <code>GeneradorFacturaTrasCommit</code> sin <code>new Thread</code>/<code>sleep</code> y con sesión <code>@Transactional(readOnly = true)</code> (<code>ad70711</code>); pago creado dentro de la misma transacción de venta.</td>
+<td><code>StripeDeshabilitadoTest</code> (<strong>5/5</strong>), <code>GeneradorFacturaTrasCommitTest</code> (<strong>4/4</strong>), <code>PagoServiceAprobarPagoTest</code> (<strong>5/5</strong>), <code>VentaApplicationServicePagoSincronoTest</code> (<strong>3/3</strong>), <code>FacturaServiceTransaccionalTest</code> (<strong>1/1</strong>), <code>tests/stripeInactivo.test.mjs</code> (<strong>6/6</strong>)</td>
+</tr>
+<tr class="odd">
+<td><strong><code>T07</code> — Autorización de inventario en lote</strong></td>
+<td>Reducción de <code>N</code> consultas a <strong>1 consulta SQL <code>IN</code> + 1 llamada</strong> a <code>/api/productos/empresa/{id}/ids</code> con política <em>fail-closed</em>; filtro <code>ROLE_EMP</code> acotado en servidor en <code>/movimientos/paginado</code>.</td>
+<td><code>InventarioAutorizacionLoteTest</code> (<strong>8/8</strong>), <code>MovimientoPropiedadTest</code> (<strong>3/3</strong>)</td>
+</tr>
+<tr class="even">
+<td><strong><code>T08</code> y <code>T09</code> — Swagger, CORS y Gateway</strong></td>
+<td>Swagger desactivado por defecto y restringido a <code>ROLE_ADMIN</code>, retirada de <code>@CrossOrigin(*)</code> en 9 controladores, <code>forward-headers-strategy=native</code>, <code>limit_req</code> (<code>10r/m</code> login/recuperación, <code>20r/s</code> API), cabeceras de seguridad y bloqueos <code>403</code>/<code>404</code> en <code>tienda.prod.conf</code>.</td>
+<td>Validación <code>nginx -t</code> en <code>nginx:alpine</code> OK + suites <code>@WebMvcTest</code></td>
+</tr>
+<tr class="odd">
+<td><strong><code>T01</code> — Respaldos automáticos</strong></td>
+<td>Validación atómica de <code>backup-db.sh</code> y <code>restore-test-db.sh</code> con <code>SHA256</code>, <code>gzip -t</code>, rechazo de permisos <code>644</code>, dumps truncados y bases aisladas <code>restore_test_*</code>.</td>
+<td><code>scripts/prod/pruebas/simular-respaldo.sh</code> (<strong>25 / 25 PASS</strong>, <code>bash -n</code> OK)</td>
+</tr>
+<tr class="even">
+<td><strong><code>T11</code> — Vinculación emprendedor-empresa</strong></td>
+<td>Unicidad <code>uk_emprendedor_empresa</code> (<code>409</code> en duplicado/simultaneidad, <code>503</code> si producto no responde), propagación de <code>empresaId</code> en login y listado admin.</td>
+<td><code>EmprendedorEmpresaServiceTest</code> (<strong>14/14</strong>), <code>EmprendedorEmpresaControllerTest</code> (<strong>5/5</strong>), <code>EmpresaProductoClientTest</code> (<strong>4/4</strong>), <code>AuthServiceEmpresaJwtTest</code> (<strong>3/3</strong>), <code>tests/empresaVinculacion.test.mjs</code> (<strong>8/8</strong>)</td>
+</tr>
+<tr class="odd">
+<td><strong><code>V12</code> — Contador persistente de visitas</strong></td>
+<td>Registro diario en zona <code>America/Guayaquil</code> (<code>INSERT ... ON DUPLICATE KEY UPDATE</code>) y suma histórica total.</td>
+<td><code>VisitasServiceTest</code> (<strong>2 / 2 PASS</strong>)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="ensayo-de-integridad-y-restauración-de-respaldos-reales-2026-11-15" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="ensayo-de-integridad-y-restauración-de-respaldos-reales-2026-11-15"><span class="header-section-number">4.5</span> Ensayo de Integridad y Restauración de Respaldos Reales (2026-11-15)</h2>
+<p>Antes de la salida a producción, se verificaron localmente las copias extraídas del servidor institucional: - <strong>Validación criptográfica (<code>SHA256SUMS</code>):</strong> <code>27</code> archivos verificados (<code>1,328,027,567</code> bytes totales), incluyendo comprobación de archivos <code>.sql.gz</code>, <code>.tar.gz</code>, <code>.zip</code>, <code>.jar</code> y huella exacta del dump completo (<code>c5c937b6529d3176a04a077f71f7fdc025ebb16bf50956698f88cd1032613de1</code>). - <strong>Restauración aislada en MySQL <code>8.4.9</code> (<code>restaurar_ensayo_manual_2026_11_15.ps1</code>):</strong> importadas correctamente <strong>64 tablas</strong> (<code>auth_service</code> = <code>34</code> filas/conteos verificados, <code>inventario</code> = <code>93</code>, <code>productos</code> = <code>49</code>, <code>ventas</code> = <code>144,966</code>), <code>CHECK TABLE</code> sin errores y retirada posterior del contenedor temporal.</p>
+<hr>
+</section>
+<section id="consolidado-global-de-suites-automatizadas-del-repositorio" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="consolidado-global-de-suites-automatizadas-del-repositorio"><span class="header-section-number">4.6</span> Consolidado Global de Suites Automatizadas del Repositorio</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 23%">
+<col style="width: 42%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Módulo / Suite</th>
+<th style="text-align: right;">Resultado vigente observado</th>
+<th>Observación exacta de ejecución</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Microservicios/demo</code> (<code>auth-service</code>)</td>
+<td style="text-align: right;"><strong>99 / 99 PASS</strong></td>
+<td>Unitarias y <code>@WebMvcTest</code> (<code>LoginApplicationTests</code> requiere MySQL activo para <code>100/100</code>).</td>
+</tr>
+<tr class="even">
+<td><code>Microservicios/msvc-producto</code></td>
+<td style="text-align: right;"><strong>47 / 47 PASS</strong></td>
+<td>Unitarias tras <code>VisitasServiceTest</code> (<code>MsvcProductoApplicationTests</code> y <code>*IT</code> requieren MySQL/Redis de prueba; con ambos activos pasan <code>49/49</code>).</td>
+</tr>
+<tr class="odd">
+<td><code>Microservicios/msvc-inventario</code></td>
+<td style="text-align: right;"><strong>59 / 59 PASS</strong></td>
+<td>Suite completa ejecutada tras el fix <code>9883b96</code>.</td>
+</tr>
+<tr class="even">
+<td><code>Microservicios/msvc-ventas</code></td>
+<td style="text-align: right;"><strong>72 / 72 PASS</strong></td>
+<td>Suite completa ejecutada tras el fix <code>ad70711</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>avalon-react-10.1.0</code> (<code>npm test</code>)</td>
+<td style="text-align: right;"><strong>49 / 49 PASS</strong></td>
+<td><code>11</code> suites (<code>checkoutEmpresa</code>, <code>empresaVinculacion</code>, <code>payphone</code>, <code>stripeInactivo</code>) ejecutadas tras <code>8cf1066</code>.</td>
+</tr>
+<tr class="even">
+<td><code>avalon-react-10.1.0</code> (<code>npm run lint</code> + <code>build</code>)</td>
+<td style="text-align: right;"><strong>0 errores</strong></td>
+<td><code>next lint</code> sin errores y <code>next build</code> generando <code>105</code> páginas.</td>
+</tr>
+<tr class="odd">
+<td><code>scripts/prod/pruebas/simular-respaldo.sh</code></td>
+<td style="text-align: right;"><strong>25 / 25 PASS</strong></td>
+<td>Cobertura completa de backup, rotación y restore aislado simulado.</td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiado");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiado");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Código desplazable","output":"Salida desplazable"};
+  </script>
+<nav class="page-navigation" aria-label="Página">
+  <div class="nav-page nav-page-previous">
+      <a href="./03-rendimiento-y-redis.html" class="pagination-link" aria-label="Línea Base y Piloto Redis en Local">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Línea Base y Piloto Redis en Local</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./05-pruebas-produccion.html" class="pagination-link" aria-label="Pruebas en Producción">
+        <span class="nav-page-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Pruebas en Producción</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Ejecutar el código</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Paginación, Seguridad en Ventas, Auditoría y Respaldos</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Etapa 6: Paginación Server-Side (`A-19` a `A-22`)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>Se implementaron **18 endpoints `/paginado`** en los 4 microservicios bajo el contrato común <span class="in">`PageResponseDto&lt;T&gt;`</span> (8 campos) y <span class="in">`PaginationUtils`</span> (tamaño <span class="in">`12`</span> en vitrina y <span class="in">`10`</span> en gestión, tope máximo estricto <span class="in">`MAX_SIZE = 50`</span>, normalización de <span class="in">`page &lt; 0`</span> a <span class="in">`0`</span> y validación <span class="in">`sort`</span> contra lista blanca), integrados en 17 vistas del frontend.</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Microservicio <span class="pp">|</span> Clases probadas (<span class="in">`A-22`</span>) <span class="pp">|</span> Ejecutadas <span class="pp">|</span> Fallos / Errores <span class="pp">|</span> Resultado <span class="pp">|</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="pp">|--------------------|------------------------------------------------|-----------:|-----------------:|---------------|</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`msvc-producto`</span> <span class="pp">|</span> <span class="in">`ProductoPaginationTest`</span>, <span class="in">`ProductoAuthorizationServiceTest`</span>, <span class="in">`ProductoControllerApiAuthorizationTest`</span>, <span class="in">`ProductoCatalogoCacheServiceTest`</span>, <span class="in">`ProductoServiceInventoryBatchTest`</span>, <span class="in">`RedisCacheConfigTest`</span> <span class="pp">|</span> **32** <span class="pp">|</span> 0 / 0 <span class="pp">|</span> <span class="in">`BUILD SUCCESS`</span> <span class="pp">|</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`msvc-inventario`</span> <span class="pp">|</span> <span class="in">`InventarioPaginationTest`</span>, <span class="in">`InventarioControllerApiAuthorizationTest`</span> <span class="pp">|</span> **10** <span class="pp">|</span> 0 / 0 <span class="pp">|</span> <span class="in">`BUILD SUCCESS`</span> <span class="pp">|</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`msvc-ventas`</span> <span class="pp">|</span> <span class="in">`VentaPaginationTest`</span>, <span class="in">`VentaServiceTest`</span> <span class="pp">|</span> **14** <span class="pp">|</span> 0 / 0 <span class="pp">|</span> <span class="in">`BUILD SUCCESS`</span> <span class="pp">|</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`demo`</span> (<span class="in">`auth-service`</span>) <span class="pp">|</span> <span class="in">`UsuarioPaginationTest`</span> <span class="pp">|</span> **2** <span class="pp">|</span> 0 / 0 <span class="pp">|</span> <span class="in">`BUILD SUCCESS`</span> <span class="pp">|</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Total Etapa 6** | — | **58** | **0 / 0** | **58 / 58 PASS** <span class="pp">|</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>En frontend (<span class="in">`avalon-react-10.1.0`</span>), <span class="in">`tsc --noEmit`</span> finalizó con <span class="in">`0`</span> errores y <span class="in">`next build --no-lint`</span> generó las <span class="in">`105`</span> páginas estáticas; los errores previos de <span class="in">`react/no-unescaped-entities`</span> quedaron resueltos antes del despliegue en el commit <span class="in">`b60b307`</span>.</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="fu">## Etapa 7: Seguridad en Ventas y Regresión (`A-24` y `A-25`)</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>Se habilitó Resource Server JWT (HS256) en <span class="in">`msvc-ventas`</span>, restringiendo Camunda/BPM exclusivamente a <span class="in">`ROLE_ADMIN`</span>, incorporando <span class="in">`VentaAuthorizationService`</span> para scoping de empresa y cliente, y endureciendo <span class="in">`/salida-lote`</span> y ajuste de stock en <span class="in">`msvc-inventario`</span>.</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Módulo <span class="pp">|</span> Suites incluidas <span class="pp">|</span> Resultado <span class="pp">|</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="pp">|----------------------------------|-------------------------------------------------|----------------|</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/msvc-ventas`</span> <span class="pp">|</span> <span class="in">`VentaAuthorizationServiceTest`</span> (<span class="in">`4`</span>), <span class="in">`VentaControllerApiAuthorizationTest`</span> (<span class="in">`6`</span>), <span class="in">`VentaIntegrationTest`</span> (<span class="in">`14`</span> con JWT H2), <span class="in">`VentaServiceTest`</span> (<span class="in">`12`</span>), <span class="in">`VentaPaginationTest`</span> (<span class="in">`2`</span>), <span class="in">`MsvcVentasApplicationTests`</span> (<span class="in">`1`</span>) <span class="pp">|</span> **39 / 39 PASS** <span class="pp">|</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/msvc-inventario`</span> <span class="pp">|</span> <span class="in">`InventarioControllerApiAuthorizationTest`</span> (<span class="in">`15`</span>), <span class="in">`InventarioPaginationTest`</span> (<span class="in">`2`</span>), <span class="in">`MsvcInventarioApplicationTests`</span> (<span class="in">`1`</span>) <span class="pp">|</span> **18 / 18 PASS** <span class="pp">|</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/msvc-producto`</span> <span class="pp">|</span> Paginación, autorización y caché <span class="pp">|</span> **32 / 32 PASS** <span class="pp">|</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/demo`</span> <span class="pp">|</span> <span class="in">`UsuarioPaginationTest`</span> <span class="pp">|</span> **2 / 2 PASS** <span class="pp">|</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="fu">## Pulido Pre-Integración (`feature/pulido-export-validaciones-404`)</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Backend `demo` (`12 / 12 PASS`):** <span class="in">`UsuarioServiceImplTest`</span> (<span class="in">`9`</span>), <span class="in">`AuthServiceDisabledUserTest`</span> (<span class="in">`1`</span>, verificando rechazo <span class="in">`403`</span> para usuarios desactivados) y <span class="in">`UsuarioPaginationTest`</span> (<span class="in">`2`</span>, protegiendo también al último <span class="in">`ROLE_ADMIN`</span> activo contra eliminación o desactivación).</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Backend `msvc-producto` (`19 / 19 PASS`):** <span class="in">`ProductoAuthorizationServiceTest`</span> (<span class="in">`7`</span>), <span class="in">`ProductoControllerApiAuthorizationTest`</span> (<span class="in">`8`</span>), <span class="in">`ProductoPaginationTest`</span> (<span class="in">`4`</span>).</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Helpers de frontend (`verify_helpers.js`):** **`22 / 22 aserciones aprobadas`** verificando <span class="in">`csvExport.ts`</span> (RFC 4180, BOM UTF-8 y neutralización de inyección de fórmulas <span class="in">`=`</span>, <span class="in">`+`</span>, <span class="in">`-`</span>, <span class="in">`@`</span>) y <span class="in">`formValidations.ts`</span> (cédula/RUC ecuatoriano, teléfono, cuentas bancarias y referencias).</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Prueba en Chrome headless (`repro404.js` sobre `next start -p 3099`):** navegación a <span class="in">`/checkout/fse`</span> y clic en <span class="in">`"Ir al Inicio"`</span> completados con código de salida <span class="in">`0`</span>, verificando la eliminación de la excepción de cliente <span class="in">`removeChild`</span>.</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a><span class="fu">## Cierre de Auditoría de Código y Tareas de Endurecimiento</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>La revisión estática exhaustiva (<span class="in">`REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md`</span>, 2026-11-15) detectó hallazgos críticos y altos que fueron resueltos y blindados con pruebas automatizadas antes de subir a producción:</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Hallazgo / Tarea <span class="pp">|</span> Regla verificada en pruebas <span class="pp">|</span> Suite y resultado <span class="pp">|</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="pp">|----------------------|------------------------------------------|------------------------------------------|</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`C-01` — QR DeUna y datos bancarios** | Eliminados los fallbacks globales (`findAll()`) y la reinterpretación `empresaId`/`emprendedorId`; fallo cerrado con `404` y deshabilitación en carritos sin configuración o multi-empresa (`checkoutEmpresa.ts`). | `ConfiguracionPagosServiceEmpresaTest` (**10/10**), `ConfiguracionPagosControllerEmpresaTest` (**4/4**), `tests/checkoutEmpresa.test.mjs` (**20/20**) <span class="pp">|</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`C-02`, `A-03`, `A-04`, `M-06` y AES-256 — PayPhone** | Token privado solo en `auth-service`, cifrado en BD con AES-256-GCM (`enc:v1:`); orden `PENDIENTE` creada antes de `Prepare` con importes autoritativos; credencial efímera `ROLE_SERVICIO_PAGOS`; webhook idempotente que reconsulta a PayPhone; bloqueo `SELECT ... FOR UPDATE`. | `PayphoneTokenNoExpuestoTest` (**7/7**), `PayphonePagoServiceTest` (**19/19**), `PayphoneTokenCifradoTest` (**8/8**), `VentasInternoClientTest` (**3/3**), `ConfiguracionPagosControllerPayphoneTest` (**10/10**), `PagoPasarelaServiceTest` (**10/10**), `InventarioServicioPagosAuthorizationTest` (**5/5** tras fix `eac5ec7`), `tests/payphone.test.mjs` (**18/18**) <span class="pp">|</span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`A-01` y `A-02` — Inventario y RUC/estado empresa** | Autorización por empresa en todas las rutas `POST`/`PUT`/`DELETE` de inventario y movimientos (`delta` firmado y usuario del JWT); `PUT /api/empresas/{id}` exclusivo de `ROLE_ADMIN`; `/contacto` rechaza propiedades extra (`ruc`/`activo`) con `400`. | `InventarioPropiedadEscriturasTest` (**12/12**), `MovimientoPropiedadTest` (**3/3**), `InventarioServiceMovimientosTest` (**13/13**), `EmpresaListaBlancaTest` (**6/6**), `ProductoControllerApiAuthorizationTest` (**15/15**), script <span class="in">`pruebas-a01-a02-gateway.ps1`</span> <span class="pp">|</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Stripe inactivo y Facturas tras commit (`A-05`)** | Con `STRIPE_ENABLED=false`, cero beans de Stripe y `401`/`404` en `/api/stripe/**`; facturas ejecutadas vía `GeneradorFacturaTrasCommit` sin `new Thread`/`sleep` y con sesión `@Transactional(readOnly = true)` (`ad70711`); pago creado dentro de la misma transacción de venta. | `StripeDeshabilitadoTest` (**5/5**), `GeneradorFacturaTrasCommitTest` (**4/4**), `PagoServiceAprobarPagoTest` (**5/5**), `VentaApplicationServicePagoSincronoTest` (**3/3**), `FacturaServiceTransaccionalTest` (**1/1**), `tests/stripeInactivo.test.mjs` (**6/6**) <span class="pp">|</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`T07` — Autorización de inventario en lote** | Reducción de `N` consultas a **1 consulta SQL `IN` + 1 llamada** a `/api/productos/empresa/{id}/ids` con política *fail-closed*; filtro `ROLE_EMP` acotado en servidor en `/movimientos/paginado`. | `InventarioAutorizacionLoteTest` (**8/8**), `MovimientoPropiedadTest` (**3/3**) <span class="pp">|</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`T08` y `T09` — Swagger, CORS y Gateway** <span class="pp">|</span> Swagger desactivado por defecto y restringido a <span class="in">`ROLE_ADMIN`</span>, retirada de <span class="in">`@CrossOrigin(*)`</span> en 9 controladores, <span class="in">`forward-headers-strategy=native`</span>, <span class="in">`limit_req`</span> (<span class="in">`10r/m`</span> login/recuperación, <span class="in">`20r/s`</span> API), cabeceras de seguridad y bloqueos <span class="in">`403`</span>/<span class="in">`404`</span> en <span class="in">`tienda.prod.conf`</span>. <span class="pp">|</span> Validación <span class="in">`nginx -t`</span> en <span class="in">`nginx:alpine`</span> OK + suites <span class="in">`@WebMvcTest`</span> <span class="pp">|</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`T01` — Respaldos automáticos** | Validación atómica de `backup-db.sh` y `restore-test-db.sh` con `SHA256`, `gzip -t`, rechazo de permisos `644`, dumps truncados y bases aisladas `restore_test_*`. | `scripts/prod/pruebas/simular-respaldo.sh` (**25 / 25 PASS**, <span class="in">`bash -n`</span> OK) <span class="pp">|</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`T11` — Vinculación emprendedor-empresa** | Unicidad `uk_emprendedor_empresa` (`409` en duplicado/simultaneidad, `503` si producto no responde), propagación de `empresaId` en login y listado admin. | `EmprendedorEmpresaServiceTest` (**14/14**), `EmprendedorEmpresaControllerTest` (**5/5**), `EmpresaProductoClientTest` (**4/4**), `AuthServiceEmpresaJwtTest` (**3/3**), `tests/empresaVinculacion.test.mjs` (**8/8**) <span class="pp">|</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **`V12` — Contador persistente de visitas** | Registro diario en zona `America/Guayaquil` (`INSERT ... ON DUPLICATE KEY UPDATE`) y suma histórica total. | `VisitasServiceTest` (**2 / 2 PASS**) <span class="pp">|</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a><span class="fu">## Ensayo de Integridad y Restauración de Respaldos Reales (2026-11-15)</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>Antes de la salida a producción, se verificaron localmente las copias extraídas del servidor institucional:</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Validación criptográfica (`SHA256SUMS`):** <span class="in">`27`</span> archivos verificados (<span class="in">`1,328,027,567`</span> bytes totales), incluyendo comprobación de archivos <span class="in">`.sql.gz`</span>, <span class="in">`.tar.gz`</span>, <span class="in">`.zip`</span>, <span class="in">`.jar`</span> y huella exacta del dump completo (<span class="in">`c5c937b6529d3176a04a077f71f7fdc025ebb16bf50956698f88cd1032613de1`</span>).</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Restauración aislada en MySQL `8.4.9` (`restaurar_ensayo_manual_2026_11_15.ps1`):** importadas correctamente **64 tablas** (<span class="in">`auth_service`</span> = <span class="in">`34`</span> filas/conteos verificados, <span class="in">`inventario`</span> = <span class="in">`93`</span>, <span class="in">`productos`</span> = <span class="in">`49`</span>, <span class="in">`ventas`</span> = <span class="in">`144,966`</span>), <span class="in">`CHECK TABLE`</span> sin errores y retirada posterior del contenedor temporal.</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="fu">## Consolidado Global de Suites Automatizadas del Repositorio</span></span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Módulo / Suite <span class="pp">|</span> Resultado vigente observado <span class="pp">|</span> Observación exacta de ejecución <span class="pp">|</span></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a><span class="pp">|------------------------------------|------------------------:|----------------------------------------------|</span></span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/demo`</span> (<span class="in">`auth-service`</span>) <span class="pp">|</span> **99 / 99 PASS** <span class="pp">|</span> Unitarias y <span class="in">`@WebMvcTest`</span> (<span class="in">`LoginApplicationTests`</span> requiere MySQL activo para <span class="in">`100/100`</span>). <span class="pp">|</span></span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/msvc-producto`</span> <span class="pp">|</span> **47 / 47 PASS** <span class="pp">|</span> Unitarias tras <span class="in">`VisitasServiceTest`</span> (<span class="in">`MsvcProductoApplicationTests`</span> y <span class="in">`*IT`</span> requieren MySQL/Redis de prueba; con ambos activos pasan <span class="in">`49/49`</span>). <span class="pp">|</span></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/msvc-inventario`</span> <span class="pp">|</span> **59 / 59 PASS** <span class="pp">|</span> Suite completa ejecutada tras el fix <span class="in">`9883b96`</span>. <span class="pp">|</span></span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`Microservicios/msvc-ventas`</span> <span class="pp">|</span> **72 / 72 PASS** <span class="pp">|</span> Suite completa ejecutada tras el fix <span class="in">`ad70711`</span>. <span class="pp">|</span></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`avalon-react-10.1.0`</span> (<span class="in">`npm test`</span>) <span class="pp">|</span> **49 / 49 PASS** <span class="pp">|</span> <span class="in">`11`</span> suites (<span class="in">`checkoutEmpresa`</span>, <span class="in">`empresaVinculacion`</span>, <span class="in">`payphone`</span>, <span class="in">`stripeInactivo`</span>) ejecutadas tras <span class="in">`8cf1066`</span>. <span class="pp">|</span></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`avalon-react-10.1.0`</span> (<span class="in">`npm run lint`</span> + <span class="in">`build`</span>) <span class="pp">|</span> **0 errores** <span class="pp">|</span> <span class="in">`next lint`</span> sin errores y <span class="in">`next build`</span> generando <span class="in">`105`</span> páginas. <span class="pp">|</span></span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`scripts/prod/pruebas/simular-respaldo.sh`</span> <span class="pp">|</span> **25 / 25 PASS** <span class="pp">|</span> Cobertura completa de backup, rotación y restore aislado simulado. <span class="pp">|</span></span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<div style="position: fixed; bottom: 60px; right: 270px; z-index: 50;">
+  <img src="imagenes/sigchos1.png" alt="GAD Municipal del Cantón Sigchos" style="height: 60px; opacity: 0.8; max-width: 100%;">
+</div>
+
+
+
+
+</body></html>

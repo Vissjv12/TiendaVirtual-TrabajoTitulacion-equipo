@@ -1,0 +1,40 @@
+# Conclusiones, Hallazgos Menores y Pendientes
+
+## Conclusión General de Calidad y Operación
+
+A partir de las **más de 350 pruebas automatizadas** en local, las **43 comprobaciones** de Gateway local, los ensayos de carga con `k6`, la restauración verificada de respaldos en MySQL 8.4.9 y las **8 jornadas/bloques de validación en producción** sobre `https://tienda.gadmsigchos.gob.ec:444`, se concluye que el sistema se encuentra **operativo, seguro y validado para su flujo principal**:
+
+1. **Seguridad perimetral y autorización:** NGINX Gateway bloquea rutas administrativas (`/actuator`, `/swagger-ui`, `/camunda`, `/engine-rest`, `/sincronizar-stock`, `/api/ventas/internal/**`), impone `limit_req`, CORS estricto y TLS 1.3; los cuatro microservicios aplican JWT HS256 con aislamiento multi-empresa por `empresaId`.
+2. **Integridad comercial y pasarela de pagos:** los precios, tarifas de envío e IVA se calculan exclusivamente en el servidor; PayPhone Sandbox completa compras en **un solo intento** con idempotencia, token cifrado en reposo (`enc:v1:` AES-256-GCM), descuento único de stock y factura PDF automática; Stripe permanece deshabilitado de forma segura.
+3. **Rendimiento y persistencia:** Valkey opera activamente para las rutas aprobadas de catálogo reduciendo drásticamente lecturas repetidas a MySQL sin desactualizar el inventario vivo, y el contador persistente de visitas (`V12`) registra métricas diarias en `productos.visitas_diarias`.
+
+---
+
+## Alcance Omitido Voluntariamente en Producción (`Opción A`)
+
+Para preservar intactos los datos y las relaciones activas del ambiente productivo, quedaron documentadas como no ejecutadas sobre el servidor real las siguientes mutaciones destructivas:
+
+- Desvinculación (`DELETE /api/usuarios/{id}/empresa`) y reasignaciones entre las `4 / 4` empresas productivas ya asignadas (`T11`).
+- Creación de ventas reales con carga de comprobantes DeUna o Transferencia Bancaria sobre datos productivos.
+- Mutaciones destructivas sobre registros comerciales vigentes (el aislamiento de escritura cruzada en productos se comprobó de forma no destructiva con respuesta `403` y verificación posterior `200`).
+
+---
+
+## Hallazgos Menores de Interfaz Detectados (No Bloqueantes)
+
+Durante las auditorías en navegador Google Chrome se observaron cinco detalles menores en frontend que no impiden la seguridad, compras ni integridad de datos:
+
+1. En `/landing`, faltan 2 archivos locales de fuente `roboto-*-700` (`404` en consola).
+2. En `/products` y `/emprendedor/productos`, 2 productos heredados (`Queso tipo finca`, IDs `17` y `18`) apuntan a una imagen placeholder externa (`https://i.imgur.com/default.png`).
+3. En `/emprendedor`, las tarjetas iniciales del tablero de resumen muestran datos de plantilla, aunque todos sus submódulos (`/productos`, `/inventario`, `/ventas`) consultan datos reales del backend.
+4. En `/emprendedor/inventario` y `/administrador/inventario`, la columna *Ubicación/Estado* muestra la etiqueta `"Sin stock"` aunque *Stock Actual* refleja existencias reales positivas.
+5. En `/administrador/usuarios/[id]/editar`, el botón `"Cancelar"` dispara envío `PUT` por carecer de `type="button"`.
+6. **Validación manual pendiente en UI:** revisar visualmente la tarjeta *Visitas del sitio* tras iniciar sesión con un usuario `ROLE_ADMIN` en `/administrador`.
+
+---
+
+## Seguimiento de Infraestructura Recomendado
+
+1. **Puerto asignado `:444` y firewall perimetral:** en el diagnóstico en vivo se comprobó que el firewall `pfSense` compartido (`69.10.49.106`) asigna `:444` a Tienda (análogamente a `:448` para Turismo) y mantiene `443` sin reenvío hacia los servidores Linux (`GUIA-MIGRACION-PUERTO-444-A-443.md`), por lo que la operación vigente sobre `:444` es normal dentro de la arquitectura municipal.
+2. **Automatización de respaldos en producción (`T01`):** instalar los servicios y temporizadores `systemd` (`tienda-backup.timer` y `tienda-restore-test.timer`) siguiendo `scripts/prod/INSTALACION-RESPALDOS.md` y programar copias externas periódicas.
+3. **Observaciones técnicas pendientes:** revisar el listener externo `:8084` reportado en la IP pública compartida, completar en ambiente de prueba el caso `R06` (inyección de latencia/timeout `> 500 ms` contra Redis) y `R12` (caída simulada de MySQL en capa HTTP).

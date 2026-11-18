@@ -1,0 +1,38 @@
+```{=latex}
+\pagestyle{fancy}
+\makeatletter
+\let\ps@plain\ps@contentplain
+\makeatother
+```
+
+# Introducción y Alcance de las Pruebas
+
+\begin{infobox}[Sistema Sigchos E-Commerce]
+El presente documento consolida de manera cronológica, técnica y verificable todas las pruebas ejecutadas entre el \textbf{07 y el 18 de noviembre de 2026} sobre el \textbf{Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos} (\textit{Feria Digital Sigchos}), tanto en el entorno local de desarrollo como en el servidor de producción institucional (\texttt{https://tienda.gadmsigchos.gob.ec:444}).
+\end{infobox}
+
+Este informe abarca pruebas unitarias, pruebas web con \texttt{MockMvc}, pruebas de integración con H2/MySQL/Redis, auditorías de seguridad perimetral en el API Gateway NGINX, mediciones comparativas de rendimiento con \texttt{k6}, ensayos de respaldo y restauración en MySQL 8.4.9, validaciones en navegador Google Chrome y transacciones completas en vivo sobre la pasarela PayPhone Sandbox.
+
+## Equipo responsable de las pruebas
+
+Las evidencias recopiladas en este informe corresponden exclusivamente al trabajo ejecutado y documentado por el equipo actual:
+
+| Integrante | Usuario Git | Principales frentes de prueba cubiertos |
+|---|---|---|
+| **Christian Mateo Bonifaz Vásquez** | `cmbonifaz` | Paginación (`A-19` a `A-22`), seguridad en Ventas (`A-24`/`A-25`), DeUna/checkout, pulido pre-integración, despliegues y pruebas E2E en producción. |
+| **Jordy Viscaíno Anthony Tapia** | `jordy` | Seguridad base (`A-01`–`A-14`), auditoría integral de código (`C-01`, `C-02`, `A-01`–`A-05`), backups `T01`, hardening `T07`–`T09`, `T11`, pruebas autenticadas en producción y contador de visitas (`V12`). |
+| **Alfonso Alejandro Arroyo Paredes** | `alfonso1031` | Piloto Redis Cache-Aside (`A-15`–`A-18`), línea base local y comparativas `k6`, verificación SHA-256 y restauración aislada de respaldos, y carga sostenida `k6` ON/OFF en producción. |
+
+\begin{importantbox}[Criterio de exclusión y confidencialidad]
+Se excluyeron explícitamente las entregas y documentos pertenecientes a cohortes anteriores del proyecto (\texttt{FOR-TRABAJO-DE-TITULACION\_CAJAS\_CHAMORRO.pdf}, \texttt{TrabajoTitulación\_L00400187\_Patiño Abad Brayan Daniel.pdf} y registros base de junio/julio de 2026 en \texttt{documentos-trabajo/docs\_produ/}). Asimismo, por seguridad operativa, ningún registro incluye contraseñas, tokens JWT, credenciales de PayPhone ni claves privadas.
+\end{importantbox}
+
+## Fuentes técnicas consolidadas
+
+Las secciones y tablas de este informe sintetizan los resultados verificados en los siguientes conjuntos de artefactos del repositorio:
+
+1. **Registros por etapa (`Documentos_Jordy/`):** `REGISTRO-ETAPA-1-A01-A06.md`, `REGISTRO-SEGURIDAD-A08-A10.md`, `REGISTRO-ETAPA-4-GATEWAY-A11-A14.md`, `P4-AUDITORIA-AUTORIDAD-COMPRA.md`, `P5-AUDITORIA-ENDURECIMIENTO.md`, `P6-LINEA-BASE-SIN-REDIS.md`, `CIERRE-ETAPA-P4-P7-Y-ENTREGA-BASE.md`.
+2. **Evidencias Redis y respaldos (`Documentos_Jordy/`):** `BASELINE-LOCAL-PRE-REDIS-CATALOGO.md`, `REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md`, `REDIS-RESULTADOS-A18.md`, `PLAN-CIERRE-REDIS-A17-A18.md`, `PLAN-VERIFICACION-Y-RESTAURACION-RESPALDOS-LOCALES.md`, `REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md` y carpeta `EVIDENCIA-REDIS-COMPARACION-2026-11-17/`.
+3. **Auditoría, pulido y hardening (`Documentos_Jordy/`):** `REGISTRO-DEUNA-CHECKOUT-Y-PERMISOS-EMPRENDEDOR.md`, `A22-RESULTADOS-PAGINACION.md`, `A24-A25-SEGURIDAD-MSVC-VENTAS-Y-REGRESION.md`, `REGISTRO-PULIDO-PRE-INTEGRACION.md`, `REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md`, `REGISTRO-T07-OPTIMIZACION-Y-T01-RESPALDOS.md`, `REGISTRO-HARDENING-T07-T08-T09-GATEWAY.md`, `REGISTRO-CORRECCIONES-T07-T08-T09-REVISION.md`, `REGISTRO-T11-VINCULACION-EMPRENDEDOR-EMPRESA.md`, `IMPLEMENTACION-CONTADOR-VISITAS.md`.
+4. **Reportes de despliegue y producción (`documentos-trabajo/` y `Documentos_Jordy/`):** `VERIFICACION-MYSQL-PRODUCCION.md`, `REPORTE-DESPLIEGUE-PRODUCCION-2026-11-16.md`, carpeta `pruebas-produccion-2026-11-17/` (`00` a `07`), `REGISTRO-VALIDACION-GATEWAY-PRODUCCION.md`, `EVIDENCIA-PRUEBAS-AUTENTICADAS-PRODUCCION.md`, `EVIDENCIA-T11-PRUEBAS-PRODUCCION.md`, `INFORME-CONSOLIDADO-PRUEBAS-PRODUCCION.md` y `GUIA-DESPLIEGUE-CONTADOR-VISITAS.md`.
+5. **Suites ejecutables:** módulos `Microservicios/*/src/test/**`, `avalon-react-10.1.0/tests/*.test.mjs`, scripts PowerShell `pruebas-seguridad-a07.ps1`, `pruebas-gateway-a14.ps1`, `pruebas-a01-a02-gateway.ps1` y `scripts/prod/pruebas/simular-respaldo.sh`.

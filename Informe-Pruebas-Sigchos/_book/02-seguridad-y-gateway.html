@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>2&nbsp; Seguridad Base, Aislamiento y API Gateway – Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./03-rendimiento-y-redis.html" rel="next">
+<link href="./index.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-c05a8afb666c08ce7683c7e666d21d95.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No se han encontrado resultados",
+    "search-matching-documents-text": "documentos encontrados",
+    "search-copy-link-title": "Copiar el enlace en la búsqueda",
+    "search-hide-matches-text": "Ocultar resultados adicionales",
+    "search-more-match-text": "resultado adicional en este documento",
+    "search-more-matches-text": "resultados adicionales en este documento",
+    "search-clear-button-title": "Borrar",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancelar",
+    "search-submit-button-title": "Enviar",
+    "search-label": "Buscar"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="custom.scss">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Saltar al contenido principal</a>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav" aria-label="Barra de herramientas">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Alternar barra lateral" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./02-seguridad-y-gateway.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Seguridad Base, Aislamiento y API Gateway</span></a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Buscar" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Sitio web">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Buscar"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introducción y Alcance de las Pruebas</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./02-seguridad-y-gateway.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Seguridad Base, Aislamiento y API Gateway</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./03-rendimiento-y-redis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Línea Base y Piloto Redis en Local</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./04-funcionalidad-auditoria-y-cierre.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Paginación, Seguridad en Ventas, Auditoría y Respaldos</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./05-pruebas-produccion.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Pruebas en Producción</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./06-conclusiones-y-pendientes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Conclusiones, Hallazgos Menores y Pendientes</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./referencias.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Referencias y Trazabilidad</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">Tabla de contenidos</h2>
+   
+  <ul>
+  <li><a href="#etapa-0-a-3-aislamiento-multi-empresa-y-roles-a-01-a-a-10" id="toc-etapa-0-a-3-aislamiento-multi-empresa-y-roles-a-01-a-a-10" class="nav-link active" data-scroll-target="#etapa-0-a-3-aislamiento-multi-empresa-y-roles-a-01-a-a-10"><span class="header-section-number">2.1</span> Etapa 0 a 3: Aislamiento Multi-Empresa y Roles (<code>A-01</code> a <code>A-10</code>)</a>
+  <ul class="collapse">
+  <li><a href="#respaldo-y-ambiente-aislado-a-01-y-a-02" id="toc-respaldo-y-ambiente-aislado-a-01-y-a-02" class="nav-link" data-scroll-target="#respaldo-y-ambiente-aislado-a-01-y-a-02"><span class="header-section-number">2.1.1</span> Respaldo y ambiente aislado (<code>A-01</code> y <code>A-02</code>)</a></li>
+  <li><a href="#aislamiento-horizontal-entre-emprendedores-a-03-y-a-05" id="toc-aislamiento-horizontal-entre-emprendedores-a-03-y-a-05" class="nav-link" data-scroll-target="#aislamiento-horizontal-entre-emprendedores-a-03-y-a-05"><span class="header-section-number">2.1.2</span> Aislamiento horizontal entre emprendedores (<code>A-03</code> y <code>A-05</code>)</a></li>
+  <li><a href="#validación-directa-contra-las-apis-y-propagación-jwt-a-06-y-a-07" id="toc-validación-directa-contra-las-apis-y-propagación-jwt-a-06-y-a-07" class="nav-link" data-scroll-target="#validación-directa-contra-las-apis-y-propagación-jwt-a-06-y-a-07"><span class="header-section-number">2.1.3</span> Validación directa contra las APIs y propagación JWT (<code>A-06</code> y <code>A-07</code>)</a></li>
+  <li><a href="#verificación-de-arranque-de-msvc-ventas-y-camunda-a-07-a-08" id="toc-verificación-de-arranque-de-msvc-ventas-y-camunda-a-07-a-08" class="nav-link" data-scroll-target="#verificación-de-arranque-de-msvc-ventas-y-camunda-a-07-a-08"><span class="header-section-number">2.1.4</span> Verificación de arranque de <code>msvc-ventas</code> y Camunda (<code>A-07</code> / <code>A-08</code>)</a></li>
+  </ul></li>
+  <li><a href="#etapa-4-pruebas-del-api-gateway-nginx-a-11-a-a-14" id="toc-etapa-4-pruebas-del-api-gateway-nginx-a-11-a-a-14" class="nav-link" data-scroll-target="#etapa-4-pruebas-del-api-gateway-nginx-a-11-a-a-14"><span class="header-section-number">2.2</span> Etapa 4: Pruebas del API Gateway NGINX (<code>A-11</code> a <code>A-14</code>)</a>
+  <ul class="collapse">
+  <li><a href="#resultados-automatizados-de-pruebas-gateway-a14.ps1" id="toc-resultados-automatizados-de-pruebas-gateway-a14.ps1" class="nav-link" data-scroll-target="#resultados-automatizados-de-pruebas-gateway-a14.ps1"><span class="header-section-number">2.2.1</span> Resultados automatizados de <code>pruebas-gateway-a14.ps1</code></a></li>
+  <li><a href="#correcciones-verificadas-durante-la-validación" id="toc-correcciones-verificadas-durante-la-validación" class="nav-link" data-scroll-target="#correcciones-verificadas-durante-la-validación"><span class="header-section-number">2.2.2</span> Correcciones verificadas durante la validación</a></li>
+  </ul></li>
+  <li><a href="#auditorías-pre-redis-autoridad-y-endurecimiento-p4-y-p5" id="toc-auditorías-pre-redis-autoridad-y-endurecimiento-p4-y-p5" class="nav-link" data-scroll-target="#auditorías-pre-redis-autoridad-y-endurecimiento-p4-y-p5"><span class="header-section-number">2.3</span> Auditorías Pre-Redis: Autoridad y Endurecimiento (<code>P4</code> y <code>P5</code>)</a>
+  <ul class="collapse">
+  <li><a href="#p4-autoridad-del-servidor-en-el-flujo-de-compra-commit-137bccc-2026-11-13" id="toc-p4-autoridad-del-servidor-en-el-flujo-de-compra-commit-137bccc-2026-11-13" class="nav-link" data-scroll-target="#p4-autoridad-del-servidor-en-el-flujo-de-compra-commit-137bccc-2026-11-13"><span class="header-section-number">2.3.1</span> <code>P4</code> — Autoridad del servidor en el flujo de compra (Commit <code>137bccc</code>, 2026-11-13)</a></li>
+  <li><a href="#p5-endurecimiento-de-errores-y-logs-commit-f1ac8eb" id="toc-p5-endurecimiento-de-errores-y-logs-commit-f1ac8eb" class="nav-link" data-scroll-target="#p5-endurecimiento-de-errores-y-logs-commit-f1ac8eb"><span class="header-section-number">2.3.2</span> <code>P5</code> — Endurecimiento de errores y logs (Commit <code>f1ac8eb</code>)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content" tabindex="-1">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Seguridad Base, Aislamiento y API Gateway</span></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Código</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="etapa-0-a-3-aislamiento-multi-empresa-y-roles-a-01-a-a-10" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="etapa-0-a-3-aislamiento-multi-empresa-y-roles-a-01-a-a-10"><span class="header-section-number">2.1</span> Etapa 0 a 3: Aislamiento Multi-Empresa y Roles (<code>A-01</code> a <code>A-10</code>)</h2>
+<section id="respaldo-y-ambiente-aislado-a-01-y-a-02" class="level3" data-number="2.1.1">
+<h3 data-number="2.1.1" class="anchored" data-anchor-id="respaldo-y-ambiente-aislado-a-01-y-a-02"><span class="header-section-number">2.1.1</span> Respaldo y ambiente aislado (<code>A-01</code> y <code>A-02</code>)</h3>
+<p>Antes de intervenir seguridad y arquitectura, se levantó el inventario completo de servicios, puertos y esquemas MySQL (<code>auth_service</code>, <code>productos</code>, <code>inventario</code>, <code>ventas</code>), validando los scripts locales de respaldo y entorno (<code>scripts/backup-db.ps1</code>, <code>scripts/restore-db.ps1</code>, <code>scripts/test-environment.ps1</code>) junto con las cuentas semilla por empresa (<code>ultimo_inca</code> en empresa <code>1</code>, <code>sigcholac</code> en empresa <code>2</code>, <code>perla_andina</code> en empresa <code>3</code>).</p>
+</section>
+<section id="aislamiento-horizontal-entre-emprendedores-a-03-y-a-05" class="level3" data-number="2.1.2">
+<h3 data-number="2.1.2" class="anchored" data-anchor-id="aislamiento-horizontal-entre-emprendedores-a-03-y-a-05"><span class="header-section-number">2.1.2</span> Aislamiento horizontal entre emprendedores (<code>A-03</code> y <code>A-05</code>)</h3>
+<p>La autorización de operaciones sobre productos se validó mediante el claim <code>empresaId</code> del JWT emitido por <code>auth-service</code> (<code>demo</code>).</p>
+<ul>
+<li><strong>Suite ejecutada:</strong> <code>ProductoAuthorizationServiceTest</code>.</li>
+<li><strong>Resultado:</strong> <strong>7 / 7 casos aprobados</strong>, <code>0</code> fallos, <code>0</code> errores (<code>BUILD SUCCESS</code>).</li>
+<li><strong>Casos cubiertos:</strong>
+<ol type="1">
+<li>Administrador (<code>ROLE_ADMIN</code>) con alcance global sobre cualquier empresa.</li>
+<li>Emprendedor (<code>ROLE_EMP</code>) con acceso autorizado a su propia empresa.</li>
+<li>Rechazo de operación sobre una empresa ajena.</li>
+<li>Rechazo de operación sobre un producto ajeno.</li>
+<li>Rechazo por ausencia de rol de gestión (<code>ROLE_USER</code> / <code>ROLE_CLIENTE</code>).</li>
+<li>Rechazo ante autenticación no JWT.</li>
+<li>Aislamiento cruzado entre dos empresas distintas y bloqueo a emprendedor sin <code>empresaId</code>.</li>
+</ol></li>
+</ul>
+</section>
+<section id="validación-directa-contra-las-apis-y-propagación-jwt-a-06-y-a-07" class="level3" data-number="2.1.3">
+<h3 data-number="2.1.3" class="anchored" data-anchor-id="validación-directa-contra-las-apis-y-propagación-jwt-a-06-y-a-07"><span class="header-section-number">2.1.3</span> Validación directa contra las APIs y propagación JWT (<code>A-06</code> y <code>A-07</code>)</h3>
+<ul>
+<li><strong>Pruebas WebMvc de autorización:</strong>
+<ul>
+<li><code>ProductoControllerApiAuthorizationTest</code>: <code>4 / 4</code> casos iniciales (<code>401</code> sin token en <code>POST</code>, <code>403</code> con rol insuficiente o empresa ajena, <code>200</code> en <code>GET /api/productos</code> público); posteriormente ampliada hasta <strong>15 / 15 casos</strong>.</li>
+<li><code>InventarioControllerApiAuthorizationTest</code>: inicialmente <code>5 / 5</code> en la suite de inventario (<code>4</code> casos HTTP nuevos), ampliada luego hasta <strong>18 / 18 casos</strong>.</li>
+</ul></li>
+<li><strong>Propagación interna entre microservicios:</strong> se incorporó validación JWT (<code>JWT_SECRET</code> compartido) en <code>msvc-inventario</code>, interceptor Feign en <code>msvc-producto</code>, <code>msvc-ventas</code> y <code>msvc-inventario</code>, alineación batch en <code>/api/inventarios/cantidad/batch</code> y perfil H2 para ejecutar pruebas sin depender de MySQL local.</li>
+<li><strong>Script manual sin mutaciones (<code>Documentos_Jordy/pruebas-seguridad-a07.ps1</code>):</strong> verificó salud (<code>Eureka 8761</code>, <code>/api-docs</code> en <code>8081</code>/<code>8083</code>/<code>8084</code>, <code>/api/inventarios</code>), consistencia de stock (<code>0</code> diferencias), <code>3</code> lecturas públicas (<code>200</code>), <code>9</code> escrituras anónimas/token inválido (<code>401</code>) y matriz por roles usando IDs inexistentes (<code>999999</code>) para impedir escrituras accidentales.</li>
+</ul>
+</section>
+<section id="verificación-de-arranque-de-msvc-ventas-y-camunda-a-07-a-08" class="level3" data-number="2.1.4">
+<h3 data-number="2.1.4" class="anchored" data-anchor-id="verificación-de-arranque-de-msvc-ventas-y-camunda-a-07-a-08"><span class="header-section-number">2.1.4</span> Verificación de arranque de <code>msvc-ventas</code> y Camunda (<code>A-07</code> / <code>A-08</code>)</h3>
+<ul>
+<li>Se comprobó el arranque completo del servicio de ventas en el puerto <code>8083</code> (<code>Started MsvcVentasApplication in 15.959 seconds</code>).</li>
+<li>Hibernate <code>ddl-auto=validate</code> no reportó discrepancias de esquema.</li>
+<li>Motor <strong>Camunda 7.20.0</strong> <code>default</code> y <code>JobExecutor</code> inicializados sin errores; <code>GET /api-docs</code> y <code>GET /api/ventas</code> devolvieron <code>200 OK</code>.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="etapa-4-pruebas-del-api-gateway-nginx-a-11-a-a-14" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="etapa-4-pruebas-del-api-gateway-nginx-a-11-a-a-14"><span class="header-section-number">2.2</span> Etapa 4: Pruebas del API Gateway NGINX (<code>A-11</code> a <code>A-14</code>)</h2>
+<p>Con el Gateway NGINX (<code>:8080</code> en local y plantilla unificada), se centralizaron las políticas CORS (corrigiendo duplicación de cabeceras <code>O-13</code>), se alineó el alias de QR DeUna (<code>O-06</code>) y se migraron los 12 servicios del frontend hacia <code>apiConfig.ts</code>.</p>
+<section id="resultados-automatizados-de-pruebas-gateway-a14.ps1" class="level3" data-number="2.2.1">
+<h3 data-number="2.2.1" class="anchored" data-anchor-id="resultados-automatizados-de-pruebas-gateway-a14.ps1"><span class="header-section-number">2.2.1</span> Resultados automatizados de <code>pruebas-gateway-a14.ps1</code></h3>
+<p>La corrida automatizada contra <code>http://localhost:8080</code> finalizó con <strong><code>43</code> pruebas exitosas y <code>0</code> fallos (<code>43/43 OK</code>)</strong>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Sección verificada</th>
+<th style="text-align: right;">Casos</th>
+<th>Resultado observado</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. Salud y disponibilidad (<code>GET /health</code>, <code>GET /api/health</code>)</td>
+<td style="text-align: right;">3</td>
+<td><code>200</code>, JSON <code>{"status":"UP","engine":"nginx"}</code></td>
+</tr>
+<tr class="even">
+<td>2. Política CORS y preflight (<code>OPTIONS /api/productos</code>, <code>GET /api/categorias</code>)</td>
+<td style="text-align: right;">4</td>
+<td><code>204</code> / <code>200</code>, cabecera <code>Access-Control-Allow-Origin</code> única (<code>O-13</code>)</td>
+</tr>
+<tr class="odd">
+<td>3. Bloqueo perimetral e errores JSON (<code>PUT .../sincronizar-stock</code>, <code>/actuator/health</code>, ruta inexistente)</td>
+<td style="text-align: right;">3</td>
+<td><code>403</code>, <code>403</code> y <code>404</code> JSON uniforme</td>
+</tr>
+<tr class="even">
+<td>4. Enrutamiento Norte-Sur público hacia 4 microservicios</td>
+<td style="text-align: right;">9</td>
+<td><code>200</code> en productos, categorías, empresas, inventarios, batch, ventas y <code>costo-envio</code> (<code>404</code> controlado sin QR)</td>
+</tr>
+<tr class="odd">
+<td>5. Consistencia de stock vía Gateway</td>
+<td style="text-align: right;">1</td>
+<td><code>productos=78</code>, <code>inventarios=39</code>, <code>diferencias=0</code></td>
+</tr>
+<tr class="even">
+<td>6. Rechazo de escrituras y rutas protegidas sin token / token falso</td>
+<td style="text-align: right;">11</td>
+<td><code>401 Unauthorized</code> en los 11 casos</td>
+</tr>
+<tr class="odd">
+<td>7. Autorización por rol vía Gateway (<code>CLIENTE</code>, <code>sigcholac</code> empresa 2 sobre empresa 1, <code>ADMIN</code>)</td>
+<td style="text-align: right;">12</td>
+<td><code>403</code> cliente (6), <code>403</code> cruzado empresa (3), <code>200</code>/<code>404</code> admin (3)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="correcciones-verificadas-durante-la-validación" class="level3" data-number="2.2.2">
+<h3 data-number="2.2.2" class="anchored" data-anchor-id="correcciones-verificadas-durante-la-validación"><span class="header-section-number">2.2.2</span> Correcciones verificadas durante la validación</h3>
+<ol type="1">
+<li><strong>Respuesta JSON ante caída de microservicios:</strong> con los servicios Java detenidos, el Gateway devolvió <code>502 Bad Gateway</code> con payload JSON estructurado (<code>code: "SERVICE_UNAVAILABLE"</code>) y cabeceras CORS activas, evitando páginas HTML de NGINX.</li>
+<li><strong>Corrección <code>AccessDeniedException -&gt; 403</code> en <code>auth-service</code> (<code>demo</code>):</strong> al invocar <code>GET /api/usuarios</code> con rol <code>ROLE_CLI</code>, <code>GlobalExceptionHandler</code> capturaba originalmente la excepción en <code>Exception.class</code> (<code>500</code>). Tras agregar <code>@ExceptionHandler(AccessDeniedException.class)</code>, respondió correctamente <code>403 Forbidden</code>.</li>
+</ol>
+<hr>
+</section>
+</section>
+<section id="auditorías-pre-redis-autoridad-y-endurecimiento-p4-y-p5" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="auditorías-pre-redis-autoridad-y-endurecimiento-p4-y-p5"><span class="header-section-number">2.3</span> Auditorías Pre-Redis: Autoridad y Endurecimiento (<code>P4</code> y <code>P5</code>)</h2>
+<section id="p4-autoridad-del-servidor-en-el-flujo-de-compra-commit-137bccc-2026-11-13" class="level3" data-number="2.3.1">
+<h3 data-number="2.3.1" class="anchored" data-anchor-id="p4-autoridad-del-servidor-en-el-flujo-de-compra-commit-137bccc-2026-11-13"><span class="header-section-number">2.3.1</span> <code>P4</code> — Autoridad del servidor en el flujo de compra (Commit <code>137bccc</code>, 2026-11-13)</h3>
+<p>Se eliminó la confianza de <code>msvc-ventas</code> en precios, empresas y costos de envío enviados desde el navegador. Ahora el servicio consulta directamente a <code>msvc-producto</code> (<code>ProductoClient</code>) y <code>auth-service</code> (<code>ConfiguracionPagosClient</code>).</p>
+<ul>
+<li><strong>Validación:</strong> suite de integración <code>VentaIntegrationTest</code> aprobada; el caso <code>test14_ignoraImportesManipuladosPorCliente</code> envió precio manipulado <code>USD 0.01</code>, envío <code>USD 0</code> y <code>empresa=9999</code>, comprobando que la orden persistida conservó el precio oficial, tarifa <code>USD 5.00</code>, empresa consultada e IVA del <code>15%</code>.</li>
+</ul>
+</section>
+<section id="p5-endurecimiento-de-errores-y-logs-commit-f1ac8eb" class="level3" data-number="2.3.2">
+<h3 data-number="2.3.2" class="anchored" data-anchor-id="p5-endurecimiento-de-errores-y-logs-commit-f1ac8eb"><span class="header-section-number">2.3.2</span> <code>P5</code> — Endurecimiento de errores y logs (Commit <code>f1ac8eb</code>)</h3>
+<ul>
+<li>Se desactivó <code>spring.jpa.show-sql</code> en los archivos de propiedades principales (<code>demo</code>, <code>msvc-producto</code>, <code>msvc-inventario</code>).</li>
+<li>Se sanearon las respuestas de <code>GlobalExceptionHandler</code> para registrar el detalle técnico únicamente en servidor y devolver mensajes genéricos al cliente sin exponer URLs internas, puertos ni excepciones JDBC/Feign.</li>
+<li><strong>Pruebas ejecutadas:</strong>
+<ul>
+<li><code>GET /api/usuarios</code> sin token: <code>401</code> con cuerpo vacío, sin filtración interna.</li>
+<li>Valor literal <code>TOKEN_CLIENTE</code>: <code>401 Malformed token</code> sin URLs ni stack trace.</li>
+<li>Pruebas de contexto contra MySQL local activo: <code>LoginApplicationTests</code> (<code>1 / 1 PASS</code>) y <code>MsvcProductoApplicationTests</code> (<code>1 / 1 PASS</code>).</li>
+</ul></li>
+</ul>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiado");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiado");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Código desplazable","output":"Salida desplazable"};
+  </script>
+<nav class="page-navigation" aria-label="Página">
+  <div class="nav-page nav-page-previous">
+      <a href="./index.html" class="pagination-link" aria-label="Introducción y Alcance de las Pruebas">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introducción y Alcance de las Pruebas</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./03-rendimiento-y-redis.html" class="pagination-link" aria-label="Línea Base y Piloto Redis en Local">
+        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Línea Base y Piloto Redis en Local</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Ejecutar el código</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Seguridad Base, Aislamiento y API Gateway</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Etapa 0 a 3: Aislamiento Multi-Empresa y Roles (`A-01` a `A-10`)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">### Respaldo y ambiente aislado (`A-01` y `A-02`)</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>Antes de intervenir seguridad y arquitectura, se levantó el inventario completo de servicios, puertos y esquemas MySQL (<span class="in">`auth_service`</span>, <span class="in">`productos`</span>, <span class="in">`inventario`</span>, <span class="in">`ventas`</span>), validando los scripts locales de respaldo y entorno (<span class="in">`scripts/backup-db.ps1`</span>, <span class="in">`scripts/restore-db.ps1`</span>, <span class="in">`scripts/test-environment.ps1`</span>) junto con las cuentas semilla por empresa (<span class="in">`ultimo_inca`</span> en empresa <span class="in">`1`</span>, <span class="in">`sigcholac`</span> en empresa <span class="in">`2`</span>, <span class="in">`perla_andina`</span> en empresa <span class="in">`3`</span>).</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">### Aislamiento horizontal entre emprendedores (`A-03` y `A-05`)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>La autorización de operaciones sobre productos se validó mediante el claim <span class="in">`empresaId`</span> del JWT emitido por <span class="in">`auth-service`</span> (<span class="in">`demo`</span>).</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Suite ejecutada:** <span class="in">`ProductoAuthorizationServiceTest`</span>.</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Resultado:** **7 / 7 casos aprobados**, <span class="in">`0`</span> fallos, <span class="in">`0`</span> errores (<span class="in">`BUILD SUCCESS`</span>).</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Casos cubiertos:**</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="ss">  1. </span>Administrador (<span class="in">`ROLE_ADMIN`</span>) con alcance global sobre cualquier empresa.</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="ss">  2. </span>Emprendedor (<span class="in">`ROLE_EMP`</span>) con acceso autorizado a su propia empresa.</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ss">  3. </span>Rechazo de operación sobre una empresa ajena.</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="ss">  4. </span>Rechazo de operación sobre un producto ajeno.</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="ss">  5. </span>Rechazo por ausencia de rol de gestión (<span class="in">`ROLE_USER`</span> / <span class="in">`ROLE_CLIENTE`</span>).</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="ss">  6. </span>Rechazo ante autenticación no JWT.</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="ss">  7. </span>Aislamiento cruzado entre dos empresas distintas y bloqueo a emprendedor sin <span class="in">`empresaId`</span>.</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="fu">### Validación directa contra las APIs y propagación JWT (`A-06` y `A-07`)</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Pruebas WebMvc de autorización:**</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`ProductoControllerApiAuthorizationTest`</span>: <span class="in">`4 / 4`</span> casos iniciales (<span class="in">`401`</span> sin token en <span class="in">`POST`</span>, <span class="in">`403`</span> con rol insuficiente o empresa ajena, <span class="in">`200`</span> en <span class="in">`GET /api/productos`</span> público); posteriormente ampliada hasta **15 / 15 casos**.</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`InventarioControllerApiAuthorizationTest`</span>: inicialmente <span class="in">`5 / 5`</span> en la suite de inventario (<span class="in">`4`</span> casos HTTP nuevos), ampliada luego hasta **18 / 18 casos**.</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Propagación interna entre microservicios:** se incorporó validación JWT (<span class="in">`JWT_SECRET`</span> compartido) en <span class="in">`msvc-inventario`</span>, interceptor Feign en <span class="in">`msvc-producto`</span>, <span class="in">`msvc-ventas`</span> y <span class="in">`msvc-inventario`</span>, alineación batch en <span class="in">`/api/inventarios/cantidad/batch`</span> y perfil H2 para ejecutar pruebas sin depender de MySQL local.</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Script manual sin mutaciones (`Documentos_Jordy/pruebas-seguridad-a07.ps1`):** verificó salud (<span class="in">`Eureka 8761`</span>, <span class="in">`/api-docs`</span> en <span class="in">`8081`</span>/<span class="in">`8083`</span>/<span class="in">`8084`</span>, <span class="in">`/api/inventarios`</span>), consistencia de stock (<span class="in">`0`</span> diferencias), <span class="in">`3`</span> lecturas públicas (<span class="in">`200`</span>), <span class="in">`9`</span> escrituras anónimas/token inválido (<span class="in">`401`</span>) y matriz por roles usando IDs inexistentes (<span class="in">`999999`</span>) para impedir escrituras accidentales.</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="fu">### Verificación de arranque de `msvc-ventas` y Camunda (`A-07` / `A-08`)</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Se comprobó el arranque completo del servicio de ventas en el puerto <span class="in">`8083`</span> (<span class="in">`Started MsvcVentasApplication in 15.959 seconds`</span>).</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Hibernate <span class="in">`ddl-auto=validate`</span> no reportó discrepancias de esquema.</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Motor **Camunda 7.20.0** <span class="in">`default`</span> y <span class="in">`JobExecutor`</span> inicializados sin errores; <span class="in">`GET /api-docs`</span> y <span class="in">`GET /api/ventas`</span> devolvieron <span class="in">`200 OK`</span>.</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="fu">## Etapa 4: Pruebas del API Gateway NGINX (`A-11` a `A-14`)</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>Con el Gateway NGINX (<span class="in">`:8080`</span> en local y plantilla unificada), se centralizaron las políticas CORS (corrigiendo duplicación de cabeceras <span class="in">`O-13`</span>), se alineó el alias de QR DeUna (<span class="in">`O-06`</span>) y se migraron los 12 servicios del frontend hacia <span class="in">`apiConfig.ts`</span>.</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="fu">### Resultados automatizados de `pruebas-gateway-a14.ps1`</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>La corrida automatizada contra <span class="in">`http://localhost:8080`</span> finalizó con **`43` pruebas exitosas y `0` fallos (`43/43 OK`)**:</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Sección verificada <span class="pp">|</span> Casos <span class="pp">|</span> Resultado observado <span class="pp">|</span></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---|</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 1. Salud y disponibilidad (<span class="in">`GET /health`</span>, <span class="in">`GET /api/health`</span>) <span class="pp">|</span> 3 <span class="pp">|</span> <span class="in">`200`</span>, JSON <span class="in">`{"status":"UP","engine":"nginx"}`</span> <span class="pp">|</span></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2. Política CORS y preflight (<span class="in">`OPTIONS /api/productos`</span>, <span class="in">`GET /api/categorias`</span>) <span class="pp">|</span> 4 <span class="pp">|</span> <span class="in">`204`</span> / <span class="in">`200`</span>, cabecera <span class="in">`Access-Control-Allow-Origin`</span> única (<span class="in">`O-13`</span>) <span class="pp">|</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 3. Bloqueo perimetral e errores JSON (<span class="in">`PUT .../sincronizar-stock`</span>, <span class="in">`/actuator/health`</span>, ruta inexistente) <span class="pp">|</span> 3 <span class="pp">|</span> <span class="in">`403`</span>, <span class="in">`403`</span> y <span class="in">`404`</span> JSON uniforme <span class="pp">|</span></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 4. Enrutamiento Norte-Sur público hacia 4 microservicios <span class="pp">|</span> 9 <span class="pp">|</span> <span class="in">`200`</span> en productos, categorías, empresas, inventarios, batch, ventas y <span class="in">`costo-envio`</span> (<span class="in">`404`</span> controlado sin QR) <span class="pp">|</span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 5. Consistencia de stock vía Gateway <span class="pp">|</span> 1 <span class="pp">|</span> <span class="in">`productos=78`</span>, <span class="in">`inventarios=39`</span>, <span class="in">`diferencias=0`</span> <span class="pp">|</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 6. Rechazo de escrituras y rutas protegidas sin token / token falso <span class="pp">|</span> 11 <span class="pp">|</span> <span class="in">`401 Unauthorized`</span> en los 11 casos <span class="pp">|</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 7. Autorización por rol vía Gateway (<span class="in">`CLIENTE`</span>, <span class="in">`sigcholac`</span> empresa 2 sobre empresa 1, <span class="in">`ADMIN`</span>) <span class="pp">|</span> 12 <span class="pp">|</span> <span class="in">`403`</span> cliente (6), <span class="in">`403`</span> cruzado empresa (3), <span class="in">`200`</span>/<span class="in">`404`</span> admin (3) <span class="pp">|</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a><span class="fu">### Correcciones verificadas durante la validación</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Respuesta JSON ante caída de microservicios:** con los servicios Java detenidos, el Gateway devolvió <span class="in">`502 Bad Gateway`</span> con payload JSON estructurado (<span class="in">`code: "SERVICE_UNAVAILABLE"`</span>) y cabeceras CORS activas, evitando páginas HTML de NGINX.</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Corrección `AccessDeniedException -&gt; 403` en `auth-service` (`demo`):** al invocar <span class="in">`GET /api/usuarios`</span> con rol <span class="in">`ROLE_CLI`</span>, <span class="in">`GlobalExceptionHandler`</span> capturaba originalmente la excepción en <span class="in">`Exception.class`</span> (<span class="in">`500`</span>). Tras agregar <span class="in">`@ExceptionHandler(AccessDeniedException.class)`</span>, respondió correctamente <span class="in">`403 Forbidden`</span>.</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a><span class="fu">## Auditorías Pre-Redis: Autoridad y Endurecimiento (`P4` y `P5`)</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="fu">### `P4` — Autoridad del servidor en el flujo de compra (Commit `137bccc`, 2026-11-13)</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>Se eliminó la confianza de <span class="in">`msvc-ventas`</span> en precios, empresas y costos de envío enviados desde el navegador. Ahora el servicio consulta directamente a <span class="in">`msvc-producto`</span> (<span class="in">`ProductoClient`</span>) y <span class="in">`auth-service`</span> (<span class="in">`ConfiguracionPagosClient`</span>).</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Validación:** suite de integración <span class="in">`VentaIntegrationTest`</span> aprobada; el caso <span class="in">`test14_ignoraImportesManipuladosPorCliente`</span> envió precio manipulado <span class="in">`USD 0.01`</span>, envío <span class="in">`USD 0`</span> y <span class="in">`empresa=9999`</span>, comprobando que la orden persistida conservó el precio oficial, tarifa <span class="in">`USD 5.00`</span>, empresa consultada e IVA del <span class="in">`15%`</span>.</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a><span class="fu">### `P5` — Endurecimiento de errores y logs (Commit `f1ac8eb`)</span></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Se desactivó <span class="in">`spring.jpa.show-sql`</span> en los archivos de propiedades principales (<span class="in">`demo`</span>, <span class="in">`msvc-producto`</span>, <span class="in">`msvc-inventario`</span>).</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Se sanearon las respuestas de <span class="in">`GlobalExceptionHandler`</span> para registrar el detalle técnico únicamente en servidor y devolver mensajes genéricos al cliente sin exponer URLs internas, puertos ni excepciones JDBC/Feign.</span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Pruebas ejecutadas:**</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span><span class="in">`GET /api/usuarios`</span> sin token: <span class="in">`401`</span> con cuerpo vacío, sin filtración interna.</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span>Valor literal <span class="in">`TOKEN_CLIENTE`</span>: <span class="in">`401 Malformed token`</span> sin URLs ni stack trace.</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a><span class="ss">  - </span>Pruebas de contexto contra MySQL local activo: <span class="in">`LoginApplicationTests`</span> (<span class="in">`1 / 1 PASS`</span>) y <span class="in">`MsvcProductoApplicationTests`</span> (<span class="in">`1 / 1 PASS`</span>).</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<div style="position: fixed; bottom: 60px; right: 270px; z-index: 50;">
+  <img src="imagenes/sigchos1.png" alt="GAD Municipal del Cantón Sigchos" style="height: 60px; opacity: 0.8; max-width: 100%;">
+</div>
+
+
+
+
+</body></html>

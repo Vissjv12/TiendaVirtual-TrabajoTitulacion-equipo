@@ -1,0 +1,114 @@
+# Pruebas en Producción
+
+Las pruebas de producción se ejecutaron los días **16 y 17 de noviembre de 2026** sobre el servidor institucional (`tienda.gadmsigchos.gob.ec`, AlmaLinux 10.1, SELinux `Enforcing`, MySQL `8.4.9`, Valkey y NGINX en `https://tienda.gadmsigchos.gob.ec:444`).
+
+## Auditoría MySQL Pre-Despliegue y Arranque Controlado (2026-11-16)
+
+### Auditoría de solo lectura de MySQL `8.4.9`
+- **Esquemas y validación JPA:** las **14 tablas de negocio** en `auth_service`, `productos`, `inventario` y `ventas` (+ `49` tablas Camunda `ACT_*`) coincidieron con `ddl-auto=validate`.
+- **Integridad previa de datos:** `13 / 13` usuarios activos con hashes BCrypt válidos (`60` caracteres), `39 / 39` productos activos con inventario `> 0`, `0` huérfanos y `1` configuración PayPhone heredada en texto plano (migrada automáticamente al prefijo `enc:v1:` tras activar `PAYPHONE_TOKEN_ENC_KEY`).
+
+### Despliegue inicial e incidente SELinux resuelto (`b60b307`)
+- Al arrancar `auth-service`, `systemd` devolvió `Permission denied` porque el archivo de entorno tenía contexto SELinux `var_t` bajo `/var/www/tienda-virtual-backend/`. Se reubicó a `/etc/tienda-virtual/backend.env` (`chmod 600 root:root`, `restorecon` -> contexto `etc_t`), se ajustó `max_connections = 250`, se aplicó `T11-emprendedores-empresa-unica.sql` (`NON_UNIQUE = 0`) y levantaron los **`9 / 9` servicios `active`** con registro `UP` en Eureka (`MSVC-INVENTARIO`, `LOGIN`, `MSVC-PRODUCTO`).
+
+---
+
+## Prueba 1: Validación del API Gateway Real, TLS y Navegador
+
+- **TLS y NGINX:** certificado Let's Encrypt válido sobre **TLS 1.3**, `nginx -t` correcto y redirección `301` de HTTP `:80` hacia HTTPS `:444`.
+- **Exposición de red desde Internet:** únicamente `80/tcp` y `444/tcp` abiertos hacia la tienda (`8080`–`8083`, `8761`, `3000`, `3306` y `6379` cerrados/filtrados; `8084` en la IP pública compartida corresponde a otro servicio institucional externo con respuesta HTTP `400`).
+
+| Ruta / Escenario en `https://tienda.gadmsigchos.gob.ec:444` | HTTP | Evaluación |
+|---|---:|---|
+| `/health`, `/api/health`, `/landing` | `200` | Gateway y frontend disponibles |
+| `/api/productos`, `/api/productos/listado`, `/api/categorias`, `/api/empresas` | `200` | Catálogo público operativo |
+| `/uploads/qr-deuna/<archivo>` | `200` | Recurso QR servido correctamente |
+| `/actuator/health`, `/swagger-ui.html`, `/api-docs`, `/v3/api-docs`, `/camunda`, `/engine-rest`, `/api/productos/1/sincronizar-stock` | `403` | Perímetro bloqueado con JSON uniforme |
+| `/api/ventas/internal/test` | `404` | Canal interno inaccesible desde exterior |
+| Rutas protegidas sin JWT (`/api/ventas`, `/api/usuarios`) | `401` | Autenticación obligatoria |
+| Origen CORS no autorizado (`https://evil.example`) | `403` | `Invalid CORS request` |
+| Ráfagas sobre login y catálogo | `429` | Rate limiting (`limit_req`) verificado en vivo |
+
+En navegador **Google Chrome**, se validaron sin errores bloqueantes `/landing`, `/products`, `/checkout` y `/auth/login2` (incluido **Google OAuth `200`**).
+
+---
+
+## Pruebas 2 y 4: Flujo Completo E2E con PayPhone Sandbox y Cifrado
+
+Durante las pruebas en vivo con tarjeta sandbox de PayPhone se detectaron y resolvieron dos defectos reales en producción, desplegando ambos parches a `main`:
+
+1. **Bug 1 (`ventaId = 7`, commit `9883b96` / `eac5ec7`):** `POST /api/inventarios/salida-lote` devolvió `403` al token interno `ROLE_SERVICIO_PAGOS`. Se habilitó dicho rol en `SecurityConfig` de `msvc-inventario` (`59 / 59 PASS`), se desplegó el JAR y se reconcilió `ventaId = 7` vía `/api/payphone/confirm` (`200`, `COMPLETADA`, descuento único `297 -> 296`), confirmando además **idempotencia** en una segunda invocación (`YA_PROCESADA`).
+2. **Bug 2 (commit `ad70711` / `f8a2006`):** el hilo asíncrono `[factura-1]` lanzó `LazyInitializationException` al generar la factura PDF tras commit. Se añadió `@Transactional(readOnly = true)` en `FacturaServiceImpl` + `FacturaServiceTransaccionalTest` (`72 / 72 PASS` en `msvc-ventas`) y se desplegó el JAR.
+
+### Compra nueva desde cero en 1 intento (`ventaId = 9`, `f8a2006`)
+| Paso del flujo real en producción | Evidencia verificada | Resultado |
+|----------------------------------------|----------------------------------------------------|-------------:|
+| Creación de orden (`USD 2.25` + envío + IVA = `USD 7.76`) | `POST /api/ventas` (importes calculados en backend) | `201` (`PENDIENTE`) |
+| Preparación de cobro PayPhone | `POST .../payphone/ventas/9/preparar` (token AES `enc:v1:` descifrado solo en servidor) | `200` |
+| Pago con tarjeta de pruebas PayPhone Sandbox | Referencia `93755596`, `Status: Approved`, `USD 7.76` | Aprobado |
+| Retorno automático a `/checkout/payphone-confirmacion` | Confirmación al **primer intento**: `resultadoVenta = "COMPLETADA"` | `200` |
+| Descuento de inventario | Stock `296 -> 295`, movimiento `SALIDA` único | Exacto |
+| Generación y descarga de factura PDF | `factura_FACT-1794933559721.pdf` (`FACTURAS_TOTAL = 20`, `0` errores en logs) descargada desde `/profile/historial-compras` | `200` |
+
+Adicionalmente se comprobó que `payphoneToken` no aparece en respuestas de API (`ROLE_EMP` ni público) y que Stripe permanece inactivo (`STRIPE_ENABLED=false`).
+
+---
+
+## Pruebas 3 y 5: Verificación `T11` y Regresión por Roles
+
+- **Integridad de datos `T11` en MySQL:** índice `uk_emprendedor_empresa` (`Non_unique = 0`), `0` duplicados, `MSVC_PRODUCTO_URL=http://127.0.0.1:8081` activo en `auth-service`; usuarios `2, 3, 4, 5` (`ROLE_EMP`) vinculados respectivamente a empresas `1, 2, 3, 4`, y usuario `1` (`ROLE_ADMIN`).
+
+| Categoría de prueba en producción | Casos | Resultados observados |
+|----------------------------------------|-------:|------------------------------------------------------|
+| **Casos HTTP no destructivos `T11`** (`EVIDENCIA-T11-PRUEBAS-PRODUCCION.md`) | **10 / 10** | `400` al vincular `ROLE_ADMIN`, `empresaId=0` o `-1`; `409` empresa ocupada; `200 SIN_CAMBIOS` idempotente; `404` empresa `999999`; `401` sin JWT; `403` `ROLE_EMP` en consulta y `PUT`. |
+| **Control de acceso HTTP autenticado** (`EVIDENCIA-PRUEBAS-AUTENTICADAS-PRODUCCION.md`) | **11 / 11** | Logins `200` (`ADMIN`, `EMP`, `CLIENTE`); `CLIENTE` bloqueado `403` en `/usuarios/paginado` y `/ventas/paginado`; `ROLE_EMP` (`empresaId=2`) recibe `200` en sus ventas/movimientos y `403` en ventas de empresa `1`, `/usuarios/paginado` y `/movimientos` globales; `ROLE_ADMIN` `200` en todo el panel. |
+| **Aislamiento de escritura sobre producto ajeno (`id=1`)** | **4 / 4** | `ROLE_EMP` (`empresaId=2`) recibe `403` en `DELETE` y `PUT` (cuerpo válido) sobre producto de empresa `1`; `GET /api/productos/1` posterior devuelve `200` intacto. |
+| **Regresión visual en Google Chrome (4 perfiles)** | **4 roles** | Guardas de ruta para `ANÓNIMO` y `ROLE_USER`; `ROLE_EMP` aislado a `1` empresa (`10` productos); `ROLE_ADMIN` con acceso global (`14` usuarios, `4` empresas, `6` categorías, `39` productos) y tarjeta `"Empresa vinculada"` en `/administrador/usuarios/5/editar`. |
+
+---
+
+## Pruebas 6 y 7: Rendimiento Comparativo con Valkey/Redis y Alcance
+
+### Micro-benchmark controlado con conteo real en MySQL
+Medido sobre `https://tienda.gadmsigchos.gob.ec:444` (`2` calentamiento + `30` secuenciales + `20` concurrencia `5`, `39` productos reales; registro `06-medicion-comparativa-rendimiento.md`):
+
+| Endpoint | Métrica | Sin Redis (OFF) | Con Valkey (ON) | Variación |
+|----------------------------------|------------------|----------------:|----------------:|---------------------|
+| `GET /api/productos/listado` | Media (`avg`) | `28.57 ms` | `24.35 ms` | **`-14.8%`** |
+| *(caché catálogo + stock vivo)* | Mediana (`p50`) | `27.41 ms` | `24.43 ms` | **`-10.9%`** |
+| | Percentil 95 (`p95`) | `35.20 ms` | `26.15 ms` | **`-25.7%`** |
+| | Máxima (`max`) | `42.34 ms` | `26.58 ms` | **`-37.2%`** |
+| | `Delta MySQL Com_select` | `61` | **`31`** | **`-49.2%` menos SELECTs** |
+| | `Valkey hits / misses` | `0 / 0` | **`90 / 0`** | `100%` hit ratio |
+| `GET /api/categorias` | Media (`avg`) | `19.45 ms` | `15.45 ms` | **`-20.6%`** |
+| *(caché completo)* | Mediana (`p50`) | `19.26 ms` | `15.33 ms` | **`-20.4%`** |
+| | Percentil 95 (`p95`) | `21.64 ms` | `16.04 ms` | **`-25.9%`** |
+| | `Delta MySQL Com_select` | `31` | **`1`** | **`-96.8%` menos SELECTs** |
+| | `Valkey hits / misses` | `0 / 0` | **`75 / 0`** | `100%` hit ratio |
+| `GET /api/productos` *(control)* | Hits en Valkey | `0` | `0` | Fuera de caché (correcto) |
+
+Tras la prueba, Valkey registró `used_memory_human = 1.17M`, `DBSIZE = 3` (`epoch`, `productos:listado` `TTL 5m`, `categorias:listado` `TTL 15m`), salud `/actuator/health/cache` = `UP` y `PING` = `PONG`.
+
+### Carga sostenida externa ON/OFF con `k6` v2.4.0
+Evidencia documentada en `REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md`:
+- **Smoke funcional previo (`1 req/s`, `10 s`):** `10 / 10` HTTP `200`, `20 / 20` checks; generó la clave versionada con TTL restante observado de `243 s`.
+- **4 corridas sostenidas (`10 req/s` durante `5 minutos` cada una, mismo JAR `12cb2a8...`, `productos=true` vs `productos=false`):**
+
+| Modo | Corrida | Solicitudes | Media (ms) | p50 (ms) | p95 (ms) | Fallos HTTP / Checks |
+|------|--------:|------------:|-----------:|---------:|---------:|---------------------:|
+| **ON** | 1 | 3,001 | 99.87 | 99.14 | 101.80 | `0 / 0` |
+| **ON** | 2 | 3,001 | 99.41 | 98.87 | 99.97 | `0 / 0` |
+| **OFF** | 1 | 3,001 | 100.99 | 100.34 | 103.06 | `0 / 0` |
+| **OFF** | 2 | 3,000 | 99.65 | 99.16 | 100.59 | `0 / 0` |
+
+En las `12,003` solicitudes totales se obtuvo **`0` errores y `100%` de checks**; durante `ON1`, `INFO stats` de Valkey avanzó **`+9,003` hits y `+1` miss**. A `10 req/s` desde cliente externo los `p95` promedio resultaron equivalentes (`100.88 ms` ON vs `101.82 ms` OFF), confirmando que **Valkey evita reconsultar el catálogo en MySQL manteniendo estable la latencia de extremo a extremo y el stock en vivo**. Asimismo, se documentó formalmente la exclusión de `/api/productos/listado/paginado`, inventarios, autenticación, ventas, pagos, sesiones y rate limiting (`07-alcance-redis-fuera-de-alcance.md`).
+
+---
+
+## Prueba 8: Despliegue y Verificación del Contador de Visitas (`V12`, `8cf1066`)
+
+- **Despliegue mínimo:** se integró `feature/contador-visitas`, se añadió `|visitas` en `gateway/tienda.prod.conf` y `/etc/nginx/conf.d/tienda.conf` (bloques `:444` y `127.0.0.1:8080`), se actualizó `msvc-producto-0.0.1-SNAPSHOT.jar` y `.next`, manteniendo `9/9` servicios `active` y `MSVC-PRODUCTO` en Eureka.
+- **Pruebas en vivo:**
+  - `GET /api/visitas/estadisticas` y `GET /api/proxy/productos/visitas/estadisticas` sin token -> **`403 FORBIDDEN`**.
+  - **Navegador Chrome en contexto aislado limpio (`/landing`):** la primera visita (`200`) disparó automáticamente `POST /api/proxy/productos/visitas` -> **`204 No Content`** y estableció la cookie `feriadigital_visit_day=1`; al recargar (`304`), envió la cookie y no volvió a contar (cero errores `404`/`500`/`localhost`).
+  - **MySQL de producción (`productos.visitas_diarias`):** se comprobó la inserción exacta de la fila del día (`fecha = 2026-11-17`, `cantidad = 1`).

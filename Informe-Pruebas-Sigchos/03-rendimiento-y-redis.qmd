@@ -1,0 +1,88 @@
+# Línea Base y Piloto Redis en Local
+
+## Línea Base de Rendimiento sin Redis (`P6`, 2026-11-13)
+
+Con el commit base `f1ac8eb` (P4–P5 integrados) se ejecutaron mediciones de solo lectura sobre el Gateway local (`http://127.0.0.1:8090`, con `39` productos, `39` inventarios y `0` diferencias de stock):
+
+### Medición secuencial vía Gateway (`30` solicitudes por endpoint)
+| Endpoint medido | Req. | Éxitos | Mín (ms) | Media (ms) | p50 (ms) | p95 (ms) | Máx (ms) |
+|----------------------------------|------:|-------:|---------:|-----------:|---------:|---------:|---------:|
+| `/api/productos/listado` | 30 | 30 | 57.69 | 73.70 | 68.05 | 98.44 | 120.65 |
+| `/api/productos/1` | 30 | 30 | 39.18 | 47.59 | 43.56 | 56.59 | 136.63 |
+| `/api/categorias` | 30 | 30 | 35.72 | 41.12 | 40.42 | 45.93 | 50.09 |
+| `/api/empresas` | 30 | 30 | 36.42 | 42.84 | 40.23 | 57.53 | 68.23 |
+| `/api/inventarios/producto/1` | 30 | 30 | 47.06 | 57.53 | 55.92 | 69.24 | 72.10 |
+
+### Línea base directa con conteo de consultas SQL (`50` solicitudes)
+En `BASELINE-LOCAL-PRE-REDIS-CATALOGO.md` se registró la latencia loopback y el conteo de `SELECT` en `performance_schema`:
+- `GET http://127.0.0.1:8081/api/productos/listado`: `50/50 OK`, `p50 = 22.86 ms`, `p95 = 27.36 ms`, `50 SELECT` en `productos` + `50 SELECT` en `inventario`.
+- `POST http://127.0.0.1:8082/api/inventarios/cantidad/batch`: `50/50 OK`, `p50 = 6.62 ms`, `p95 = 7.59 ms`, `50 SELECT` en `inventario`.
+- Suite `msvc-producto`: **16 / 16 PASS**.
+
+### Carga concurrente inicial con `k6` (`scripts/p6-baseline-readonly.js`)
+- **Escenario:** `5` usuarios virtuales (`5 VUs`) durante `30 segundos` sobre las 6 rutas públicas GET.
+- **Resultados:** **`2,919` solicitudes** (`2,919 / 2,919` checks), tasa de error **`0.00%`**, throughput **`97.22 req/s`**, media **`50.61 ms`**, **`p50 = 38.50 ms`**, **`p95 = 135.54 ms`**, máxima **`469.76 ms`**. Al finalizar, se verificaron `39` productos, `39` inventarios y `0` diferencias.
+
+---
+
+## Piloto Redis Cache-Aside en Entorno Local (`A-15` a `A-18`)
+
+Siguiendo la evaluación `A-15`, Redis se diseñó exclusivamente para caché de lectura pública del catálogo (`GET /api/productos/listado`, `GET /api/categorias` y `GET /api/categorias/{id}`), manteniendo el inventario en vivo y excluyendo usuarios, sesiones, ventas y pagos.
+
+### Evolución de pruebas automatizadas en `msvc-producto`
+Las pruebas de integración se ejecutaron sobre MySQL `8.0.46` sintético (`127.0.0.1:3307`) y Redis `7` (`127.0.0.1:6380`):
+
+| Rama / Corte | Suite completa Maven (JDK 17) | Suite focalizada Redis / HTTP / Auth |
+|----------------------------------------------|------------------------:|---------------------------------:|
+| `feature/a17-piloto-redis-local` | **23 / 23 PASS** | **29 / 29 PASS** (`ProductoCatalogoHttpIT` 12/12) |
+| `integration/avance-hasta-redis` (2026-11-14) | **26 / 26 PASS** | **46 / 46 PASS** |
+| `integration/version-estable-deuna-pulido` (2026-11-15) | **33 / 33 PASS** | **49 / 49 PASS** |
+
+Las clases `RedisGenerationIT`, `RedisProductoCatalogoStoreIT`, `ProductoCatalogoHttpIT`, `ProductoCatalogoFallbackIT`, `ProductoCatalogoCacheServiceTest` y `RedisCacheConfigTest` validaron: hit sin consultar MySQL, miss + publicación atómica por script Lua, expiración TTL no deslizante (`PT5M` / `PT15M`), invalidación tras commit (`afterCommit`), rollback sin avanzar generación, JSON corrupto y fallback automático ante caída.
+
+### Verificación de las 9 rutas de catálogo por Gateway aislado (`:8189`)
+| Ruta consultada | Respuesta HTTP | Estado de clave en Redis |
+|---|---:|---|
+| `GET /api/productos/listado` | `200` (39 productos) | Clave versionada `productos:listado:g<gen>`, TTL `299 s` |
+| `GET /api/categorias` | `200` (6 categorías) | Clave versionada `categorias:listado:g<gen>`, TTL `899 s` |
+| `GET /api/categorias/1` | `200` | Clave versionada `categorias:detalle:1:g<gen>`, TTL `899 s` |
+| `GET /api/productos`, `/1`, `/empresa/1`, `/categoria/1`, `/api/empresas`, `/empresas/1` | `200` | Sin clave propia (excluidas; lectura directa a MySQL) |
+| `PUT /api/productos/1/sincronizar-stock?stock=7` | `403` | Bloqueada por regla perimetral |
+
+### Pruebas de resiliencia y caída de Redis en runtime
+| Escenario probado | Comportamiento verificado |
+|---|---|
+| Redis apagado antes de iniciar JAR (`CACHE_REDIS_ENABLED=true`) | `msvc-producto` arranca sin bloqueo; catálogo `200` (39 productos desde MySQL); liveness/readiness `200`; `/actuator/health/cache` `503`. |
+| Redis detenido en ejecución | Catálogo responde `200` vía fallback MySQL; métrica `fallback` y fallos de lectura suben en `+1`; `/actuator/health/cache` `503`. |
+| Redis reiniciado | `PING` responde `PONG`; `/actuator/health/cache` vuelve a `200`; catálogo por Gateway `200`. |
+
+Además, `/actuator/metrics/**` comprobó control de acceso: `401` anónimo, `403` emprendedor y `200` administrador.
+
+### Comparativa repetida con `k6` (`scripts/redis-a18-listado.js`, 2026-11-14)
+Se ejecutaron 3 corridas de `30 segundos` con `5 VUs` por cada modo sobre `GET /api/productos/listado` a través de Gateway aislado (`:8290`), stub de Inventario (`:8282`) y MySQL sintético (`:3307`), midiendo el delta global de `Com_select`:
+
+| Modo | Corrida | Solicitudes | p50 (ms) | p95 (ms) | Req/s | Fallos | `SELECT Δ` | Miss / Hit |
+|-----------------|--------:|------------:|---------:|---------:|------:|-------:|-----------:|--------------:|
+| Desactivado | 1 | 3,640 | 39.66 | 56.34 | 121.26 | 0 | 3,651 | — |
+| Desactivado | 2 | 4,073 | 34.51 | 49.45 | 135.62 | 0 | 4,084 | — |
+| Desactivado | 3 | 4,257 | 33.08 | 47.63 | 141.80 | 0 | 4,264 | — |
+| Miss (TTL 1 ms) | 1 | 2,830 | 49.28 | 82.73 | 94.21 | 0 | 2,659 | 2,648 / 182 |
+| Miss (TTL 1 ms) | 2 | 3,332 | 43.46 | 60.37 | 110.99 | 0 | 3,171 | 3,160 / 172 |
+| Miss (TTL 1 ms) | 3 | 3,578 | 40.27 | 58.18 | 119.18 | 0 | 3,366 | 3,355 / 223 |
+| Hit (TTL 5 min) | 1 | 3,829 | 37.15 | 54.69 | 127.51 | 0 | **11** | 0 / 3,829 |
+| Hit (TTL 5 min) | 2 | 4,183 | 30.67 | 62.27 | 139.37 | 0 | **7** | 0 / 4,183 |
+| Hit (TTL 5 min) | 3 | 4,567 | 30.84 | 45.28 | 152.15 | 0 | **5** | 0 / 4,567 |
+
+- **Medianas observadas:**
+  - **Desactivado:** `p50 = 34.51 ms`, `p95 = 49.45 ms`, `135.62 req/s` (`11,999 SELECT` en `11,970` peticiones = `1.002 SELECT/req`).
+  - **Miss:** `p50 = 43.46 ms`, `p95 = 60.37 ms`, `110.99 req/s` (`9,196 SELECT` en `9,740` peticiones).
+  - **Hit:** `p50 = 30.84 ms` (**-10.6%**), `p95 = 54.69 ms`, `139.37 req/s` (**23 `SELECT` en 12,579 peticiones** = `0.0018 SELECT/req`, **~99.8% menos lecturas `SELECT` observadas en MySQL**). El stub de Inventario recibió exactamente una llamada por cada solicitud (`12,579` en Hit), confirmando que el stock nunca se sirve desde caché.
+
+### Matriz de verificación `R01`–`R16` (Entorno local)
+| Requisitos | Estado | Evidencia resumida |
+|---|---|---|
+| `R01`, `R02`, `R03` | **Verificados** | Flags apagados por defecto; misses (`1,559`) y hits (`1,806` / `12,579`) con inventario en vivo. |
+| `R04`, `R05`, `R13` | **Verificados** | Arranque sin Redis, fallback en caliente (`200`), health cache (`503`) y recuperación tras reinicio (`200`). |
+| `R07`, `R08`, `R09`, `R16` | **Verificados** | TTL no deslizante, invalidación tras commit/rollback en productos, categorías y empresas, y protección contra escritura obsoleta concurrente. |
+| `R10`, `R15` | **Verificados** | Aislamiento entre empresas sintéticas; ventana R15 acotada al TTL en pruebas tras fallo post-commit. |
+| `R06`, `R11`, `R12`, `R14` | **Parciales / Pendientes** | `R06` (inyección de timeout > 500 ms) y `R12` (caída real MySQL en HTTP) quedaron abiertos en local; `R11` (campos públicos) fue aprobado el `2026-11-15` y `R14` se validó en producción. |

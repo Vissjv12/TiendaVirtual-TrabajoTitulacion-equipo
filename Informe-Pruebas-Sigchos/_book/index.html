@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.11.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Jordy Viscaíno Anthony Tapia">
+<meta name="author" content="Alfonso Alejandro Arroyo Paredes">
+<meta name="author" content="Christian Mateo Bonifaz Vásquez">
+
+<title>Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./02-seguridad-y-gateway.html" rel="next">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-c05a8afb666c08ce7683c7e666d21d95.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No se han encontrado resultados",
+    "search-matching-documents-text": "documentos encontrados",
+    "search-copy-link-title": "Copiar el enlace en la búsqueda",
+    "search-hide-matches-text": "Ocultar resultados adicionales",
+    "search-more-match-text": "resultado adicional en este documento",
+    "search-more-matches-text": "resultados adicionales en este documento",
+    "search-clear-button-title": "Borrar",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancelar",
+    "search-submit-button-title": "Enviar",
+    "search-label": "Buscar"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="custom.scss">
+</head>
+
+<body class="nav-sidebar floating quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Saltar al contenido principal</a>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav" aria-label="Barra de herramientas">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Alternar barra lateral" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./index.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introducción y Alcance de las Pruebas</span></a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Buscar" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto" aria-label="Sitio web">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Buscar"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introducción y Alcance de las Pruebas</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./02-seguridad-y-gateway.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Seguridad Base, Aislamiento y API Gateway</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./03-rendimiento-y-redis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Línea Base y Piloto Redis en Local</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./04-funcionalidad-auditoria-y-cierre.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Paginación, Seguridad en Ventas, Auditoría y Respaldos</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./05-pruebas-produccion.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Pruebas en Producción</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./06-conclusiones-y-pendientes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Conclusiones, Hallazgos Menores y Pendientes</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./referencias.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Referencias y Trazabilidad</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
+    <h2 id="toc-title">Tabla de contenidos</h2>
+   
+  <ul>
+  <li><a href="#introducción-y-alcance-de-las-pruebas" id="toc-introducción-y-alcance-de-las-pruebas" class="nav-link active" data-scroll-target="#introducción-y-alcance-de-las-pruebas"><span class="header-section-number">1</span> Introducción y Alcance de las Pruebas</a>
+  <ul class="collapse">
+  <li><a href="#equipo-responsable-de-las-pruebas" id="toc-equipo-responsable-de-las-pruebas" class="nav-link" data-scroll-target="#equipo-responsable-de-las-pruebas"><span class="header-section-number">1.1</span> Equipo responsable de las pruebas</a></li>
+  <li><a href="#fuentes-técnicas-consolidadas" id="toc-fuentes-técnicas-consolidadas" class="nav-link" data-scroll-target="#fuentes-técnicas-consolidadas"><span class="header-section-number">1.2</span> Fuentes técnicas consolidadas</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content" tabindex="-1">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Código</button></div></div>
+<p class="subtitle lead">Sistema Sigchos E-Commerce</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Autores/as</div>
+    <div class="quarto-title-meta-contents">
+             <p>Jordy Viscaíno Anthony Tapia </p>
+             <p>Alfonso Alejandro Arroyo Paredes </p>
+             <p>Christian Mateo Bonifaz Vásquez </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Fecha de publicación</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">18 noviembre 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+
+<section id="introducción-y-alcance-de-las-pruebas" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Introducción y Alcance de las Pruebas</h1><p><img src="imagenes/sigchos1.png" title="Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos" class="quarto-cover-image nolightbox img-fluid"></p>
+<p>Este informe abarca pruebas unitarias, pruebas web con , pruebas de integración con H2/MySQL/Redis, auditorías de seguridad perimetral en el API Gateway NGINX, mediciones comparativas de rendimiento con , ensayos de respaldo y restauración en MySQL 8.4.9, validaciones en navegador Google Chrome y transacciones completas en vivo sobre la pasarela PayPhone Sandbox.</p>
+<section id="equipo-responsable-de-las-pruebas" class="level2" data-number="1.1">
+<h2 data-number="1.1" class="anchored" data-anchor-id="equipo-responsable-de-las-pruebas"><span class="header-section-number">1.1</span> Equipo responsable de las pruebas</h2>
+<p>Las evidencias recopiladas en este informe corresponden exclusivamente al trabajo ejecutado y documentado por el equipo actual:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Integrante</th>
+<th>Usuario Git</th>
+<th>Principales frentes de prueba cubiertos</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Christian Mateo Bonifaz Vásquez</strong></td>
+<td><code>cmbonifaz</code></td>
+<td>Paginación (<code>A-19</code> a <code>A-22</code>), seguridad en Ventas (<code>A-24</code>/<code>A-25</code>), DeUna/checkout, pulido pre-integración, despliegues y pruebas E2E en producción.</td>
+</tr>
+<tr class="even">
+<td><strong>Jordy Viscaíno Anthony Tapia</strong></td>
+<td><code>jordy</code></td>
+<td>Seguridad base (<code>A-01</code>–<code>A-14</code>), auditoría integral de código (<code>C-01</code>, <code>C-02</code>, <code>A-01</code>–<code>A-05</code>), backups <code>T01</code>, hardening <code>T07</code>–<code>T09</code>, <code>T11</code>, pruebas autenticadas en producción y contador de visitas (<code>V12</code>).</td>
+</tr>
+<tr class="odd">
+<td><strong>Alfonso Alejandro Arroyo Paredes</strong></td>
+<td><code>alfonso1031</code></td>
+<td>Piloto Redis Cache-Aside (<code>A-15</code>–<code>A-18</code>), línea base local y comparativas <code>k6</code>, verificación SHA-256 y restauración aislada de respaldos, y carga sostenida <code>k6</code> ON/OFF en producción.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="fuentes-técnicas-consolidadas" class="level2" data-number="1.2">
+<h2 data-number="1.2" class="anchored" data-anchor-id="fuentes-técnicas-consolidadas"><span class="header-section-number">1.2</span> Fuentes técnicas consolidadas</h2>
+<p>Las secciones y tablas de este informe sintetizan los resultados verificados en los siguientes conjuntos de artefactos del repositorio:</p>
+<ol type="1">
+<li><strong>Registros por etapa (<code>Documentos_Jordy/</code>):</strong> <code>REGISTRO-ETAPA-1-A01-A06.md</code>, <code>REGISTRO-SEGURIDAD-A08-A10.md</code>, <code>REGISTRO-ETAPA-4-GATEWAY-A11-A14.md</code>, <code>P4-AUDITORIA-AUTORIDAD-COMPRA.md</code>, <code>P5-AUDITORIA-ENDURECIMIENTO.md</code>, <code>P6-LINEA-BASE-SIN-REDIS.md</code>, <code>CIERRE-ETAPA-P4-P7-Y-ENTREGA-BASE.md</code>.</li>
+<li><strong>Evidencias Redis y respaldos (<code>Documentos_Jordy/</code>):</strong> <code>BASELINE-LOCAL-PRE-REDIS-CATALOGO.md</code>, <code>REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md</code>, <code>REDIS-RESULTADOS-A18.md</code>, <code>PLAN-CIERRE-REDIS-A17-A18.md</code>, <code>PLAN-VERIFICACION-Y-RESTAURACION-RESPALDOS-LOCALES.md</code>, <code>REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md</code> y carpeta <code>EVIDENCIA-REDIS-COMPARACION-2026-11-17/</code>.</li>
+<li><strong>Auditoría, pulido y hardening (<code>Documentos_Jordy/</code>):</strong> <code>REGISTRO-DEUNA-CHECKOUT-Y-PERMISOS-EMPRENDEDOR.md</code>, <code>A22-RESULTADOS-PAGINACION.md</code>, <code>A24-A25-SEGURIDAD-MSVC-VENTAS-Y-REGRESION.md</code>, <code>REGISTRO-PULIDO-PRE-INTEGRACION.md</code>, <code>REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md</code>, <code>REGISTRO-T07-OPTIMIZACION-Y-T01-RESPALDOS.md</code>, <code>REGISTRO-HARDENING-T07-T08-T09-GATEWAY.md</code>, <code>REGISTRO-CORRECCIONES-T07-T08-T09-REVISION.md</code>, <code>REGISTRO-T11-VINCULACION-EMPRENDEDOR-EMPRESA.md</code>, <code>IMPLEMENTACION-CONTADOR-VISITAS.md</code>.</li>
+<li><strong>Reportes de despliegue y producción (<code>documentos-trabajo/</code> y <code>Documentos_Jordy/</code>):</strong> <code>VERIFICACION-MYSQL-PRODUCCION.md</code>, <code>REPORTE-DESPLIEGUE-PRODUCCION-2026-11-16.md</code>, carpeta <code>pruebas-produccion-2026-11-17/</code> (<code>00</code> a <code>07</code>), <code>REGISTRO-VALIDACION-GATEWAY-PRODUCCION.md</code>, <code>EVIDENCIA-PRUEBAS-AUTENTICADAS-PRODUCCION.md</code>, <code>EVIDENCIA-T11-PRUEBAS-PRODUCCION.md</code>, <code>INFORME-CONSOLIDADO-PRUEBAS-PRODUCCION.md</code> y <code>GUIA-DESPLIEGUE-CONTADOR-VISITAS.md</code>.</li>
+<li><strong>Suites ejecutables:</strong> módulos <code>Microservicios/*/src/test/**</code>, <code>avalon-react-10.1.0/tests/*.test.mjs</code>, scripts PowerShell <code>pruebas-seguridad-a07.ps1</code>, <code>pruebas-gateway-a14.ps1</code>, <code>pruebas-a01-a02-gateway.ps1</code> y <code>scripts/prod/pruebas/simular-respaldo.sh</code>.</li>
+</ol>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copiado");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copiado");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const cellDetails = window.document.querySelectorAll(".cell details.code-fold");
+        for (let i=0; i<cellDetails.length; i++) {
+          const details = cellDetails[i];
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell div.sourceCode.cell-code");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+          if (!link.classList.contains('no-external-icon')) {
+          }
+        }
+      }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
+          if (lineIds.length > 0) {
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            placeBand(gutterDiv, el, lastEl);
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Código desplazable","output":"Salida desplazable"};
+  </script>
+<nav class="page-navigation" aria-label="Página">
+  <div class="nav-page nav-page-previous">
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./02-seguridad-y-gateway.html" class="pagination-link" aria-label="Seguridad Base, Aislamiento y API Gateway">
+        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Seguridad Base, Aislamiento y API Gateway</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Ejecutar el código</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="in">```{=latex}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="in">\pagestyle{fancy}</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="in">\makeatletter</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="in">\let\ps@plain\ps@contentplain</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="in">\makeatother</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu"># Introducción y Alcance de las Pruebas</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>\begin{infobox}<span class="co">[</span><span class="ot">Sistema Sigchos E-Commerce</span><span class="co">]</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>El presente documento consolida de manera cronológica, técnica y verificable todas las pruebas ejecutadas entre el \textbf{07 y el 18 de noviembre de 2026} sobre el \textbf{Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos} (\textit{Feria Digital Sigchos}), tanto en el entorno local de desarrollo como en el servidor de producción institucional (\texttt{https://tienda.gadmsigchos.gob.ec:444}).</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>\end{infobox}</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>Este informe abarca pruebas unitarias, pruebas web con \texttt{MockMvc}, pruebas de integración con H2/MySQL/Redis, auditorías de seguridad perimetral en el API Gateway NGINX, mediciones comparativas de rendimiento con \texttt{k6}, ensayos de respaldo y restauración en MySQL 8.4.9, validaciones en navegador Google Chrome y transacciones completas en vivo sobre la pasarela PayPhone Sandbox.</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="fu">## Equipo responsable de las pruebas</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>Las evidencias recopiladas en este informe corresponden exclusivamente al trabajo ejecutado y documentado por el equipo actual:</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Integrante <span class="pp">|</span> Usuario Git <span class="pp">|</span> Principales frentes de prueba cubiertos <span class="pp">|</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Christian Mateo Bonifaz Vásquez** <span class="pp">|</span> <span class="in">`cmbonifaz`</span> <span class="pp">|</span> Paginación (<span class="in">`A-19`</span> a <span class="in">`A-22`</span>), seguridad en Ventas (<span class="in">`A-24`</span>/<span class="in">`A-25`</span>), DeUna/checkout, pulido pre-integración, despliegues y pruebas E2E en producción. <span class="pp">|</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Jordy Viscaíno Anthony Tapia** <span class="pp">|</span> <span class="in">`jordy`</span> <span class="pp">|</span> Seguridad base (<span class="in">`A-01`</span>–<span class="in">`A-14`</span>), auditoría integral de código (<span class="in">`C-01`</span>, <span class="in">`C-02`</span>, <span class="in">`A-01`</span>–<span class="in">`A-05`</span>), backups <span class="in">`T01`</span>, hardening <span class="in">`T07`</span>–<span class="in">`T09`</span>, <span class="in">`T11`</span>, pruebas autenticadas en producción y contador de visitas (<span class="in">`V12`</span>). <span class="pp">|</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Alfonso Alejandro Arroyo Paredes** <span class="pp">|</span> <span class="in">`alfonso1031`</span> <span class="pp">|</span> Piloto Redis Cache-Aside (<span class="in">`A-15`</span>–<span class="in">`A-18`</span>), línea base local y comparativas <span class="in">`k6`</span>, verificación SHA-256 y restauración aislada de respaldos, y carga sostenida <span class="in">`k6`</span> ON/OFF en producción. <span class="pp">|</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>\begin{importantbox}<span class="co">[</span><span class="ot">Criterio de exclusión y confidencialidad</span><span class="co">]</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>Se excluyeron explícitamente las entregas y documentos pertenecientes a cohortes anteriores del proyecto (\texttt{FOR-TRABAJO-DE-TITULACION<span class="sc">\_</span>CAJAS<span class="sc">\_</span>CHAMORRO.pdf}, \texttt{TrabajoTitulación<span class="sc">\_</span>L00400187<span class="sc">\_</span>Patiño Abad Brayan Daniel.pdf} y registros base de junio/julio de 2026 en \texttt{documentos-trabajo/docs<span class="sc">\_</span>produ/}). Asimismo, por seguridad operativa, ningún registro incluye contraseñas, tokens JWT, credenciales de PayPhone ni claves privadas.</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>\end{importantbox}</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="fu">## Fuentes técnicas consolidadas</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>Las secciones y tablas de este informe sintetizan los resultados verificados en los siguientes conjuntos de artefactos del repositorio:</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Registros por etapa (`Documentos_Jordy/`):** <span class="in">`REGISTRO-ETAPA-1-A01-A06.md`</span>, <span class="in">`REGISTRO-SEGURIDAD-A08-A10.md`</span>, <span class="in">`REGISTRO-ETAPA-4-GATEWAY-A11-A14.md`</span>, <span class="in">`P4-AUDITORIA-AUTORIDAD-COMPRA.md`</span>, <span class="in">`P5-AUDITORIA-ENDURECIMIENTO.md`</span>, <span class="in">`P6-LINEA-BASE-SIN-REDIS.md`</span>, <span class="in">`CIERRE-ETAPA-P4-P7-Y-ENTREGA-BASE.md`</span>.</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Evidencias Redis y respaldos (`Documentos_Jordy/`):** <span class="in">`BASELINE-LOCAL-PRE-REDIS-CATALOGO.md`</span>, <span class="in">`REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md`</span>, <span class="in">`REDIS-RESULTADOS-A18.md`</span>, <span class="in">`PLAN-CIERRE-REDIS-A17-A18.md`</span>, <span class="in">`PLAN-VERIFICACION-Y-RESTAURACION-RESPALDOS-LOCALES.md`</span>, <span class="in">`REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md`</span> y carpeta <span class="in">`EVIDENCIA-REDIS-COMPARACION-2026-11-17/`</span>.</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Auditoría, pulido y hardening (`Documentos_Jordy/`):** <span class="in">`REGISTRO-DEUNA-CHECKOUT-Y-PERMISOS-EMPRENDEDOR.md`</span>, <span class="in">`A22-RESULTADOS-PAGINACION.md`</span>, <span class="in">`A24-A25-SEGURIDAD-MSVC-VENTAS-Y-REGRESION.md`</span>, <span class="in">`REGISTRO-PULIDO-PRE-INTEGRACION.md`</span>, <span class="in">`REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md`</span>, <span class="in">`REGISTRO-T07-OPTIMIZACION-Y-T01-RESPALDOS.md`</span>, <span class="in">`REGISTRO-HARDENING-T07-T08-T09-GATEWAY.md`</span>, <span class="in">`REGISTRO-CORRECCIONES-T07-T08-T09-REVISION.md`</span>, <span class="in">`REGISTRO-T11-VINCULACION-EMPRENDEDOR-EMPRESA.md`</span>, <span class="in">`IMPLEMENTACION-CONTADOR-VISITAS.md`</span>.</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Reportes de despliegue y producción (`documentos-trabajo/` y `Documentos_Jordy/`):** <span class="in">`VERIFICACION-MYSQL-PRODUCCION.md`</span>, <span class="in">`REPORTE-DESPLIEGUE-PRODUCCION-2026-11-16.md`</span>, carpeta <span class="in">`pruebas-produccion-2026-11-17/`</span> (<span class="in">`00`</span> a <span class="in">`07`</span>), <span class="in">`REGISTRO-VALIDACION-GATEWAY-PRODUCCION.md`</span>, <span class="in">`EVIDENCIA-PRUEBAS-AUTENTICADAS-PRODUCCION.md`</span>, <span class="in">`EVIDENCIA-T11-PRUEBAS-PRODUCCION.md`</span>, <span class="in">`INFORME-CONSOLIDADO-PRUEBAS-PRODUCCION.md`</span> y <span class="in">`GUIA-DESPLIEGUE-CONTADOR-VISITAS.md`</span>.</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Suites ejecutables:** módulos `Microservicios/*/src/test/**<span class="in">`, `</span>avalon-react-10.1.0/tests/*.test.mjs<span class="in">`, scripts PowerShell `</span>pruebas-seguridad-a07.ps1<span class="in">`, `</span>pruebas-gateway-a14.ps1<span class="in">`, `</span>pruebas-a01-a02-gateway.ps1<span class="in">` y `</span>scripts/prod/pruebas/simular-respaldo.sh`.</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+<div style="position: fixed; bottom: 60px; right: 270px; z-index: 50;">
+  <img src="imagenes/sigchos1.png" alt="GAD Municipal del Cantón Sigchos" style="height: 60px; opacity: 0.8; max-width: 100%;">
+</div>
+
+
+
+
+</body></html>
