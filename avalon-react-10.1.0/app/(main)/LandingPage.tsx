@@ -1,13 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import HeroSection from './components/HeroSection';
 import FeaturedProducts from './components/FeaturedProducts';
 import AboutSection from './components/AboutSection';
 import LocationSection from './components/LocationSection';
 import StatsSection from './components/StatsSection';
+import visitasService from '../../services/visitasService';
 
 const LandingPage: React.FC = () => {
+    useEffect(() => {
+        void visitasService.registrarVisitaUnica();
+    }, []);
+
     return (
         <div className="landing-page">
             {/* Sección Hero */}

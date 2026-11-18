@@ -10,16 +10,19 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { LayoutContext } from '../../../layout/context/layoutcontext';
 import authService from '../../../services/authService';
+import visitasService, { VisitasEstadisticas } from '../../../services/visitasService';
 
 const EmprendedorDashboard: React.FC = () => {
     const router = useRouter();
     const { layoutConfig } = useContext(LayoutContext);
     const [mounted, setMounted] = useState(false);
+    const [visitas, setVisitas] = useState<VisitasEstadisticas | null>(null);
 
     const userInfo = authService.getUserInfo();
 
     useEffect(() => {
         setMounted(true);
+        void visitasService.obtenerEstadisticas().then(setVisitas);
     }, []);
 
     // Datos mock para las estadísticas
@@ -200,6 +203,32 @@ const EmprendedorDashboard: React.FC = () => {
                         </Card>
                     </div>
                 ))}
+                {visitas && (
+                    <div className="col-12 sm:col-6 lg:col-3">
+                        <Card className="shadow-2 border-round-lg overflow-hidden h-full">
+                            <div
+                                className="p-4"
+                                style={{
+                                    background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
+                                    color: 'white'
+                                }}
+                            >
+                                <div className="flex align-items-center justify-content-between">
+                                    <div>
+                                        <div className="text-sm opacity-90 mb-1">Visitas del sitio</div>
+                                        <div className="text-2xl font-bold">{visitas.total.toLocaleString('es-EC')}</div>
+                                        <div className="text-xs opacity-90 mt-1">
+                                            Hoy: {visitas.hoy.toLocaleString('es-EC')}
+                                        </div>
+                                    </div>
+                                    <div className="w-3rem h-3rem border-circle flex align-items-center justify-content-center" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                                        <i className="pi pi-eye text-xl"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )}
             </div>
 
             {/* Contenido principal */}
