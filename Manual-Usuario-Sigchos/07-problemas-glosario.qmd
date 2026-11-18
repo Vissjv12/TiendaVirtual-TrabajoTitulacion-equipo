@@ -1,0 +1,55 @@
+# Problemas Frecuentes y Glosario
+
+## Problemas frecuentes
+
+**No puedo iniciar sesión.**
+
+Verifique que su usuario y contraseña estén bien escritos. Si el problema continúa, solicite apoyo.
+
+**No encuentro un producto.**
+
+Use la barra de búsqueda o los filtros por categoría y emprendimiento.
+
+**El carrito no muestra el total esperado.**
+
+Revise las cantidades seleccionadas y confirme que los productos sigan disponibles.
+
+**No veo la pantalla de checkout.**
+
+Revise que tenga productos en el carrito y presione la opción para continuar con la compra.
+
+**El pago no se confirma.**
+
+Revise su conexión, espere unos segundos y vuelva a intentar el proceso.
+
+**El pedido no cambia de estado.**
+
+El estado se actualiza cuando el emprendedor registra el avance de la preparación o entrega del pedido.
+
+**No puedo ver mi factura.**
+
+Ingrese al historial o detalle de la compra y revise si la factura ya fue generada.
+
+\begin{infobox}[Soporte Técnico]
+Si ninguna de las soluciones mencionadas resuelve su inconveniente, no dude en contactar al administrador del sistema para recibir asistencia personalizada.
+\end{infobox}
+
+## Glosario básico
+
+\begin{importantbox}[Definiciones Clave]
+Entender estos términos es esencial para navegar correctamente por la plataforma y aprovechar todas sus funcionalidades comerciales.
+\end{importantbox}
+
+**Catálogo:** Listado de productos disponibles en la plataforma.
+
+**Carrito:** Espacio donde se guardan los productos antes de comprar.
+
+**Checkout:** Pantalla previa al pago, donde se revisan datos de envío, productos y total.
+
+**Pasarela de pago:** Servicio que permite realizar el cobro con tarjeta de débito o crédito.
+
+**Factura:** Comprobante generado por la compra realizada.
+
+**Logística:** Proceso de preparación, envío y entrega del pedido.
+
+**Estado del pedido:** Etapa en la que se encuentra la compra: pago aprobado, preparación, envío o entregado.

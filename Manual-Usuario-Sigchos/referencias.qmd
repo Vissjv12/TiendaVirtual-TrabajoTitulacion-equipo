@@ -1,0 +1,12 @@
+# Referencias {.unnumbered}
+
+## Documentación del Proyecto
+
+**Repositorio GitHub**
+
+- **Código Fuente:** <https://github.com/BrayanDaniel/TrabajoTitulacion>
+- **Licencia:** Trabajo de Titulación - GAD Municipal del Cantón Sigchos
+- **Autor:** Darwin Brayan Daniel Patiño
+- **Año:** 2024-2025
+
+

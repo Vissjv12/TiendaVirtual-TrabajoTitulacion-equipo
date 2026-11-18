@@ -35,3 +35,10 @@ backups/*.zip
 # Facturas generadas localmente por msvc-ventas
 facturas/
 Microservicios/msvc-ventas/facturas/
+
+/.quarto/
+**/*.quarto_ipynb
+
+# Salidas generadas del manual Quarto; se conserva únicamente el PDF final
+Manual-Usuario-Sigchos/_book/*
+!Manual-Usuario-Sigchos/_book/Manual-de-Usuario.pdf

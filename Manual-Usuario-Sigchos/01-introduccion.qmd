@@ -1,0 +1,45 @@
+# Sección Introducción 
+
+\begin{importantbox}[Objetivo Principal]
+Este manual documenta el \textbf{Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos}, una herramienta tecnológica orientada a visibilizar y comercializar los productos locales.
+\end{importantbox}
+
+## Contexto del Proyecto
+
+El sistema surge como respuesta a la necesidad de fortalecer el desarrollo económico local mediante la digitalización del comercio de los emprendedores de la zona.
+
+### Cantón Sigchos
+
+El cantón Sigchos, ubicado en la provincia de Cotopaxi, Ecuador, se caracteriza por:
+
+- Economía basada en emprendimientos locales.
+- Producción artesanal y agrícola.
+- Limitado acceso a canales de comercialización digital.
+- Necesidad de visibilizar productos locales.
+
+## Problemática
+
+Los emprendimientos del cantón Sigchos enfrentan diversos desafíos:
+
+1. **Limitada visibilidad**: Los productos artesanales y agrícolas tienen alcance reducido.
+2. **Canales tradicionales**: Dependencia de ferias y mercados físicos locales.
+3. **Acceso tecnológico**: Falta de plataformas digitales adaptadas a sus necesidades.
+4. **Competitividad**: Dificultad para competir con productos de otros sectores.
+
+## Solución Propuesta
+
+El sistema de comercio electrónico proporciona una plataforma digital que permite:
+
+- **Catálogo de productos**: Exhibición digital con filtros por categorías y empresas.
+- **Gestión de usuarios**: Sistema de autenticación segura para los usuarios.
+- **Procesamiento de pagos**: Integración con distintas formas de pago asegurando transacciones seguras.
+- **Gestión de inventario**: Control de stock de productos con trazabilidad de movimientos y alertas en caso de bajo stock.
+- **Gestión de ventas**: Seguimiento de pedidos con estados y reportes de las ventas realizadas.
+
+## Recomendaciones generales
+
+- Utilice una conexión estable a internet.
+- Ingrese datos reales y completos para evitar problemas en la compra o entrega.
+- Revise la información antes de confirmar el pedido.
+- No comparta su usuario ni contraseña.
+- Cierre sesión si utiliza la plataforma desde un equipo compartido.
