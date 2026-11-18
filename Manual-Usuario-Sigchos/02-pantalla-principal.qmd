@@ -1,72 +1,93 @@
-# Sección Pantalla Principal
+# Pantalla principal y navegación
 
 ## Vista general
 
-Esta es la pantalla principal de la plataforma \textbf{ECommerce Sigchos}, un portal digital diseñado para impulsar el comercio local en las comunidades del cantón Sigchos.
+La pantalla principal es la primera vista que aparece al ingresar al Sistema Sigchos E-Commerce. Desde esta pantalla el usuario puede conocer la plataforma, acceder al catálogo de productos, iniciar sesión, registrarse y consultar información sobre el proyecto.
 
-En la siguiente @fig-vistageneral se observa la vista inicial de la plataforma, donde se aprecian los componentes de navegación principales:
+En la @fig-vistageneral se identifican las opciones principales disponibles:
 
 ![Vista general de la página](imagenes/vistageneral.png){#fig-vistageneral}
 
-### Elementos principales visibles:
+### Elementos principales de la pantalla
 
 1. **Encabezado y logotipo**  
-    - Muestra el nombre del proyecto: **ECommerce Sigchos** con su logotipo.
-    - Se muestra la barra de navegación para las secciones de Inicio, Productos, Nosotros y Ubicación.
-    - Se muestra la barra de búsqueda para encontrar productos de manera más rápida y el ícono de carrito para acceder al carrito de compras.
-    - Se muestra los botones de Iniciar Sesión y Registrarse.
+   En la parte superior se encuentra el logotipo y el nombre de la plataforma. También se muestran las opciones de navegación:
+
+   - **Inicio**: permite regresar a la pantalla principal.
+   - **Productos**: dirige al catálogo de productos disponibles.
+   - **Nosotros**: muestra información general sobre el proyecto.
+   - **Ubicación**: permite consultar los datos de contacto y la ubicación.
+   - **Buscar productos**: permite localizar rápidamente un producto.
+   - **Carrito**: permite revisar los productos seleccionados para la compra.
+   - **Iniciar Sesión** y **Registrarse**: permiten acceder a una cuenta existente o crear una nueva.
 
 2. **Información del proyecto**  
-   - Bajo el título **“Emprendimientos y Turismo Rural”**, se describe el propósito de la plataforma: promover productos locales, ofrecer información turística actualizada y capacitar en herramientas tecnológicas a las comunidades de la región.
+   El mensaje principal **“Emprendimientos y Turismo Rural”** presenta la finalidad de la plataforma: apoyar la promoción de productos locales, difundir los atractivos turísticos y acercar herramientas digitales a las comunidades del cantón Sigchos.
 
 3. **Accesos rápidos**  
-   - **Iniciar Sesión**: Enlace para acceder al inicio de sesión de usuarios registrados.  
-   - **Conocer Mas**: Acceso a más contenido sobre los productos destacados.
+   - **Iniciar Sesión**: abre el formulario para ingresar con una cuenta registrada.
+   - **Conocer Más**: dirige a información adicional sobre el proyecto y sus servicios.
 
 4. **Secciones destacadas**  
-   - **Tienda Virtual**
-   - **Turismo Rural**
-   - **Capacitación Digital**
-   - **Población Beneficiaria**
+   Las tarjetas ubicadas en el lado derecho muestran las principales áreas relacionadas con el proyecto:
 
-### Función:
-Esta vista sirve como punto de entrada principal, desde donde los usuarios pueden:
+   - **Tienda Virtual**: productos ofrecidos por los emprendimientos locales.
+   - **Turismo Rural**: información sobre atractivos turísticos de la zona.
+   - **Capacitación Digital**: apoyo y herramientas para fortalecer los conocimientos tecnológicos.
+   - **Población Beneficiaria**: información sobre las personas a quienes beneficia el proyecto.
 
-- Navegar a las secciones clave.
-- Conocer el propósito de la plataforma.
+### ¿Qué puede hacer el usuario desde esta pantalla?
 
-## Personalización de temas
-Al presionar el ícono de configuración podemos acceder a distintas opciones para personalizar la apariencia de la plataforma. Como se observa en la @fig-temas-icon, se despliega un menú con opciones de temas:
+Desde la pantalla principal el usuario puede:
+
+- Consultar las diferentes secciones de la plataforma.
+- Buscar productos sin ingresar primero al catálogo.
+- Acceder al carrito de compras.
+- Crear una cuenta o iniciar sesión.
+- Conocer información sobre el proyecto y sus servicios.
+
+## Personalización de la apariencia
+
+El sistema cuenta con un menú de configuración que permite adaptar algunos elementos visuales de la plataforma según las preferencias del usuario. Para abrirlo, se debe seleccionar el ícono de configuración ubicado en la esquina inferior derecha de la pantalla.
+
+En la @fig-temas-icon se muestra el acceso al menú de personalización.
 
 \begin{importantbox}[Personalización]
-El usuario puede cambiar el color principal de la interfaz y alternar entre modo claro y oscuro para mejorar su experiencia visual.
+La personalización modifica únicamente la apariencia de la plataforma en el dispositivo del usuario. No cambia los productos, la cuenta ni la información de las compras.
 \end{importantbox}
 
 ![Selección Ícono de Configuración](imagenes/personalizaciontemas1.png){#fig-temas-icon}
 
-Opciones que contiene:
+### Opciones disponibles
 
-- Opción alternar temas con distintas paletas de colores para la aplicación.
-- Opción para alternar temas entre claro y oscuro.
-- Demás preferencias de visualización como tamaño de escala.
+El panel permite seleccionar diferentes preferencias visuales, entre ellas:
+
+- Diferentes combinaciones de colores para la interfaz.
+- Modo claro o modo oscuro.
+- Tamaño general de los elementos de la pantalla.
+- Diferentes estilos de menú y presentación.
+
+Para aplicar una opción, el usuario debe seleccionar la alternativa que prefiera dentro del panel. Los cambios se reflejan en la interfaz de la plataforma.
 
 En la @fig-temas-panel se ilustra el panel completo de opciones de personalización:
 
 ![Opciones de Personalización de temas](imagenes/personalizaciontemas.png){#fig-temas-panel}
 
-## Sección "Sobre Nosotros"
+## Sección “Sobre Nosotros”
 
-Presenta los objetivos y valores del proyecto **ECommerce Sigchos**, junto con métricas de impacto y garantías de servicio para los usuarios.
+La sección **Sobre Nosotros** presenta información sobre el propósito del Sistema Sigchos E-Commerce, su aporte a los emprendimientos locales y los principios que orientan su funcionamiento.
 
 Esta sección permite:
 
-- Comprender la misión y el alcance social del proyecto.
-- Confiar en la experiencia y escala de operaciones.
-- Conocer las garantías de seguridad, envío, devoluciones y soporte.
-- Identificar los valores que guían la plataforma.
+- Conocer la finalidad del proyecto.
+- Comprender cómo la plataforma apoya a los emprendimientos del cantón Sigchos.
+- Revisar información sobre la seguridad de las compras.
+- Conocer las condiciones de envío y devoluciones.
+- Consultar las opciones de soporte disponibles.
+- Identificar los valores que guían el trabajo de la plataforma.
 
-\begin{infobox}[Valores del GAD]
-El proyecto busca la transparencia y la confianza del usuario mediante la exposición clara de sus garantías y misión social.
+\begin{infobox}[Información del proyecto]
+La sección Sobre Nosotros permite conocer mejor el propósito de la plataforma y los servicios que ofrece a sus usuarios.
 \end{infobox}
 
 En la @fig-sobrenosotros se muestra el aspecto visual de la sección informativa:
@@ -75,14 +96,18 @@ En la @fig-sobrenosotros se muestra el aspecto visual de la sección informativa
 
 ## Productos destacados
 
-Muestra una selección especial de productos locales más populares, elaborados por emprendedores de las comunidades de Sigchos. Los productos destacados son una parte central del catálogo del ecommerce.
+La pantalla principal incluye una selección de productos destacados. Esta sección permite al usuario conocer algunos productos locales sin tener que revisar todo el catálogo.
 
-Esta sección permite al usuario:
+Cada tarjeta muestra información básica del producto, como:
 
-- Explorar los productos más populares y representativos de la región.
-- Conocer las características básicas de cada producto destacado.
-- Identificar rápidamente ofertas especiales o productos emblemáticos.
-- Agregar los productos destacados al carrito de compras de una manera más rápida.
+- Nombre del producto.
+- Categoría.
+- Empresa o emprendimiento que lo ofrece.
+- Descripción breve.
+- Precio.
+- Disponibilidad.
+
+Cuando el producto tiene existencias, el usuario puede seleccionar **Agregar** para incorporarlo directamente al carrito de compras. Si el producto no está disponible, el botón de compra aparecerá deshabilitado.
 
 Como se observa en la @fig-productosdestacados, se detallan las tarjetas de los productos en la vista principal:
 
@@ -90,13 +115,30 @@ Como se observa en la @fig-productosdestacados, se detallan las tarjetas de los 
 
 ## Ubicación y contacto
 
-Proporciona toda la información necesaria para que los usuarios puedan localizar físicamente la oficina o contactar directamente con el equipo de atención. Incluye datos de ubicación, horarios de atención, acceso rápido a las redes sociales y un formulario de contacto que debe ser llenado con tu Nombre Completo, tu Email y el Mensaje que desees enviar. En la @fig-ubicacion se observa la apariencia del formulario:
+La sección de ubicación y contacto permite consultar la información del GAD Municipal del Cantón Sigchos y comunicarse con el equipo responsable de la plataforma.
+
+El usuario puede encontrar:
+
+- Dirección de la oficina.
+- Números telefónicos.
+- Correos electrónicos de contacto.
+- Horarios de atención.
+- Enlaces a redes sociales.
+- Formulario para enviar un mensaje.
+
+Para utilizar el formulario de contacto, el usuario debe ingresar su nombre completo, correo electrónico y mensaje. Luego debe seleccionar **Enviar Mensaje**.
+
+En la @fig-ubicacion se muestra la información de contacto y el formulario:
 
 ![Ubicación y Formulario de contacto](imagenes/ubicacionycontacto.png){#fig-ubicacion}
 
 ## Nuestra ubicación
 
-Proporciona la ubicación exacta en el mapa del Gobierno Autónomo Descentralizado Municipal del cantón Sigchos. Como se observa en la @fig-mapa, se dispone de un mapa interactivo integrado en la plataforma:
+La opción **Nuestra Ubicación** muestra en un mapa interactivo la ubicación del GAD Municipal del Cantón Sigchos.
+
+El mapa permite consultar visualmente la zona y utilizar las opciones disponibles para acercar, alejar o desplazarse por el mapa. Esta información puede ser útil para quienes necesiten visitar las oficinas o identificar el lugar de atención.
+
+En la @fig-mapa se muestra el mapa integrado en la plataforma:
 
 ![Nuestra ubicación](imagenes/nuestraubicacion.png){#fig-mapa}
 

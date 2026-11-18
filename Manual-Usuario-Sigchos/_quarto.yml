@@ -6,7 +6,9 @@ book:
   title: "Guía de uso del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos"
   subtitle: "Sistema Sigchos E-Commerce"
   author:
-    - name: "Erick Moreira"
+    - name: "Jordy Viscaíno Anthony Tapia"
+    - name: "Alfonso Alejandro Arroyo Paredes"
+    - name: "Christian Mateo Bonifaz Vásquez"
   date: today
   date-format: "D MMMM YYYY"
   cover-image: "imagenes/sigchos1.png"

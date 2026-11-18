@@ -1,17 +1,23 @@
-# Sección Productos
+# Consulta de productos
 
 ## Todos los productos
 
-Se presenta el catálogo completo de productos disponibles en **ECommerce Sigchos**, permitiendo a los usuarios explorar, filtrar y seleccionar productos según sus preferencias. La interfaz está dividida en dos áreas principales: los filtros de búsqueda y la visualización principal de todos los productos.
+Para ingresar al catálogo, desde la pantalla principal se debe seleccionar la opción **Productos** ubicada en la barra de navegación. La @fig-boton-productos muestra el botón de acceso:
+
+![Botón Productos](imagenes_nuevas/Boton_productos.png){#fig-boton-productos}
+
+Al seleccionar esta opción se abrirá la pantalla con todos los productos disponibles en el Sistema Sigchos E-Commerce. En esta sección el usuario puede consultar los productos, utilizar filtros y seleccionar los artículos que desea agregar al carrito.
+
+La pantalla está dividida en dos áreas principales: el panel de filtros y el área de visualización de productos.
 
 1. **Área de filtros (lado izquierdo)**
-   - **Buscar por nombre, descripción...**: Puede ingresar palabras clave y filtrar productos por nombre o descripción.
-   - **Seleccionar categoría**: Menú desplegable para filtrar por categorías de productos.
-   - **Seleccionar empresa**: Menú desplegable para filtrar por emprendedor o empresa productora
-   - **Botón "Limpiar filtros"**: Restablece todos los filtros aplicados para ver el catálogo completo
+   - **Buscar por nombre o descripción**: permite ingresar una palabra o frase para localizar productos relacionados.
+   - **Seleccionar categoría**: permite mostrar únicamente los productos de una categoría determinada.
+   - **Seleccionar empresa**: permite filtrar los productos según el emprendimiento o empresa que los ofrece.
+   - **Limpiar filtros**: elimina los criterios seleccionados y muestra nuevamente el catálogo completo.
 
 \begin{infobox}[Navegación]
-Utilizar los filtros por categoría permite encontrar productos específicos de manera más ágil, optimizando el tiempo de compra.
+Los filtros permiten encontrar productos específicos de manera más rápida, especialmente cuando el catálogo contiene muchos artículos.
 \end{infobox}
 
 Como se observa en la @fig-filtros-izq, el panel de filtros se ubica en el lateral izquierdo para facilitar el acceso:
@@ -20,23 +26,25 @@ Como se observa en la @fig-filtros-izq, el panel de filtros se ubica en el later
 
 2. **Área de productos (lado derecho)**
 
-   **Grid o lista de productos: Visualización organizada de productos con:** 
-    - Imagen del producto
-    - Nombre del producto
-    - Breve descripción o características principales
-    - Precio
-    - Stock del producto
-    - Botón "Agregar al carrito"
+   Los productos se muestran en tarjetas que incluyen:
 
-Al lado derecho también podemos observar un menú desplegable que sirve para filtrar productos por:
+   - Imagen del producto.
+   - Nombre del producto.
+   - Descripción breve o características principales.
+   - Categoría y empresa que lo ofrece.
+   - Precio.
+   - Cantidad disponible.
+   - Botón **Agregar** para añadirlo al carrito.
 
-   - Nombre: A-Z
-   - Nombre: Z-A
-   - Precio menor a mayor
-   - Precio mayor a menor
+En la parte superior derecha se encuentra un menú desplegable para ordenar los productos por:
+
+   - Nombre, de A a Z.
+   - Nombre, de Z a A.
+   - Precio de menor a mayor.
+   - Precio de mayor a menor.
 
 \begin{importantbox}[Disponibilidad]
-El stock se actualiza en tiempo real. Si un producto no tiene stock disponible, el botón de agregar al carrito se desactivará automáticamente.
+La disponibilidad se muestra en cada tarjeta. Si un producto no tiene existencias, el sistema lo identifica como no disponible y desactiva el botón para agregarlo al carrito.
 \end{importantbox}
 
 En la @fig-productos-grid se observa la disposición de los productos y las opciones de ordenamiento:
@@ -45,7 +53,9 @@ En la @fig-productos-grid se observa la disposición de los productos y las opci
 
 ## Filtrado y búsqueda
 
-Muestra un ejemplo práctico del sistema de filtrado y búsqueda en acción dentro del catálogo de productos. Por ejemplo se realiza una búsqueda de productos yogurt, aplicando filtros para refinar los resultados. En la @fig-busqueda-ejemplo se observa el resultado de una búsqueda filtrada:
+El usuario puede combinar la búsqueda por texto con los filtros de categoría y empresa. Por ejemplo, puede escribir “yogurt”, seleccionar la categoría **Lácteos** y elegir una empresa para mostrar únicamente los productos que cumplen con esos criterios.
+
+En la @fig-busqueda-ejemplo se observa un ejemplo de búsqueda y filtrado:
 
 ![Filtrado y búsqueda](imagenes/filtradoybusqueda.png){#fig-busqueda-ejemplo}
 

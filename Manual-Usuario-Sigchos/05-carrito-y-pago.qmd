@@ -1,25 +1,31 @@
-# Sección Carrito y Proceso de Pago
+# Carrito y proceso de compra
 
 ## Agregar producto al carrito
 
-El usuario debe pulsar el botón "Agregar" para añadir el producto al carrito de compras. En la @fig-agregar-carrito se observa una confirmación visual de que el producto fue agregado correctamente:
+Para comprar un producto es necesario iniciar sesión en el sistema. Los usuarios que no hayan iniciado sesión podrán consultar el catálogo, pero deberán ingresar a su cuenta antes de agregar productos al carrito o continuar con la compra.
+
+Después de iniciar sesión, el usuario debe localizar el producto que desea adquirir y seleccionar el botón **Agregar**. El sistema mostrará una confirmación visual indicando que el producto fue añadido correctamente al carrito.
+
+En la @fig-agregar-carrito se observa la confirmación después de agregar un producto:
 
 ![Agregar al carrito](imagenes/agregarproductocarrito.png){#fig-agregar-carrito}
 
 ## Gestión del carrito
 
-Una vez agregado todos los productos, se puede dar el click en el ícono del carrito donde se va a mostrar la página del carrito de compras del usuario con todos los productos seleccionados. Como se observa en la @fig-seleccion-carrito, el ícono se encuentra en la parte superior derecha:
+Después de agregar los productos, el usuario puede seleccionar el ícono del carrito ubicado en la parte superior derecha. Esta opción abre el carrito de compras y muestra todos los productos seleccionados.
+
+Como se observa en la @fig-seleccion-carrito, el ícono del carrito se encuentra en el encabezado de la plataforma:
 
 ![Selección del carrito de compras](imagenes/seleccioncarrito.png){#fig-seleccion-carrito}
 
-Una vez accedido a nuestor carrito podemos:
+Desde el carrito de compras el usuario puede:
 
 - Revisar todos los productos agregados al carrito.
 - Verificar el resumen de costos (subtotal, impuestos, envío, total).
 - Modificar cantidades, eliminar productos o vaciar carrito.
-- Proceder al proceso de pago seguro.
-- Continuar comprando agregando más productos.
-- Vaciar el carrito.
+- Proceder al proceso de pago.
+- Continuar comprando y agregar más productos.
+- Vaciar todo el carrito.
 
 \begin{infobox}[Resumen de Compra]
 Verifique siempre el total del pedido antes de proceder al pago para asegurar que las cantidades y productos sean los deseados.
@@ -112,33 +118,46 @@ Se muestra la confirmación exitosa del pago y se proporciona al usuario su núm
 
 ## Pasarela de Pagos Payphone
 
-Para garantizar la seguridad en las transacciones con tarjeta de crédito, débito o mediante la app móvil, la plataforma integra la pasarela de pagos oficial de **Payphone**. Al ser una integración directa, ningún dato bancario sensible pasa por nuestros servidores.
+La plataforma ofrece diferentes formas de pago para que el usuario pueda seleccionar la alternativa que prefiera. En la @fig-metodos-pago se muestran las opciones disponibles durante la fase de pago:
 
-### Selección del Método de Pago
+![Métodos de pago disponibles](imagenes_nuevas/Metodos_Pago.png){#fig-metodos-pago}
 
-Durante el proceso de revisión de compra (Fase 2), el sistema mostrará las opciones de pago disponibles. Al seleccionar **Payphone**, la opción se resaltará con un recuadro de color naranja, indicando que el pago será procesado por esta vía segura.
+Entre las opciones disponibles se encuentran **Transferencia Bancaria**, **Payphone** y **Deuna**. Cada alternativa presenta instrucciones y campos diferentes para completar y verificar el pago.
 
-Como se observa en la @fig-payphone-selector, el usuario selecciona Payphone entre las alternativas:
+### Selección del método de pago
 
-![Selector de Métodos de Pago con Payphone](imagenes/payphone-selector.png){#fig-payphone-selector}
+Durante el proceso de pago, el usuario debe seleccionar la opción que desea utilizar. Para pagar mediante Payphone, debe seleccionar la tarjeta correspondiente a **Payphone**. La alternativa seleccionada se resaltará para indicar que está activa.
 
-### Renderizado del Botón de Pago
+En la @fig-payphone-selector se observa Payphone seleccionado entre los métodos disponibles:
 
-Una vez seleccionado el método, el sistema cargará de forma automática el botón oficial de Payphone, el cual ofrece las alternativas de pagar con tarjeta (Visa, Mastercard) o directamente a través de la aplicación móvil de Payphone (App).
+![Selección de Payphone](imagenes_nuevas/Eleccion_Payphone.png){#fig-payphone-selector}
 
-En la @fig-payphone-boton se visualiza el botón interactivo incrustado en el carrito:
+### Pantalla de pago con Payphone
 
-![Botón de Payphone Renderizado](imagenes/payphone-boton.png){#fig-payphone-boton}
+Después de seleccionar Payphone, el sistema muestra una pantalla desde la cual el usuario puede elegir entre pagar con la aplicación móvil de Payphone o pagar con tarjeta.
 
-### Interfaz Segura de Payphone (Cajita de Pagos)
+En la @fig-payphone-pantalla se observan las dos alternativas disponibles:
 
-Al pulsar el botón de pago, se desplegará una ventana segura (modal) proporcionada directamente por Payphone. En esta ventana emergente, el cliente podrá ingresar de manera totalmente confidencial los datos de su tarjeta o su número de celular para usar la app móvil.
+![Pantalla de pago con Payphone](imagenes_nuevas/Pantalla_Payphone_tarjeta.png){#fig-payphone-pantalla}
 
-En la @fig-payphone-interfaz se observa el entorno seguro donde se completan los datos financieros:
+- **Pagar con app Payphone**: permite continuar el pago utilizando la aplicación móvil.
+- **Pagar con tarjeta**: permite ingresar los datos de una tarjeta aceptada por Payphone.
 
-![Interfaz Segura de Pago de Payphone](imagenes/payphone-interfaz.png){#fig-payphone-interfaz}
+Al seleccionar una de las alternativas, se abrirá la pantalla correspondiente para completar la información del pago:
 
-### Estados de Confirmación de Pago
+![Opciones de pago en Payphone](imagenes_nuevas/Pantalla_Payphone.png){#fig-payphone-opciones}
+
+### Interfaz segura de Payphone
+
+La interfaz de Payphone se carga en un entorno seguro para completar la transacción. Según la alternativa seleccionada, el usuario podrá ingresar los datos de su tarjeta o el número de celular asociado a la aplicación Payphone.
+
+En la @fig-payphone-interfaz se observa la opción de Payphone seleccionada antes de continuar con el pago:
+
+![Interfaz de pago de Payphone](imagenes_nuevas/Eleccion_Payphone.png){#fig-payphone-interfaz}
+
+El usuario debe revisar el monto mostrado y completar únicamente los datos solicitados por Payphone. La información de pago se ingresa directamente en la interfaz de la pasarela.
+
+### Estados de confirmación de pago
 
 Una vez que el cliente autoriza y envía el pago en la pasarela, será redirigido automáticamente a nuestra tienda, donde se evaluará la transacción en tiempo real:
 
@@ -183,5 +202,76 @@ Estados que puede visualizar el cliente:
 - **Entregado:** el pedido llegó al cliente.
 
 De esta manera, el cliente puede conocer todo el proceso de su pedido sin tener que comunicarse directamente con el emprendedor.
+
+## Pagos por transferencia bancaria
+
+La opción de **Transferencia Bancaria** permite realizar el pago desde la cuenta bancaria del usuario hacia una de las cuentas registradas por el emprendimiento o la institución. Después de realizar la transferencia, el usuario debe registrar los datos de la operación y enviar el comprobante para que el pago pueda ser revisado.
+
+### Selección del método de pago
+
+En la pantalla de métodos de pago, el usuario debe seleccionar **Transferencia Bancaria**. La opción seleccionada se resaltará y el sistema mostrará las instrucciones y el formulario correspondiente.
+
+En la @fig-eleccion-transferencia se muestra la selección de este método:
+
+![Selección de transferencia bancaria](imagenes_nuevas/Eleccion_Transferencia.png){#fig-eleccion-transferencia}
+
+### Cuentas bancarias disponibles y registro del pago
+
+Después de seleccionar la transferencia bancaria, el sistema mostrará las cuentas disponibles y el formulario para registrar la operación. En la @fig-renderizado-transferencia se observan ambas partes:
+
+![Cuentas y formulario de transferencia bancaria](imagenes_nuevas/Renderizado_Transferencia.png){#fig-renderizado-transferencia}
+
+1. **Nuestras cuentas**
+
+   En esta sección se muestran las cuentas bancarias disponibles para realizar la transferencia. El usuario debe utilizar los datos de una de estas cuentas y conservar el comprobante de la operación.
+
+2. **Formulario de pago**
+
+   El formulario permite informar al sistema que la transferencia fue realizada. Para completarlo, el usuario debe:
+
+   - Seleccionar el banco desde el cual realizó la transferencia.
+   - Ingresar el número de la cuenta de origen.
+   - Ingresar el número de referencia o comprobante de la transferencia.
+   - Adjuntar una imagen o PDF del comprobante, de forma opcional, para facilitar la verificación.
+
+   El archivo adjunto puede ser una imagen PNG o JPG, o un documento PDF, con un tamaño máximo de 5 MB. Los botones **Seleccionar archivo** y **Cancelar** permiten cargar o retirar el comprobante antes de enviar la información.
+
+   El pedido será procesado después de que el equipo responsable verifique la transferencia. Esta verificación puede tardar normalmente hasta 24 horas.
+
+## Pagos con Deuna
+
+La opción de **Deuna** permite pagar mediante la aplicación móvil de Deuna utilizando un código QR. El usuario debe tener instalada la aplicación en su dispositivo móvil y contar con una cuenta habilitada para realizar el pago.
+
+### Selección del método de pago
+
+En la pantalla de métodos de pago, el usuario debe seleccionar **Deuna**. Una vez seleccionada la opción, el sistema mostrará el código QR y las instrucciones para completar la operación.
+
+En la @fig-eleccion-deuna se muestra la selección de Deuna:
+
+![Selección de Deuna](imagenes_nuevas/Eleccion_deuna.png){#fig-eleccion-deuna}
+
+### Código QR y formulario de confirmación
+
+Al seleccionar Deuna, el sistema genera un código QR asociado al pedido. El usuario debe abrir la aplicación Deuna en su teléfono móvil, elegir la opción para escanear un código QR y apuntar la cámara hacia el código mostrado en la pantalla.
+
+Después de confirmar el pago desde la aplicación, el usuario debe completar el formulario de verificación que aparece debajo del código QR:
+
+1. **Código QR de Deuna**
+
+   El código debe escanearse utilizando la aplicación móvil de Deuna. Desde la aplicación se confirma el monto y se autoriza la transferencia.
+
+2. **Formulario de confirmación**
+
+   El formulario permite registrar los datos de la operación para que el equipo responsable pueda verificarla. El usuario debe ingresar:
+
+   - Número de cuenta de origen.
+   - Número de referencia o comprobante generado por Deuna.
+   - Comprobante de pago, de forma opcional, en formato PNG, JPG o PDF, con un tamaño máximo de 5 MB.
+
+En la @fig-qr-deuna se observan el código QR, las instrucciones de pago y el formulario de confirmación:
+
+![Código QR y formulario de confirmación de Deuna](imagenes_nuevas/QR_Deuna.png){#fig-qr-deuna}
+
+El pedido será procesado una vez que el pago sea verificado. El usuario debe conservar el comprobante de la operación hasta finalizar la validación.
 
 Estos son todos los pasos para realizar compras de manera exitosa y segura dentro de la plataforma de Comercio Electrónico para los Emprendimientos del Cantón Sigchos.

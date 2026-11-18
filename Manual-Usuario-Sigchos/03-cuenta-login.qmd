@@ -1,8 +1,14 @@
-# Sección Gestión de Cuenta: Registro y Login
+# Gestión de cuenta: registro e inicio de sesión
 
 ## Creación de cuenta
 
-Permite a los nuevos usuarios registrarse en la plataforma **ECommerce Sigchos** para acceder a distintas funcionalidades del sistema, como realizar compras y gestionar pedidos.
+Permite a los nuevos usuarios registrarse en el Sistema Sigchos E-Commerce para acceder a las funciones disponibles para clientes, como consultar productos, realizar compras y gestionar pedidos.
+
+Para ingresar al formulario de registro, desde la pantalla principal se debe seleccionar el botón **Registrarse**, ubicado en la parte superior derecha de la pantalla. La @fig-boton-registro muestra la ubicación de este botón:
+
+![Botón Registrarse](imagenes_nuevas/Boton_registro.png){#fig-boton-registro}
+
+Después de seleccionar **Registrarse**, se abrirá el formulario de creación de cuenta.
 
 1. **Campos del formulario de registro**  
    - **Información personal**:
@@ -31,35 +37,58 @@ En la @fig-creacioncuenta se observa el formulario de registro con los campos ob
 
 ## Inicio de sesión
 
-Permite a los usuarios registrados acceder a su cuenta personal en la plataforma **ECommerce Sigchos** para gestionar compras, consultar pedidos, calificar productos, ver historial y guardar favoritos.
+Permite a los usuarios registrados acceder a su cuenta personal en el Sistema Sigchos E-Commerce para gestionar compras, consultar pedidos, calificar productos, ver el historial y guardar favoritos.
 
-1. **Formulario de inicio de sesión**  
-   - **Campo "Usuario"**: Para ingresar el nombre de usuario registrado (ejemplo: "eri1").
-   - **Campo "Contraseña"**: Para ingresar la contraseña asociada a la cuenta (es mostrada con puntos por seguridad).
-   - **Casilla de verificación**: **"Recordar mi usuario"**: Opción para recordar el usuario y no volverlo a ingresar siempre.
+Para ingresar al formulario de inicio de sesión, desde la pantalla principal se debe seleccionar el botón **Iniciar Sesión**. La @fig-boton-inicio-sesion muestra la ubicación del botón:
 
-3. **Botones de acción principal**  
-   - **Iniciar Sesión**: Botón para enviar las credenciales y acceder a la cuenta
-   - **Volver al Inicio**: Botón para regresar a la página principal
+![Botón Iniciar Sesión](imagenes_nuevas/Boton_inicio_sesion.png){#fig-boton-inicio-sesion}
 
-4. **Enlaces de recuperación y registro**  
-   - **¿Olvidaste tu contraseña?**: Enlace para recuperar o restablecer la contraseña en caso de olvido
-   - **Crear cuenta**: Enlace para redirigir a nuevos usuarios al formulario de registro
+Una vez seleccionado el botón, se mostrará la pantalla de acceso.
 
-5. **Pie de página institucional**  
-   - **"© 2025 ECommerce Sigchos - Proyecto ESPE"**: Información de derechos de autor y afiliación institucional
+1. **Formulario de inicio de sesión**
+
+   - **Campo “Usuario”**: permite ingresar el nombre de usuario registrado.
+   - **Campo “Contraseña”**: permite ingresar la contraseña asociada a la cuenta. Por seguridad, los caracteres se muestran ocultos.
+
+2. **Botones de acción principal**
+
+   - **Recordar mi usuario**: permite guardar el nombre de usuario en el dispositivo para no tener que escribirlo nuevamente en futuros accesos. Esta opción debe utilizarse únicamente en dispositivos personales o de confianza.
+   - **Iniciar Sesión**: envía los datos ingresados y permite acceder a la cuenta cuando las credenciales son correctas.
+   - **Volver al Inicio**: regresa a la pantalla principal sin iniciar sesión.
+
+3. **Inicio de sesión con Google**
+
+   Si el usuario tiene una cuenta de Gmail, puede utilizar la opción de acceso con Google. Para hacerlo:
+
+   - Seleccione la opción **Continuar como** o el botón de Google que aparece debajo del botón **Iniciar Sesión**.
+   - Seleccione la cuenta de Gmail que desea utilizar.
+   - Si Google solicita autorización, revise la información y permita continuar.
+   - Al finalizar, el sistema validará la cuenta y dirigirá al usuario a la plataforma con su sesión iniciada.
+
+   Esta opción permite ingresar sin escribir manualmente el usuario y la contraseña del sistema. El correo utilizado debe corresponder a la cuenta de Google que el usuario desea asociar con su acceso.
+
+4. **Enlaces de recuperación y registro**
+
+   - **¿Olvidaste tu contraseña?**: permite iniciar el proceso para recuperar o restablecer la contraseña.
+   - **Crear cuenta**: dirige a los nuevos usuarios al formulario de registro.
+
+5. **Pie de página institucional**
+
+   - **“© 2026 ECommerce Sigchos - Proyecto ESPE”**: muestra la información institucional y los derechos de autor del sistema.
 
 \begin{importantbox}[Seguridad]
 Nunca comparta su contraseña con terceros. El sistema cifra automáticamente sus credenciales para proteger su privacidad.
 \end{importantbox}
 
-Como se observa en la @fig-iniciodesesion, el formulario de acceso es sencillo y directo:
+Como se observa en la @fig-iniciodesesion, la pantalla de acceso reúne el formulario tradicional, la opción de recordar el usuario, el acceso con Google y los enlaces de ayuda:
 
-![Inicio de sesión](imagenes/iniciodesesion.png){#fig-iniciodesesion}
+![Pantalla de inicio de sesión](imagenes_nuevas/Pantalla_inicio_sesion.png){#fig-iniciodesesion}
 
 ## Mi cuenta
 
-Una vez iniciada la sesión en la página principal se activa el botón "Mi cuenta" para visualizar datos de mi cuenta como el correo electrónico, mi nombre de usuario, mi ID de usuario y las funcionalidades a las que tengo acceso. En la @fig-micuenta se observa el panel de información del usuario:
+Una vez iniciada la sesión, en la pantalla principal se activa el botón **Mi Cuenta**. Al seleccionarlo, el usuario puede consultar información de su perfil, como el correo electrónico, el nombre de usuario, el ID de usuario y las funcionalidades disponibles.
 
-![Mi cuenta](imagenes/micuenta.png){#fig-micuenta}
+En la @fig-micuenta se observa el panel de información del usuario:
+
+![Mi cuenta](imagenes_nuevas/Pantalla_mi_cuenta.png){#fig-micuenta}
 
