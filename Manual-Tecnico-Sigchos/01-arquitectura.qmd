@@ -1,0 +1,47 @@
+# Arquitectura del sistema
+
+## Vista lógica
+
+El frontend Next.js envía las peticiones a un punto de entrada Nginx. El Gateway enruta cada API hacia el microservicio responsable. Los microservicios mantienen sus propios esquemas MySQL. Redis/Valkey es una dependencia opcional de lectura del microservicio de Producto para el catálogo; no es la fuente de verdad de los datos.
+
+```{mermaid}
+%%| label: fig-arquitectura
+%%| fig-cap: "Arquitectura lógica y almacenes usados por los componentes principales."
+flowchart TB
+  client[Usuario o navegador] --> frontend[Frontend Next.js<br/>puerto 3000]
+  frontend --> edge[Entrada de solicitudes<br/>Nginx con TLS 444 en producción<br/>Gateway Docker 8080 en local]
+  edge --> services[Microservicios Spring Boot<br/>Autenticación 8084 · Producto 8081<br/>Inventario 8082 · Ventas 8083]
+  services --> data[MySQL por esquemas<br/>auth_service · productos<br/>inventario · ventas]
+  services -. Solo catálogo: caché opcional .-> cache[Redis o Valkey]
+```
+
+La figura es una vista lógica, no un inventario de máquinas. En la plantilla de producción, Nginx reenvía a servicios locales en sus puertos internos; en el entorno local existe además un Gateway Docker que escucha en 8080 por defecto. Eureka, en el puerto 8761, aparece en la configuración local de microservicios. La topología, direcciones y puertos reales se deben validar en el despliegue activo.
+
+## Componentes
+
+| Componente | Responsabilidad técnica | Puerto configurado en el repositorio |
+|---|---|---:|
+| Frontend Next.js | Presenta pantallas y crea solicitudes HTTP al API Gateway mediante las rutas configuradas. | 3000 |
+| Nginx / API Gateway | Termina TLS en la plantilla de producción, aplica reglas perimetrales y enruta APIs. | 444 en producción; 8080 para el Gateway local por defecto |
+| login / servicio de autenticación | Valida el acceso y trabaja con el esquema de autenticación. | 8084 |
+| msvc-producto | Productos, categorías y empresas; también registra y consulta el contador agregado de visitas. | 8081 |
+| msvc-inventario | Consulta y administra cantidades de inventario. | 8082 |
+| msvc-ventas | Ventas, pagos y procesos asociados. | 8083 |
+| Eureka Server | Registro de servicios usado por la configuración local de microservicios. | 8761 |
+| MySQL | Persistencia relacional separada por esquema de servicio. | 3306 en las propiedades revisadas |
+| Redis/Valkey | Caché opcional para lecturas aprobadas del catálogo. | 6379 por defecto en propiedades |
+
+Los nombres de servicio y los puertos proceden de las propiedades Spring y de la plantilla Nginx del repositorio. El archivo de inicio antiguo todavía menciona PostgreSQL; para esta versión del sistema, las propiedades vigentes de los microservicios configuran MySQL.
+
+## Entrada y enrutamiento de peticiones
+
+En producción el navegador usa el mismo origen HTTPS de la tienda. Nginx reenvía las rutas de productos, categorías, empresas y visitas a msvc-producto; las rutas de inventario y movimientos a msvc-inventario; las rutas de ventas y pagos a msvc-ventas; y las rutas de autenticación al servicio de login.
+
+En desarrollo, Next.js puede reescribir rutas del frontend hacia el Gateway mediante GATEWAY_INTERNAL_URL o NEXT_PUBLIC_GATEWAY_URL. No se debe configurar el navegador para llamar directamente a puertos internos de microservicios.
+
+## Límites de confianza
+
+- MySQL es la fuente persistente para cuentas, catálogo, inventario, ventas y visitas agregadas.
+- Redis/Valkey es una caché; los flujos críticos deben conservar la fuente de datos y las reglas de autorización.
+- Nginx bloquea en el borde público las rutas de Actuator y Swagger configuradas como internas.
+- Los secretos de JWT, MySQL, Redis y pasarelas de pago se inyectan por el entorno y no pertenecen a los manuales ni al repositorio.

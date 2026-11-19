@@ -1,0 +1,635 @@
+/* Copiado desde manual técnico para mantener estilos visuales */
+/*-- scss:defaults --*/
+
+/* Colores del Municipio de Sigchos - Actualizado */
+$municipio-verde: #31c090; /* Verde institucional */
+$municipio-blanco: #FFFFFF;
+$municipio-verde-claro: #5fd4ab; /* Verde claro derivado */
+$municipio-verde-oscuro: #28a077; /* Verde oscuro derivado */
+$municipio-verde-muy-claro: #e8f9f3; /* Verde muy claro para fondos */
+
+/* Aplicar colores al tema */
+$primary: $municipio-verde;
+$secondary: $municipio-verde-claro;
+$link-color: $municipio-verde;
+$body-bg: $municipio-blanco;
+$body-color: #000000; /* Texto en NEGRO */
+
+/*-- scss:rules --*/
+
+/* === RESPONSIVE BASE === */
+* {
+  box-sizing: border-box;
+}
+
+/* Fondo de la página principal con gradiente verde/blanco - RESPONSIVE */
+body {
+  background: linear-gradient(135deg, $municipio-blanco 0%, $municipio-verde-muy-claro 100%);
+  background-attachment: fixed;
+  color: #000000;
+  overflow-x: hidden;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+}
+
+/* Contenedor principal con fondo blanco - RESPONSIVE */
+#quarto-content {
+  background-color: $municipio-blanco;
+  border-left: 5px solid $municipio-verde;
+  border-right: 5px solid $municipio-verde;
+  box-shadow: 0 0 30px rgba(49, 192, 144, 0.2);
+  color: #000000;
+  padding: 1rem;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  #quarto-content {
+    border-left: 3px solid $municipio-verde;
+    border-right: 3px solid $municipio-verde;
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  #quarto-content {
+    border-left: 2px solid $municipio-verde;
+    border-right: 2px solid $municipio-verde;
+    padding: 0.5rem;
+  }
+}
+
+/* Sidebar de navegación (menú capítulos) - FIXED a la DERECHA */
+.sidebar,
+#quarto-sidebar,
+.sidebar-menu-container,
+nav#quarto-sidebar,
+.sidebar-navigation {
+  background: linear-gradient(180deg, $municipio-verde 0%, $municipio-verde-claro 100%) !important;
+  overflow-y: auto;
+  height: 100vh;
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 250px !important;
+  z-index: 100 !important;
+  padding: 1rem;
+  border-left: 3px solid $municipio-blanco;
+}
+
+/* Asegurar que todos los elementos del sidebar sean visibles */
+.sidebar *,
+#quarto-sidebar *,
+.sidebar-menu-container *,
+.sidebar-navigation * {
+  color: $municipio-blanco !important;
+  visibility: visible !important;
+}
+
+/* Mejorar el estilo del menú de navegación */
+.sidebar-navigation a,
+#quarto-sidebar a,
+.sidebar a,
+.sidebar-menu a,
+.sidebar-item a {
+  color: $municipio-blanco !important;
+  font-weight: 500;
+  padding: 0.7rem 1rem;
+  word-wrap: break-word;
+  display: block !important;
+  text-decoration: none;
+  margin: 0.3rem 0;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.sidebar-navigation a:hover,
+#quarto-sidebar a:hover,
+.sidebar a:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: $municipio-blanco !important;
+  border-left: 3px solid $municipio-blanco;
+  padding-left: 1.2rem;
+}
+
+/* Estilo para elementos activos */
+.sidebar-navigation a.active,
+#quarto-sidebar a.active,
+.sidebar a.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-left: 3px solid $municipio-blanco;
+  font-weight: 600;
+}
+
+/* Ocultar numeración automática si existe */
+.sidebar .sidebar-item-number,
+#quarto-sidebar .sidebar-item-number {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.sidebar-title,
+#quarto-sidebar .sidebar-title {
+  color: $municipio-blanco !important;
+  border-bottom: 2px solid $municipio-blanco;
+  font-weight: bold;
+  padding: 0.7rem 1rem;
+  display: block !important;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+/* Sidebar navegación responsive - colapsa en móviles */
+@media (max-width: 992px) {
+  .sidebar,
+  #quarto-sidebar {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 50vh;
+    right: auto !important;
+  }
+  
+  .sidebar-navigation a {
+    font-size: 0.9rem;
+  }
+}
+
+/* Scrollbar personalizado para sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Sidebar: Texto en BLANCO para contraste con fondo verde */
+.sidebar * {
+  color: $municipio-blanco !important;
+}
+
+.sidebar h1, .sidebar h2, .sidebar h3, .sidebar h4, .sidebar h5, .sidebar h6 {
+  color: $municipio-blanco !important;
+}
+
+/* Buscador del sidebar - texto NEGRO para que se vea */
+.sidebar input[type="search"],
+.sidebar input[type="text"],
+.sidebar .search-input,
+#quarto-search-input,
+.aa-input {
+  color: #000000 !important;
+  background-color: $municipio-blanco !important;
+  border: 1px solid $municipio-verde-claro !important;
+  padding: 0.5rem !important;
+}
+
+.sidebar input::placeholder {
+  color: #666666 !important;
+}
+
+/* Encabezados en NEGRO - RESPONSIVE */
+h1, h2, h3, h4, h5, h6 {
+  color: #000000;
+  border-bottom: 2px solid $municipio-verde-muy-claro;
+  padding-bottom: 0.3em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+h1 {
+  background: linear-gradient(90deg, $municipio-verde-muy-claro 0%, $municipio-blanco 100%);
+  padding: 0.5em;
+  border-radius: 5px;
+  font-size: 2rem;
+}
+
+h2 { font-size: 1.75rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.1rem; }
+h6 { font-size: 1rem; }
+
+/* Responsive headings */
+@media (max-width: 768px) {
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.1rem; }
+  h5 { font-size: 1rem; }
+  h6 { font-size: 0.95rem; }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 1.5rem; padding: 0.3em; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.15rem; }
+  h4 { font-size: 1rem; }
+  h5 { font-size: 0.95rem; }
+  h6 { font-size: 0.9rem; }
+}
+
+/* Párrafos y texto normal en NEGRO */
+p, li, td, span, div {
+  color: #000000;
+}
+
+/* Links en verde */
+a {
+  color: $municipio-verde;
+  text-decoration: none;
+  border-bottom: 1px dotted $municipio-verde-claro;
+}
+
+a:hover {
+  color: $municipio-verde-claro;
+  border-bottom: 1px solid $municipio-verde-claro;
+}
+
+/* Tablas con estilo verde/blanco - RESPONSIVE - SIN BORDE GRIS */
+table {
+  border: 2px solid $municipio-verde;
+  border-collapse: collapse;
+  background-color: $municipio-blanco;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  display: table;
+  box-shadow: 0 2px 8px rgba(49, 192, 144, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  table {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  table {
+    font-size: 0.8rem;
+  }
+}
+
+/* Wrapper para tablas responsive */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+thead {
+  background: linear-gradient(180deg, $municipio-verde 0%, $municipio-verde-claro 100%);
+  color: $municipio-blanco;
+  font-weight: 600;
+}
+
+thead th {
+  padding: 1em;
+  border-bottom: 2px solid $municipio-verde-oscuro;
+}
+
+tbody tr:nth-child(even) {
+  background-color: $municipio-verde-muy-claro;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: $municipio-blanco;
+}
+
+tbody tr:hover {
+  background-color: rgba(49, 192, 144, 0.15);
+}
+
+td, th {
+  border: none;
+  border-bottom: 1px solid rgba(49, 192, 144, 0.2);
+  padding: 0.75em 1em;
+  color: #000000;
+  word-wrap: break-word;
+  min-width: 80px;
+}
+
+@media (max-width: 480px) {
+  td, th {
+    padding: 0.3em;
+    min-width: 60px;
+  }
+}
+
+th {
+  color: $municipio-blanco;
+}
+
+/* Bloques de código con borde verde - RESPONSIVE */
+pre {
+  border-left: 5px solid $municipio-verde;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  padding: 1rem;
+  overflow-x: auto;
+  max-width: 100%;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  pre {
+    font-size: 0.85rem;
+    padding: 0.75rem;
+    border-left: 3px solid $municipio-verde;
+  }
+}
+
+@media (max-width: 480px) {
+  pre {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    border-left: 2px solid $municipio-verde;
+  }
+}
+
+code {
+  background-color: $municipio-verde-muy-claro;
+  color: #000000;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-size: 0.9em;
+}
+
+/* Código inline responsive */
+@media (max-width: 480px) {
+  code {
+    font-size: 0.85em;
+    padding: 0.1em 0.3em;
+  }
+}
+
+/* Botones estilo municipio - RESPONSIVE */
+.btn-primary {
+  background: linear-gradient(135deg, $municipio-verde 0%, $municipio-verde-claro 100%);
+  border: none;
+  color: $municipio-blanco;
+  box-shadow: 0 3px 6px rgba(49, 192, 144, 0.3);
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .btn-primary {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .btn-primary {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+  }
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, $municipio-verde-claro 0%, $municipio-verde 100%);
+  box-shadow: 0 5px 10px rgba(49, 192, 144, 0.4);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Cajas de alerta/notas */
+.callout {
+  border-left: 5px solid $municipio-verde;
+  background-color: $municipio-verde-muy-claro;
+}
+
+.callout-title {
+  background-color: $municipio-verde;
+  color: $municipio-blanco;
+}
+
+.callout-body {
+  color: #000000;
+}
+
+/* Barra de navegación superior */
+.navbar {
+  background: linear-gradient(90deg, $municipio-verde 0%, $municipio-verde-claro 100%) !important;
+  border-bottom: 4px solid $municipio-verde;
+}
+
+.navbar a {
+  color: $municipio-blanco !important;
+  border-bottom: none;
+}
+
+/* Tabla de contenidos (TOC) - STICKY */
+.sidebar-navigation {
+  border-left: 3px solid $municipio-blanco;
+}
+
+.sidebar-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* TOC (tabla de contenidos) - FIXED a la IZQUIERDA */
+#TOC,
+.toc-actions,
+#quarto-margin-sidebar,
+.page-columns .margin-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100vh !important;
+  overflow-y: auto !important;
+  width: 250px !important;
+  z-index: 100 !important;
+  padding: 1rem;
+  background: linear-gradient(180deg, $municipio-verde 0%, $municipio-verde-claro 100%) !important;
+  border-right: 3px solid $municipio-blanco;
+}
+
+/* Scrollbar para TOC derecho */
+#TOC::-webkit-scrollbar,
+#quarto-margin-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+#TOC::-webkit-scrollbar-track,
+#quarto-margin-sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#TOC::-webkit-scrollbar-thumb,
+#quarto-margin-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+#TOC::-webkit-scrollbar-thumb:hover,
+#quarto-margin-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Texto del TOC en BLANCO */
+#TOC *,
+#quarto-margin-sidebar *,
+.page-columns .margin-sidebar * {
+  color: $municipio-blanco !important;
+}
+
+#TOC a:hover,
+#quarto-margin-sidebar a:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem;
+  border-radius: 3px;
+}
+
+/* Responsive TOC */
+@media (max-width: 992px) {
+  #TOC,
+  #quarto-margin-sidebar,
+  .page-columns .margin-sidebar {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    left: auto !important;
+  }
+  
+  #quarto-content,
+  .page-columns,
+  main,
+  #quarto-document-content,
+  body.quarto-light main,
+  article,
+  .content-container {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 1rem !important;
+  }
+  
+  .page-layout-article .body {
+    max-width: 100% !important;
+    padding: 0 1rem;
+  }
+}
+
+/* Pie de página */
+.footer {
+  background: linear-gradient(90deg, $municipio-verde 0%, $municipio-verde-claro 100%);
+  color: $municipio-blanco;
+  border-top: 4px solid $municipio-verde;
+  padding: 1.5em;
+}
+
+/* Mejora visual de secciones - RESPONSIVE */
+section {
+  padding: 1.5em;
+  margin-bottom: 2em;
+  background-color: $municipio-blanco;
+  border-radius: 8px;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  section {
+    padding: 1em;
+    margin-bottom: 1.5em;
+  }
+}
+
+@media (max-width: 480px) {
+  section {
+    padding: 0.75em;
+    margin-bottom: 1em;
+  }
+}
+
+/* Banner del título - RESPONSIVE */
+.quarto-title-banner {
+  background: linear-gradient(135deg, $municipio-verde 0%, $municipio-verde-claro 100%);
+  color: $municipio-blanco;
+  border-bottom: 5px solid $municipio-verde;
+  padding: 2em;
+}
+
+@media (max-width: 768px) {
+  .quarto-title-banner {
+    padding: 1.5em;
+    border-bottom: 3px solid $municipio-verde;
+  }
+}
+
+@media (max-width: 480px) {
+  .quarto-title-banner {
+    padding: 1em;
+    border-bottom: 2px solid $municipio-verde;
+  }
+}
+
+/* === IMÁGENES RESPONSIVE === */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* === UTILIDADES RESPONSIVE === */
+.container-fluid {
+  max-width: 100%;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+@media (max-width: 768px) {
+  .container-fluid {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+/* === SCROLL SUAVE === */
+html {
+  scroll-behavior: smooth;
+}
+
+/* === EVITAR DESBORDAMIENTO === */
+body, html {
+  max-width: 100%;
+  overflow-x: hidden;
+}

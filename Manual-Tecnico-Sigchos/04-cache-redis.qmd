@@ -1,0 +1,48 @@
+# Caché de catálogo con Redis/Valkey
+
+## Alcance y datos
+
+La implementación usa el patrón Cache-Aside desde msvc-producto para lecturas aprobadas del catálogo:
+
+| Recurso | Uso de caché | TTL predeterminado |
+|---|---|---:|
+| GET /api/productos/listado | Proyección de metadatos públicos del catálogo. | 5 minutos |
+| GET /api/categorias | Lista de categorías. | 15 minutos |
+| GET /api/categorias/{id} | Detalle de una categoría. | 15 minutos |
+| GET /api/productos/listado/paginado | No usa esta caché en la versión revisada. | No aplica |
+
+Las cantidades de inventario se consultan en vivo desde msvc-inventario en cada respuesta y no se almacenan en la proyección cacheada. Redis/Valkey tampoco guarda el contador de visitas, usuarios, sesiones, ventas o pagos.
+
+## Lectura Cache-Aside
+
+```{mermaid}
+%%| label: fig-cache
+%%| fig-cap: "Decisión de lectura del catálogo con caché opcional y fallback."
+flowchart TD
+  req[Solicitud de catálogo] --> hit{¿Caché habilitada<br/>y clave válida?}
+  hit -- Sí --> cached[Usar proyección cacheada]
+  hit -- No, flags apagados o error --> mysql[Leer MySQL<br/>y publicar con TTL si Redis está disponible]
+  cached --> inventory[Consultar inventario en vivo]
+  mysql --> inventory
+  inventory --> response[Responder al cliente]
+```
+
+El diagrama resume el contrato para el listado de productos. En un hit se reutiliza la proyección cacheada y se consulta inventario por separado. En un miss el microservicio obtiene datos fuente de MySQL y puede publicar la proyección. Si Redis falla, el servicio responde usando la fuente MySQL. La respuesta de catálogo no convierte una lectura de inventario en una lectura cacheada.
+
+## Claves, expiración e invalidación
+
+El listado usa una clave de generación compartida y una clave versionada del catálogo. Las categorías usan el mismo mecanismo de generación con claves propias. El TTL empieza al publicar una entrada; un hit no renueva su expiración. Tras una escritura confirmada de catálogo, el servicio avanza la generación para que las solicitudes nuevas dejen de consultar las claves de la generación anterior.
+
+Las claves anteriores expiran con su TTL. No se debe ejecutar FLUSHDB ni FLUSHALL como método de invalidación de una sola entidad. Una actualización cuyo avance de generación falle puede dejar una entrada vieja hasta su vencimiento; ese caso se monitorea y se limita con el TTL.
+
+## Configuración y observabilidad
+
+En el repositorio los tres interruptores están desactivados por defecto: CACHE_REDIS_ENABLED, CACHE_REDIS_PRODUCTOS_LISTADO_ENABLED y CACHE_REDIS_CATEGORIAS_ENABLED. La activación efectiva requiere habilitar el global y el interruptor del recurso. Los valores predeterminados de TTL son PT5M y PT15M.
+
+El microservicio expone métricas de caché mediante Micrometer y un grupo de salud llamado cache. En producción el Gateway bloquea Actuator desde el borde público, de modo que la verificación operativa debe hacerse desde el canal interno autorizado, no abriendo esas rutas a Internet.
+
+## Lectura de la evidencia
+
+La comparación de producción del 17 de noviembre de 2026 confirma que el caché pobló y reutilizó claves y mantuvo las respuestas funcionales durante la carga registrada. El p95 promedio fue 100,88 ms con caché y 101,82 ms sin caché; esa diferencia pequeña no demuestra una mejora práctica perceptible de latencia. El informe integral conserva las condiciones, límites y resultados completos.
+
+La evidencia observada en producción no cambia los valores predeterminados del repositorio ni autoriza activar Redis en otro entorno. Se debe documentar el modo, las variables efectivas y la reversión cada vez que se habilite.

@@ -1,0 +1,52 @@
+# Contador de visitas
+
+## Flujo de registro
+
+El navegador aplica una marca de deduplicación de 24 horas. Si no existe la cookie, el frontend envía una solicitud a través de Next.js y Nginx hacia msvc-producto. Solo después de recibir una respuesta satisfactoria, el frontend crea la cookie. El backend agrega el incremento a la fila del día en MySQL.
+
+```{mermaid}
+%%| label: fig-visitas
+%%| fig-cap: "Registro de una visita desde el navegador hasta el almacenamiento diario."
+flowchart TB
+  browser[Cookie ausente;<br/>frontend envía POST /api/proxy/productos/visitas] --> route[Next.js reescribe; Nginx o Gateway enruta a msvc-producto;<br/>el servicio calcula la fecha y hace UPSERT en MySQL]
+  route --> response[HTTP 204 satisfactorio;<br/>el frontend guarda la cookie por 86400 segundos]
+```
+
+Si la cookie `feriadigital_visit_day` ya existe, el frontend omite el POST y el flujo no llega al backend. La cookie solo deduplica desde ese navegador durante 24 horas.
+
+## Consulta de estadísticas administrativas
+
+La pantalla administrativa consulta el mismo almacenamiento agregado. El endpoint exige el rol `ROLE_ADMIN`; la visita pública no concede acceso a las estadísticas.
+
+```{mermaid}
+%%| label: fig-visitas-admin
+%%| fig-cap: "Autorización y lectura de las estadísticas del contador."
+flowchart TB
+  admin[Panel envía GET /api/visitas/estadisticas<br/>con JWT] --> auth[msvc-producto valida<br/>ROLE_ADMIN]
+  auth --> query[Consulta MySQL y responde JSON<br/>total, hoy y fecha]
+```
+
+## Qué se guarda y dónde
+
+El contador no se guarda dentro de una fila de producto. MySQL mantiene una tabla agregada independiente llamada productos.visitas_diarias. La tabla está en el mismo esquema que el catálogo de productos, pero no tiene relación con la tabla productos ni con usuarios.
+
+| Campo | Tipo | Uso |
+|---|---|---|
+| fecha | DATE, clave primaria | Una fila por día de negocio. |
+| cantidad | BIGINT | Cantidad acumulada de solicitudes contabilizadas para esa fecha. |
+| fecha_actualizacion | TIMESTAMP | Momento de la última modificación de la fila. |
+
+La base suma cantidad para el total histórico y lee la fila de la fecha actual para el valor de hoy. El backend determina el día con la zona America/Guayaquil. El incremento usa una inserción con ON DUPLICATE KEY UPDATE; solicitudes concurrentes del mismo día actualizan una fila en vez de crear duplicados.
+
+## Cookie y alcance de la deduplicación
+
+La cookie feriadigital_visit_day contiene un marcador simple, tiene Max-Age=86400, Path=/ y SameSite=Lax. La lee el JavaScript del frontend para decidir si debe enviar otro POST. No identifica a una persona ni garantiza visitantes únicos: limpiar cookies, cambiar de navegador o usar otro dispositivo puede generar otro conteo. El dato persistente es el agregado diario en MySQL; la cookie queda en el navegador.
+
+## Endpoints relacionados
+
+| Método y ruta del microservicio | Acceso | Resultado |
+|---|---|---|
+| POST /api/visitas | Público | Registra el incremento; responde 204. El frontend puede llamarlo por la reescritura /api/proxy/productos/visitas. |
+| GET /api/visitas/estadisticas | ROLE_ADMIN | Devuelve total, hoy y fecha. La interfaz administrativa adjunta JWT. |
+
+Si el POST falla o vence su tiempo límite, el frontend no crea la cookie y puede volver a intentar la operación en una carga posterior.

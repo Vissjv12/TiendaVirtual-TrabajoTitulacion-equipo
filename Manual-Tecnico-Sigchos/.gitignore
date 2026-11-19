@@ -1,0 +1,10 @@
+/.quarto/
+**/*.quarto_ipynb
+
+# Keep the Quarto sources and printable PDFs; omit generated HTML and site assets.
+/_book/*
+!/_book/Manual-Tecnico-Sigchos.pdf
+/Manual-Usuario/_book/*
+!/Manual-Usuario/_book/Manual-de-Usuario.pdf
+/Informe-Pruebas/_book/*
+!/Informe-Pruebas/_book/Informe-Integral-de-Pruebas.pdf

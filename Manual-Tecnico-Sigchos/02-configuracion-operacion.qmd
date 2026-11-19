@@ -1,0 +1,71 @@
+# Configuración y operación
+
+## Requisitos de ejecución
+
+| Componente | Base observada en el repositorio | Comprobación operativa |
+|---|---|---|
+| Microservicios | Java 17 y Maven Wrapper | Revisar versión de Java y usar el wrapper del módulo. |
+| Frontend | Node.js y dependencias declaradas en avalon-react-10.1.0/package.json | Consultar la versión de Node compatible con la rama antes de compilar. |
+| Persistencia | MySQL; esquemas separados por servicio | Verificar conectividad, permisos de aplicación y migraciones. |
+| Gateway | Nginx; puede ejecutarse en Docker en desarrollo | Comprobar configuración y ruta de salud antes de exponerlo. |
+| Caché de catálogo | Redis/Valkey opcional | Mantener desactivado si el ambiente no está preparado para la caché aprobada. |
+
+## Variables de configuración
+
+Las propiedades Spring leen estos valores desde variables de entorno. Los valores de cada instalación se deben custodiar en el sistema de despliegue; este manual solo identifica su función.
+
+- **JWT_SECRET** — Clave compartida por los servicios que validan tokens JWT. Nunca debe escribirse aquí ni quedar versionada.
+- **MYSQL_USER / MYSQL_PASSWORD** — Cuenta técnica y contraseña de conexión a cada esquema MySQL.
+- **GATEWAY_INTERNAL_URL** — URL que usa el servidor Next.js para reescrituras al Gateway.
+- **NEXT_PUBLIC_GATEWAY_URL** — URL pública o de fallback del Gateway en configuración del frontend.
+- **GATEWAY_PORT** — Puerto publicado por el Gateway Docker local; el valor predeterminado en Compose es 8080.
+- **REDIS_HOST / REDIS_PORT** — Dirección interna del servicio Redis/Valkey para msvc-producto.
+- **REDIS_USERNAME / REDIS_PASSWORD** — Credenciales de Redis/Valkey cuando la instalación las requiera.
+- **CACHE_REDIS_ENABLED** — Interruptor global de creación de componentes de caché. Su valor predeterminado en el repositorio es `false`.
+- **CACHE_REDIS_PRODUCTOS_LISTADO_ENABLED**  
+  Activa caché para el listado completo del catálogo. Predeterminado: `false`.
+- **CACHE_REDIS_CATEGORIAS_ENABLED** — Activa caché para lista y detalle de categorías. Predeterminado: `false`.
+- **CACHE_REDIS_TTL_PRODUCTOS** — Duración de las entradas de productos; predeterminado `PT5M` (5 minutos).
+- **CACHE_REDIS_TTL_CATEGORIAS** — Duración de entradas de categorías; predeterminado `PT15M` (15 minutos).
+
+La caché de un recurso solo se activa si están habilitados el interruptor global y el interruptor específico del recurso. Cambiar estos valores en un servidor requiere el procedimiento de despliegue aprobado, una verificación posterior y un plan de reversión.
+
+## Diferencia entre despliegue local y producción
+
+```{mermaid}
+%%| label: fig-despliegue
+%%| fig-cap: "En desarrollo el frontend usa reescrituras hacia el Gateway local; en producción Nginx recibe HTTPS y enruta al frontend o al microservicio."
+flowchart TB
+  local[Desarrollo local<br/>Navegador a Next.js :3000<br/>Rewrite /api/proxy a Gateway Docker :8080<br/>Gateway a microservicios]
+  prod[Producción<br/>Navegador HTTPS :444 a Nginx<br/>Nginx a Next.js :3000<br/>Rutas API a microservicios :8081–8084]
+```
+
+La figura destaca dos configuraciones distintas. La plantilla de producción termina TLS en Nginx y envía rutas API directamente a los servicios locales. En el flujo local ilustrado, Next.js reescribe las rutas proxy hacia el Gateway Docker. El valor GATEWAY_PORT puede reemplazar el puerto local predeterminado si 8080 ya está ocupado.
+
+## Orden de preparación
+
+1. Respaldar las bases que serán modificadas y verificar que el respaldo se pueda leer.
+2. Confirmar los esquemas y aplicar las migraciones requeridas.
+3. Configurar las variables fuera del repositorio y limitar los permisos de sus archivos.
+4. En desarrollo, iniciar Eureka antes de los microservicios que se registran en él.
+5. Iniciar o actualizar los servicios de autenticación, Producto, Inventario y Ventas.
+6. Iniciar el frontend y el punto de entrada Nginx correspondiente al ambiente.
+7. Validar salud, rutas de lectura y un flujo funcional con cuentas de prueba autorizadas.
+
+El orden exacto de servicios, unidades de systemd, contenedores y direcciones puede variar entre despliegues. No reutilizar sin revisión comandos o direcciones de un informe de otra fecha.
+
+## Migración del contador
+
+La migración V12-visitas-diarias.sql crea la tabla visitas_diarias en el esquema productos. Debe aplicarse antes de reiniciar msvc-producto porque el servicio configura Hibernate con ddl-auto=validate: valida el esquema existente, pero no crea esta tabla automáticamente.
+
+La migración es aditiva y contiene CREATE TABLE IF NOT EXISTS. Aun así, antes de ejecutarla en un ambiente real se debe confirmar respaldo, base seleccionada, permisos y definición resultante con SHOW CREATE TABLE.
+
+## Comprobaciones de salud
+
+| Comprobación | Uso | Acceso |
+|---|---|---|
+| /health del Gateway | Confirma que Nginx responde a la ruta de salud del proxy. | Según la configuración del punto de entrada. |
+| /actuator/health de un servicio | Estado básico de la aplicación y probes. | Interno; la plantilla pública del Gateway bloquea Actuator. |
+| /actuator/health/cache | Estado de conectividad de la caché Redis/Valkey. | Interno y sujeto a la configuración de Actuator. |
+| Eureka :8761 | Registro de servicios en el entorno local configurado. | Red de administración del entorno. |
+

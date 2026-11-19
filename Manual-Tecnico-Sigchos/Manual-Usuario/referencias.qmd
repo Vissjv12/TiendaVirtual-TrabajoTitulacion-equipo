@@ -1,0 +1,13 @@
+# Referencias {.unnumbered}
+
+## Documentación del proyecto
+
+**Repositorio GitHub**
+
+- **Código fuente:** <https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo.git>
+- **Licencia:** Trabajo de Vinculación - GAD Municipal del Cantón Sigchos
+- **Colaboradores:**
+  - Jordy Viscaíno Anthony Tapia
+  - Alfonso Alejandro Arroyo Paredes
+  - Christian Mateo Bonifaz Vásquez
+- **Fecha de actualización:** 18 de noviembre de 2026

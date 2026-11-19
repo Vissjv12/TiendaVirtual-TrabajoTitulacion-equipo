@@ -1,0 +1,35 @@
+# Diagnóstico, respaldo y reversión
+
+## Síntomas frecuentes
+
+| Síntoma | Causas técnicas que conviene revisar | Comprobación inicial |
+|---|---|---|
+| msvc-producto no inicia tras desplegar V12 | La tabla visitas_diarias no existe o no coincide con la entidad porque Hibernate valida el esquema. | Verificar el esquema productos y el resultado de SHOW CREATE TABLE. |
+| La visita se envía varias veces | Cookie ausente, navegador limpio, respuesta fallida antes de establecer cookie o uso de otro perfil/dispositivo. | Revisar el POST, respuesta 204 y almacenamiento de cookies del mismo perfil. |
+| No aparece la estadística del día | El POST no llegó a msvc-producto, la fecha usada difiere de la zona local o el admin endpoint fue llamado sin ROLE_ADMIN. | Revisar red, fecha America/Guayaquil, fila diaria y respuesta de autorización. |
+| El catálogo responde aunque Redis esté caído | Comportamiento de fallback esperado cuando la caché opcional falla. | Revisar disponibilidad MySQL, métrica de fallback y salud interna de caché. |
+| Actuator o Swagger responde 403 desde Internet | La plantilla Nginx bloquea estas rutas en el borde público. | Usar el canal interno autorizado de operación. No quitar el bloqueo para obtener una captura. |
+| Una ruta devuelve 404 | Ruta no incluida en el Gateway, prefijo de reescritura incorrecto o servicio destino equivocado. | Contrastar frontend, Nginx y ruta del controlador. |
+
+## Antes y después de un despliegue
+
+**Antes**
+
+- Confirmar rama, versión del artefacto y configuración del ambiente.
+- Respaldar la base que cambiará; validar integridad y ubicación del respaldo.
+- Confirmar la presencia de migraciones pendientes.
+- Registrar estado de salud de Gateway, microservicios y MySQL.
+- No publicar secretos ni modificar permisos del servidor como parte de una prueba de interfaz.
+
+**Después**
+
+- Validar salud de servicios y rutas del Gateway.
+- Confirmar en MySQL el resultado de la migración y, para el contador, la fila del día de una prueba controlada.
+- Si Redis está habilitado para la prueba, revisar salud, clave/TTL y fallback; devolver el ambiente a su estado acordado.
+- Guardar resultados con fecha, versión y configuración efectiva.
+
+## Respaldo y reversión
+
+El contador es aditivo: una reversión del artefacto de msvc-producto no requiere borrar la tabla visitas_diarias. No eliminar datos ni volúmenes Docker durante una reversión simple. Para los respaldos MySQL, usar el procedimiento del equipo, verificar checksum y practicar la restauración aislada antes de depender del respaldo.
+
+Las instrucciones concretas de backup, restauración y despliegue se mantienen en los documentos de operación referenciados al final; no ejecutar comandos sobre producción sin ventana, autorización y respaldo verificado.

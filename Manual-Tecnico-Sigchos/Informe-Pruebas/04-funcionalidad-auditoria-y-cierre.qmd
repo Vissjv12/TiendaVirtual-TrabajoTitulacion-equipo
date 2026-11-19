@@ -1,0 +1,77 @@
+# Paginación, Seguridad en Ventas, Auditoría y Respaldos
+
+## Etapa 6: Paginación Server-Side (`A-19` a `A-22`)
+
+Se implementaron **18 endpoints `/paginado`** en los 4 microservicios bajo el contrato común `PageResponseDto<T>` (8 campos) y `PaginationUtils` (tamaño `12` en vitrina y `10` en gestión, tope máximo estricto `MAX_SIZE = 50`, normalización de `page < 0` a `0` y validación `sort` contra lista blanca), integrados en 17 vistas del frontend.
+
+| Microservicio | Clases probadas (`A-22`) | Ejecutadas | Fallos / Errores | Resultado |
+|--------------------|------------------------------------------------|-----------:|-----------------:|---------------|
+| `msvc-producto` | `ProductoPaginationTest`, `ProductoAuthorizationServiceTest`, `ProductoControllerApiAuthorizationTest`, `ProductoCatalogoCacheServiceTest`, `ProductoServiceInventoryBatchTest`, `RedisCacheConfigTest` | **32** | 0 / 0 | `BUILD SUCCESS` |
+| `msvc-inventario` | `InventarioPaginationTest`, `InventarioControllerApiAuthorizationTest` | **10** | 0 / 0 | `BUILD SUCCESS` |
+| `msvc-ventas` | `VentaPaginationTest`, `VentaServiceTest` | **14** | 0 / 0 | `BUILD SUCCESS` |
+| `demo` (`auth-service`) | `UsuarioPaginationTest` | **2** | 0 / 0 | `BUILD SUCCESS` |
+| **Total Etapa 6** | — | **58** | **0 / 0** | **58 / 58 PASS** |
+
+En frontend (`avalon-react-10.1.0`), `tsc --noEmit` finalizó con `0` errores y `next build --no-lint` generó las `105` páginas estáticas; los errores previos de `react/no-unescaped-entities` quedaron resueltos antes del despliegue en el commit `b60b307`.
+
+---
+
+## Etapa 7: Seguridad en Ventas y Regresión (`A-24` y `A-25`)
+
+Se habilitó Resource Server JWT (HS256) en `msvc-ventas`, restringiendo Camunda/BPM exclusivamente a `ROLE_ADMIN`, incorporando `VentaAuthorizationService` para scoping de empresa y cliente, y endureciendo `/salida-lote` y ajuste de stock en `msvc-inventario`.
+
+| Módulo | Suites incluidas | Resultado |
+|----------------------------------|-------------------------------------------------|----------------|
+| `Microservicios/msvc-ventas` | `VentaAuthorizationServiceTest` (`4`), `VentaControllerApiAuthorizationTest` (`6`), `VentaIntegrationTest` (`14` con JWT H2), `VentaServiceTest` (`12`), `VentaPaginationTest` (`2`), `MsvcVentasApplicationTests` (`1`) | **39 / 39 PASS** |
+| `Microservicios/msvc-inventario` | `InventarioControllerApiAuthorizationTest` (`15`), `InventarioPaginationTest` (`2`), `MsvcInventarioApplicationTests` (`1`) | **18 / 18 PASS** |
+| `Microservicios/msvc-producto` | Paginación, autorización y caché | **32 / 32 PASS** |
+| `Microservicios/demo` | `UsuarioPaginationTest` | **2 / 2 PASS** |
+
+---
+
+## Pulido Pre-Integración (`feature/pulido-export-validaciones-404`)
+
+- **Backend `demo` (`12 / 12 PASS`):** `UsuarioServiceImplTest` (`9`), `AuthServiceDisabledUserTest` (`1`, verificando rechazo `403` para usuarios desactivados) y `UsuarioPaginationTest` (`2`, protegiendo también al último `ROLE_ADMIN` activo contra eliminación o desactivación).
+- **Backend `msvc-producto` (`19 / 19 PASS`):** `ProductoAuthorizationServiceTest` (`7`), `ProductoControllerApiAuthorizationTest` (`8`), `ProductoPaginationTest` (`4`).
+- **Helpers de frontend (`verify_helpers.js`):** **`22 / 22 aserciones aprobadas`** verificando `csvExport.ts` (RFC 4180, BOM UTF-8 y neutralización de inyección de fórmulas `=`, `+`, `-`, `@`) y `formValidations.ts` (cédula/RUC ecuatoriano, teléfono, cuentas bancarias y referencias).
+- **Prueba en Chrome headless (`repro404.js` sobre `next start -p 3099`):** navegación a `/checkout/fse` y clic en `"Ir al Inicio"` completados con código de salida `0`, verificando la eliminación de la excepción de cliente `removeChild`.
+
+---
+
+## Cierre de Auditoría de Código y Tareas de Endurecimiento
+
+La revisión estática exhaustiva (`REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md`, 2026-11-15) detectó hallazgos críticos y altos que fueron resueltos y blindados con pruebas automatizadas antes de subir a producción:
+
+| Hallazgo / Tarea | Regla verificada en pruebas | Suite y resultado |
+|----------------------|------------------------------------------|------------------------------------------|
+| **`C-01` — QR DeUna y datos bancarios** | Eliminados los fallbacks globales (`findAll()`) y la reinterpretación `empresaId`/`emprendedorId`; fallo cerrado con `404` y deshabilitación en carritos sin configuración o multi-empresa (`checkoutEmpresa.ts`). | `ConfiguracionPagosServiceEmpresaTest` (**10/10**), `ConfiguracionPagosControllerEmpresaTest` (**4/4**), `tests/checkoutEmpresa.test.mjs` (**20/20**) |
+| **`C-02`, `A-03`, `A-04`, `M-06` y AES-256 — PayPhone** | Token privado solo en `auth-service`, cifrado en BD con AES-256-GCM (`enc:v1:`); orden `PENDIENTE` creada antes de `Prepare` con importes autoritativos; credencial efímera `ROLE_SERVICIO_PAGOS`; webhook idempotente que reconsulta a PayPhone; bloqueo `SELECT ... FOR UPDATE`. | `PayphoneTokenNoExpuestoTest` (**7/7**), `PayphonePagoServiceTest` (**19/19**), `PayphoneTokenCifradoTest` (**8/8**), `VentasInternoClientTest` (**3/3**), `ConfiguracionPagosControllerPayphoneTest` (**10/10**), `PagoPasarelaServiceTest` (**10/10**), `InventarioServicioPagosAuthorizationTest` (**5/5** tras fix `eac5ec7`), `tests/payphone.test.mjs` (**18/18**) |
+| **`A-01` y `A-02` — Inventario y RUC/estado empresa** | Autorización por empresa en todas las rutas `POST`/`PUT`/`DELETE` de inventario y movimientos (`delta` firmado y usuario del JWT); `PUT /api/empresas/{id}` exclusivo de `ROLE_ADMIN`; `/contacto` rechaza propiedades extra (`ruc`/`activo`) con `400`. | `InventarioPropiedadEscriturasTest` (**12/12**), `MovimientoPropiedadTest` (**3/3**), `InventarioServiceMovimientosTest` (**13/13**), `EmpresaListaBlancaTest` (**6/6**), `ProductoControllerApiAuthorizationTest` (**15/15**), script `pruebas-a01-a02-gateway.ps1` |
+| **Stripe inactivo y Facturas tras commit (`A-05`)** | Con `STRIPE_ENABLED=false`, cero beans de Stripe y `401`/`404` en `/api/stripe/**`; facturas ejecutadas vía `GeneradorFacturaTrasCommit` sin `new Thread`/`sleep` y con sesión `@Transactional(readOnly = true)` (`ad70711`); pago creado dentro de la misma transacción de venta. | `StripeDeshabilitadoTest` (**5/5**), `GeneradorFacturaTrasCommitTest` (**4/4**), `PagoServiceAprobarPagoTest` (**5/5**), `VentaApplicationServicePagoSincronoTest` (**3/3**), `FacturaServiceTransaccionalTest` (**1/1**), `tests/stripeInactivo.test.mjs` (**6/6**) |
+| **`T07` — Autorización de inventario en lote** | Reducción de `N` consultas a **1 consulta SQL `IN` + 1 llamada** a `/api/productos/empresa/{id}/ids` con política *fail-closed*; filtro `ROLE_EMP` acotado en servidor en `/movimientos/paginado`. | `InventarioAutorizacionLoteTest` (**8/8**), `MovimientoPropiedadTest` (**3/3**) |
+| **`T08` y `T09` — Swagger, CORS y Gateway** | Swagger desactivado por defecto y restringido a `ROLE_ADMIN`, retirada de `@CrossOrigin(*)` en 9 controladores, `forward-headers-strategy=native`, `limit_req` (`10r/m` login/recuperación, `20r/s` API), cabeceras de seguridad y bloqueos `403`/`404` en `tienda.prod.conf`. | Validación `nginx -t` en `nginx:alpine` OK + suites `@WebMvcTest` |
+| **`T01` — Respaldos automáticos** | Validación atómica de `backup-db.sh` y `restore-test-db.sh` con `SHA256`, `gzip -t`, rechazo de permisos `644`, dumps truncados y bases aisladas `restore_test_*`. | `scripts/prod/pruebas/simular-respaldo.sh` (**25 / 25 PASS**, `bash -n` OK) |
+| **`T11` — Vinculación emprendedor-empresa** | Unicidad `uk_emprendedor_empresa` (`409` en duplicado/simultaneidad, `503` si producto no responde), propagación de `empresaId` en login y listado admin. | `EmprendedorEmpresaServiceTest` (**14/14**), `EmprendedorEmpresaControllerTest` (**5/5**), `EmpresaProductoClientTest` (**4/4**), `AuthServiceEmpresaJwtTest` (**3/3**), `tests/empresaVinculacion.test.mjs` (**8/8**) |
+| **`V12` — Contador persistente de visitas** | Registro diario en zona `America/Guayaquil` (`INSERT ... ON DUPLICATE KEY UPDATE`) y suma histórica total. | `VisitasServiceTest` (**2 / 2 PASS**) |
+
+---
+
+## Ensayo de Integridad y Restauración de Respaldos Reales (2026-11-15)
+
+Antes de la salida a producción, se verificaron localmente las copias extraídas del servidor institucional:
+- **Validación criptográfica (`SHA256SUMS`):** `27` archivos verificados (`1,328,027,567` bytes totales), incluyendo comprobación de archivos `.sql.gz`, `.tar.gz`, `.zip`, `.jar` y huella exacta del dump completo (`c5c937b6529d3176a04a077f71f7fdc025ebb16bf50956698f88cd1032613de1`).
+- **Restauración aislada en MySQL `8.4.9` (`restaurar_ensayo_manual_2026_11_15.ps1`):** importadas correctamente **64 tablas** (`auth_service` = `34` filas/conteos verificados, `inventario` = `93`, `productos` = `49`, `ventas` = `144,966`), `CHECK TABLE` sin errores y retirada posterior del contenedor temporal.
+
+---
+
+## Consolidado Global de Suites Automatizadas del Repositorio
+
+| Módulo / Suite | Resultado vigente observado | Observación exacta de ejecución |
+|------------------------------------|------------------------:|----------------------------------------------|
+| `Microservicios/demo` (`auth-service`) | **99 / 99 PASS** | Unitarias y `@WebMvcTest` (`LoginApplicationTests` requiere MySQL activo para `100/100`). |
+| `Microservicios/msvc-producto` | **47 / 47 PASS** | Unitarias tras `VisitasServiceTest` (`MsvcProductoApplicationTests` y `*IT` requieren MySQL/Redis de prueba; con ambos activos pasan `49/49`). |
+| `Microservicios/msvc-inventario` | **59 / 59 PASS** | Suite completa ejecutada tras el fix `9883b96`. |
+| `Microservicios/msvc-ventas` | **72 / 72 PASS** | Suite completa ejecutada tras el fix `ad70711`. |
+| `avalon-react-10.1.0` (`npm test`) | **49 / 49 PASS** | `11` suites (`checkoutEmpresa`, `empresaVinculacion`, `payphone`, `stripeInactivo`) ejecutadas tras `8cf1066`. |
+| `avalon-react-10.1.0` (`npm run lint` + `build`) | **0 errores** | `next lint` sin errores y `next build` generando `105` páginas. |
+| `scripts/prod/pruebas/simular-respaldo.sh` | **25 / 25 PASS** | Cobertura completa de backup, rotación y restore aislado simulado. |

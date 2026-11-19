@@ -1,0 +1,55 @@
+```{=latex}
+\pagestyle{fancy}
+\makeatletter
+\let\ps@plain\ps@contentplain
+\makeatother
+```
+
+# Introducción
+
+\begin{infobox}[Sistema Sigchos E-Commerce]
+La presente guía explica, de forma sencilla y práctica, cómo utilizar el Sistema Sigchos E-Commerce, una plataforma creada para apoyar la promoción y comercialización de productos de los emprendimientos del cantón Sigchos.
+
+El sistema está dirigido al \textbf{GAD Municipal del Cantón Sigchos} y permite a los usuarios consultar productos, realizar compras y gestionar sus pedidos. También permite a los emprendedores administrar su catálogo, inventario y ventas.
+\end{infobox}
+
+Este manual describe las principales pantallas y funciones de la plataforma: creación de cuentas, inicio de sesión, búsqueda de productos, gestión del carrito, proceso de compra, pagos y administración básica para emprendedores.
+
+## ¿Para qué sirve esta guía?
+
+Esta guía sirve para acompañar al usuario durante el uso del sistema. En ella se explica qué puede hacer en cada pantalla y cuáles son los pasos que debe seguir para completar sus actividades dentro de la plataforma.
+
+Las instrucciones están escritas utilizando un lenguaje sencillo y se acompañan de capturas de pantalla para facilitar la identificación de botones, formularios y opciones.
+
+## ¿Quiénes pueden utilizar el sistema?
+
+Este manual está dirigido a:
+
+- **Usuarios finales**, quienes pueden consultar productos, agregarlos al carrito y realizar compras.
+- **Emprendedores**, quienes pueden administrar sus productos, inventario, pedidos y ventas.
+
+## Requisitos para utilizar el sistema
+
+Para utilizar el Sistema Sigchos E-Commerce se necesita:
+
+- Un dispositivo con acceso a internet, como una computadora, laptop, tableta o teléfono inteligente.
+- Un navegador web actualizado, como Google Chrome, Microsoft Edge, Mozilla Firefox o Safari.
+- Una conexión estable a internet.
+- Una cuenta registrada, en caso de realizar compras o acceder a funciones de administración.
+
+No es necesario tener conocimientos de programación para utilizar la plataforma. Los conocimientos de Java, Spring Boot, React, Next.js, PostgreSQL, microservicios y Git corresponden al desarrollo y mantenimiento técnico del sistema, por lo que no son requisitos para los usuarios finales.
+
+## Recomendaciones generales
+
+- Utilice una conexión estable a internet.
+- Ingrese datos reales y completos para evitar problemas en la compra o entrega.
+- Revise la información antes de confirmar el pedido.
+- No comparta su usuario ni contraseña.
+- Cierre sesión si utiliza la plataforma desde un equipo compartido.
+- Mantenga actualizado el navegador web de su dispositivo.
+
+## Contenido del manual
+
+En los siguientes capítulos se explica cómo navegar por la plataforma, administrar una cuenta, consultar productos, gestionar el carrito, realizar compras y utilizar las opciones disponibles para emprendedores.
+
+*Desarrollado para el GAD Municipal del Cantón Sigchos.*

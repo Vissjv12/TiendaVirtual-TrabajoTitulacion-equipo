@@ -1,0 +1,36 @@
+# API y controles de acceso
+
+## Rutas de referencia
+
+Las rutas del frontend pueden llevar el prefijo de proxy configurado en Next.js. El Gateway elimina la necesidad de que el navegador llame a puertos internos de microservicios.
+
+| Método | Ruta de servicio | Uso y control |
+|---|---|---|
+| GET | /api/productos/listado | Lectura completa de catálogo; Redis puede intervenir si los flags de producto están habilitados. |
+| GET | /api/categorias | Lectura de categorías; Redis opcional según configuración. |
+| GET | /api/categorias/{id} | Detalle de categoría; Redis opcional según configuración. |
+| GET | /api/productos/listado/paginado | Consulta paginada sin la caché descrita en este manual. |
+| POST | /api/visitas | Registro público de un incremento agregado; respuesta 204. |
+| GET | /api/visitas/estadisticas | Requiere rol ROLE_ADMIN; devuelve total histórico, visitas del día y fecha local. |
+
+Para el frontend, el contador usa por defecto las rutas /api/proxy/productos/visitas y /api/proxy/productos/visitas/estadisticas. La reescritura de Next.js las convierte a /api/visitas y /api/visitas/estadisticas en el Gateway.
+
+## Autenticación y protección perimetral
+
+- La estadística del contador está protegida con autorización ROLE_ADMIN en el controlador de msvc-producto.
+- El registro de visita es público porque lo envía la página pública; la cookie sirve para reducir duplicados desde el navegador, no sustituye autorización ni es un control contra fraude.
+- Nginx limita solicitudes por ruta y rechaza públicamente rutas administrativas internas como Actuator, Swagger/OpenAPI y consolas de procesos.
+- Los tokens JWT y credenciales no deben mostrarse en capturas, documentos, tickets o logs compartidos.
+
+## Diagnóstico de una llamada
+
+Si una ruta devuelve un código inesperado, revisar en este orden:
+
+1. La URL solicitada por el navegador y el código HTTP recibido.
+2. La reescritura configurada en next.config.js y la variable del Gateway.
+3. El bloque de ubicación Nginx que enruta la ruta al microservicio.
+4. El estado del microservicio y sus dependencias internas.
+5. Autorización, rol y headers requeridos por la ruta.
+6. El log del servicio y el log de Nginx dentro del entorno autorizado.
+
+No publicar capturas de DevTools que muestren Authorization, cookies de sesión, JWT, datos de clientes o rutas administrativas autenticadas.

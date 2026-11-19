@@ -1,0 +1,71 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Manual Técnico del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos"
+  subtitle: "Sistema Sigchos E-Commerce"
+  output-file: "Manual-Tecnico-Sigchos"
+  author:
+    - name: "Jordy Viscaíno Anthony Tapia"
+    - name: "Alfonso Alejandro Arroyo Paredes"
+    - name: "Christian Mateo Bonifaz Vásquez"
+  date: "2026-11-18"
+  date-format: "D MMMM YYYY"
+  cover-image: "imagenes/sigchos1.png"
+  chapters:
+    - index.qmd
+    - 01-arquitectura.qmd
+    - 02-configuracion-operacion.qmd
+    - 03-contador-visitas.qmd
+    - 04-cache-redis.qmd
+    - 05-api-seguridad.qmd
+    - 06-diagnostico-respaldo.qmd
+    - 07-capturas-pendientes.qmd
+    - referencias.qmd
+
+lang: es
+
+format:
+  html:
+    theme: cosmo
+    css: custom.scss
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-copy: true
+    code-tools: true
+  pdf:
+    documentclass: book
+    classoption:
+      - letterpaper
+      - 11pt
+      - oneside
+    toc: true
+    toc-depth: 3
+    toc-title: "CONTENIDO"
+    number-sections: true
+    title-page: false
+    colorlinks: true
+    linkcolor: black
+    urlcolor: espeblue
+    citecolor: espeblue
+    fig-pos: "H"
+    fig-cap-location: bottom
+    pdf-engine: xelatex
+    mermaid-format: png
+    geometry:
+      - top=2.7cm
+      - bottom=2.5cm
+      - left=2.6cm
+      - right=2.6cm
+      - headheight=16pt
+      - headsep=20pt
+      - includehead
+      - includefoot
+    include-in-header:
+      - preamble.tex
+    include-before-body:
+      - before-body.tex
+    template-partials:
+      - title.tex

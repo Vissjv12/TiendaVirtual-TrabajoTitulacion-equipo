@@ -1,0 +1,72 @@
+# Seguridad Base, Aislamiento y API Gateway
+
+## Etapa 0 a 3: Aislamiento Multi-Empresa y Roles (`A-01` a `A-10`)
+
+### Respaldo y ambiente aislado (`A-01` y `A-02`)
+Antes de intervenir seguridad y arquitectura, se levantó el inventario completo de servicios, puertos y esquemas MySQL (`auth_service`, `productos`, `inventario`, `ventas`), validando los scripts locales de respaldo y entorno (`scripts/backup-db.ps1`, `scripts/restore-db.ps1`, `scripts/test-environment.ps1`) junto con las cuentas semilla por empresa (`ultimo_inca` en empresa `1`, `sigcholac` en empresa `2`, `perla_andina` en empresa `3`).
+
+### Aislamiento horizontal entre emprendedores (`A-03` y `A-05`)
+La autorización de operaciones sobre productos se validó mediante el claim `empresaId` del JWT emitido por `auth-service` (`demo`).
+
+- **Suite ejecutada:** `ProductoAuthorizationServiceTest`.
+- **Resultado:** **7 / 7 casos aprobados**, `0` fallos, `0` errores (`BUILD SUCCESS`).
+- **Casos cubiertos:**
+  1. Administrador (`ROLE_ADMIN`) con alcance global sobre cualquier empresa.
+  2. Emprendedor (`ROLE_EMP`) con acceso autorizado a su propia empresa.
+  3. Rechazo de operación sobre una empresa ajena.
+  4. Rechazo de operación sobre un producto ajeno.
+  5. Rechazo por ausencia de rol de gestión (`ROLE_USER` / `ROLE_CLIENTE`).
+  6. Rechazo ante autenticación no JWT.
+  7. Aislamiento cruzado entre dos empresas distintas y bloqueo a emprendedor sin `empresaId`.
+
+### Validación directa contra las APIs y propagación JWT (`A-06` y `A-07`)
+- **Pruebas WebMvc de autorización:**
+  - `ProductoControllerApiAuthorizationTest`: `4 / 4` casos iniciales (`401` sin token en `POST`, `403` con rol insuficiente o empresa ajena, `200` en `GET /api/productos` público); posteriormente ampliada hasta **15 / 15 casos**.
+  - `InventarioControllerApiAuthorizationTest`: inicialmente `5 / 5` en la suite de inventario (`4` casos HTTP nuevos), ampliada luego hasta **18 / 18 casos**.
+- **Propagación interna entre microservicios:** se incorporó validación JWT (`JWT_SECRET` compartido) en `msvc-inventario`, interceptor Feign en `msvc-producto`, `msvc-ventas` y `msvc-inventario`, alineación batch en `/api/inventarios/cantidad/batch` y perfil H2 para ejecutar pruebas sin depender de MySQL local.
+- **Script manual sin mutaciones (`Documentos_Jordy/pruebas-seguridad-a07.ps1`):** verificó salud (`Eureka 8761`, `/api-docs` en `8081`/`8083`/`8084`, `/api/inventarios`), consistencia de stock (`0` diferencias), `3` lecturas públicas (`200`), `9` escrituras anónimas/token inválido (`401`) y matriz por roles usando IDs inexistentes (`999999`) para impedir escrituras accidentales.
+
+### Verificación de arranque de `msvc-ventas` y Camunda (`A-07` / `A-08`)
+- Se comprobó el arranque completo del servicio de ventas en el puerto `8083` (`Started MsvcVentasApplication in 15.959 seconds`).
+- Hibernate `ddl-auto=validate` no reportó discrepancias de esquema.
+- Motor **Camunda 7.20.0** `default` y `JobExecutor` inicializados sin errores; `GET /api-docs` y `GET /api/ventas` devolvieron `200 OK`.
+
+---
+
+## Etapa 4: Pruebas del API Gateway NGINX (`A-11` a `A-14`)
+
+Con el Gateway NGINX (`:8080` en local y plantilla unificada), se centralizaron las políticas CORS (corrigiendo duplicación de cabeceras `O-13`), se alineó el alias de QR DeUna (`O-06`) y se migraron los 12 servicios del frontend hacia `apiConfig.ts`.
+
+### Resultados automatizados de `pruebas-gateway-a14.ps1`
+La corrida automatizada contra `http://localhost:8080` finalizó con **`43` pruebas exitosas y `0` fallos (`43/43 OK`)**:
+
+| Sección verificada | Casos | Resultado observado |
+|---|---:|---|
+| 1. Salud y disponibilidad (`GET /health`, `GET /api/health`) | 3 | `200`, JSON `{"status":"UP","engine":"nginx"}` |
+| 2. Política CORS y preflight (`OPTIONS /api/productos`, `GET /api/categorias`) | 4 | `204` / `200`, cabecera `Access-Control-Allow-Origin` única (`O-13`) |
+| 3. Bloqueo perimetral e errores JSON (`PUT .../sincronizar-stock`, `/actuator/health`, ruta inexistente) | 3 | `403`, `403` y `404` JSON uniforme |
+| 4. Enrutamiento Norte-Sur público hacia 4 microservicios | 9 | `200` en productos, categorías, empresas, inventarios, batch, ventas y `costo-envio` (`404` controlado sin QR) |
+| 5. Consistencia de stock vía Gateway | 1 | `productos=78`, `inventarios=39`, `diferencias=0` |
+| 6. Rechazo de escrituras y rutas protegidas sin token / token falso | 11 | `401 Unauthorized` en los 11 casos |
+| 7. Autorización por rol vía Gateway (`CLIENTE`, `sigcholac` empresa 2 sobre empresa 1, `ADMIN`) | 12 | `403` cliente (6), `403` cruzado empresa (3), `200`/`404` admin (3) |
+
+### Correcciones verificadas durante la validación
+1. **Respuesta JSON ante caída de microservicios:** con los servicios Java detenidos, el Gateway devolvió `502 Bad Gateway` con payload JSON estructurado (`code: "SERVICE_UNAVAILABLE"`) y cabeceras CORS activas, evitando páginas HTML de NGINX.
+2. **Corrección `AccessDeniedException -> 403` en `auth-service` (`demo`):** al invocar `GET /api/usuarios` con rol `ROLE_CLI`, `GlobalExceptionHandler` capturaba originalmente la excepción en `Exception.class` (`500`). Tras agregar `@ExceptionHandler(AccessDeniedException.class)`, respondió correctamente `403 Forbidden`.
+
+---
+
+## Auditorías Pre-Redis: Autoridad y Endurecimiento (`P4` y `P5`)
+
+### `P4` — Autoridad del servidor en el flujo de compra (Commit `137bccc`, 2026-11-13)
+Se eliminó la confianza de `msvc-ventas` en precios, empresas y costos de envío enviados desde el navegador. Ahora el servicio consulta directamente a `msvc-producto` (`ProductoClient`) y `auth-service` (`ConfiguracionPagosClient`).
+
+- **Validación:** suite de integración `VentaIntegrationTest` aprobada; el caso `test14_ignoraImportesManipuladosPorCliente` envió precio manipulado `USD 0.01`, envío `USD 0` y `empresa=9999`, comprobando que la orden persistida conservó el precio oficial, tarifa `USD 5.00`, empresa consultada e IVA del `15%`.
+
+### `P5` — Endurecimiento de errores y logs (Commit `f1ac8eb`)
+- Se desactivó `spring.jpa.show-sql` en los archivos de propiedades principales (`demo`, `msvc-producto`, `msvc-inventario`).
+- Se sanearon las respuestas de `GlobalExceptionHandler` para registrar el detalle técnico únicamente en servidor y devolver mensajes genéricos al cliente sin exponer URLs internas, puertos ni excepciones JDBC/Feign.
+- **Pruebas ejecutadas:**
+  - `GET /api/usuarios` sin token: `401` con cuerpo vacío, sin filtración interna.
+  - Valor literal `TOKEN_CLIENTE`: `401 Malformed token` sin URLs ni stack trace.
+  - Pruebas de contexto contra MySQL local activo: `LoginApplicationTests` (`1 / 1 PASS`) y `MsvcProductoApplicationTests` (`1 / 1 PASS`).

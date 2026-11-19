@@ -1,0 +1,30 @@
+# Referencias técnicas
+
+## Material documental copiado para consulta
+
+- Manual de Usuario: Manual-Usuario/index.qmd y Manual-Usuario/_book/Manual-de-Usuario.pdf.
+- Informe Integral de Pruebas: Informe-Pruebas/index.qmd y Informe-Pruebas/_book/Informe-Integral-de-Pruebas.pdf.
+- Guía de despliegue del contador: ../Documentos_Jordy/GUIA-DESPLIEGUE-CONTADOR-VISITAS.md.
+- Evidencia de comparación Redis ON/OFF: ../Documentos_Jordy/REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md.
+
+## Código de referencia
+
+Las rutas siguientes son relativas a la raíz del repositorio. En los módulos Java, las rutas parciales parten de `src/main/java/com/example/msvc_producto/`.
+
+**Microservicio `Microservicios/msvc-producto/`:**
+
+- `src/main/resources/application.properties` — puertos, zona horaria, MySQL y Redis.
+- `VisitasController.java` (`presentation/controller`) — endpoints del contador.
+- `VisitasService.java` (`application/service`) — agregación diaria y zona horaria.
+- `VisitaDiariaJpaRepository.java` (`infrastructure/persistence/repository`) — consultas diarias.
+- `ProductoCatalogoCacheService.java` (`application/service`) — lectura Cache-Aside.
+- `RedisProductoCatalogoStore.java` (`infrastructure/cache`) — claves y almacenamiento.
+- `ProductoCatalogoInvalidacionService.java` (`application/service`) — invalidación tras escrituras.
+
+**Otros módulos:**
+
+- `scripts/prod/migraciones/V12-visitas-diarias.sql` — tabla `visitas_diarias`.
+- `avalon-react-10.1.0/services/visitasService.ts` — cookie y llamadas del frontend.
+- `avalon-react-10.1.0/next.config.js` — reescrituras de API.
+- `gateway/tienda.prod.conf` — enrutamiento y límites de producción.
+

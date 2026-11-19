@@ -1,0 +1,41 @@
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{titlesec}
+
+\setmainfont{Times New Roman}
+\definecolor{espeblue}{RGB}{22,50,79}
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\headheight}{16pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize Manual técnico}
+\fancyhead[R]{\footnotesize Sistema Sigchos E-Commerce}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\captionsetup[figure]{
+  name=Figura,
+  labelsep=period,
+  justification=raggedright,
+  singlelinecheck=false,
+  font={small},
+  labelfont={bf}
+}
+
+\titleformat{\chapter}[block]
+  {\normalfont\Large\bfseries}
+  {\thechapter.}
+  {0.5em}
+  {\MakeUppercase}
+  [\vspace{2pt}{\color{espeblue}\titlerule}]
+\titlespacing*{\chapter}{0pt}{-10pt}{14pt}

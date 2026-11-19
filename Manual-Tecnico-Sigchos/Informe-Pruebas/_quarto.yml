@@ -1,0 +1,77 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Informe Integral de Pruebas del Sistema de Comercio Electrónico para los Emprendimientos del Cantón Sigchos"
+  subtitle: "Sistema Sigchos E-Commerce"
+  output-file: "Informe-Integral-de-Pruebas"
+  author:
+    - name: "Jordy Viscaíno Anthony Tapia"
+    - name: "Alfonso Alejandro Arroyo Paredes"
+    - name: "Christian Mateo Bonifaz Vásquez"
+  date: "2026-11-18"
+  date-format: "D MMMM YYYY"
+  cover-image: "imagenes/sigchos1.png"
+
+  chapters:
+    - index.qmd
+    - 02-seguridad-y-gateway.qmd
+    - 03-rendimiento-y-redis.qmd
+    - 04-funcionalidad-auditoria-y-cierre.qmd
+    - 05-pruebas-produccion.qmd
+    - 06-conclusiones-y-pendientes.qmd
+    - referencias.qmd
+
+format:
+  html:
+    theme:
+      light: [cosmo, custom.scss]
+    page-layout: article
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    number-sections: true
+    code-fold: false
+    code-tools: true
+    css: custom.scss
+    include-after-body:
+      text: |
+        <div style="position: fixed; bottom: 60px; right: 270px; z-index: 50;">
+          <img src="imagenes/sigchos1.png" alt="GAD Municipal del Cantón Sigchos" style="height: 60px; opacity: 0.8; max-width: 100%;">
+        </div>
+  pdf:
+    documentclass: book
+    classoption:
+      - letterpaper
+      - 12pt
+      - oneside
+    toc: true
+    toc-depth: 3
+    toc-title: "TABLA DE CONTENIDOS"
+    number-sections: true
+    title-page: false
+    colorlinks: true
+    linkcolor: black
+    urlcolor: espeblue
+    citecolor: espeblue
+    fig-pos: 'H'
+    fig-cap-location: bottom
+    pdf-engine: xelatex
+    geometry:
+      - top=3.2cm
+      - bottom=2.54cm
+      - left=2.54cm
+      - right=2.54cm
+      - headheight=50pt
+      - headsep=25pt
+      - includehead
+      - includefoot
+    include-in-header:
+      - preamble.tex
+    include-before-body:
+      - before-body.tex
+    template-partials:
+      - title.tex
+
+lang: es

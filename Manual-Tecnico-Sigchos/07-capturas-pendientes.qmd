@@ -1,0 +1,21 @@
+# Capturas técnicas pendientes
+
+Los diagramas de arquitectura y flujo de este manual se generan desde Mermaid dentro de Quarto. No sustituyen las capturas de evidencia del sistema en ejecución. Durante esta preparación no había una aplicación abierta ni servicios locales en los puertos revisados, por lo que no se añadieron capturas de una pantalla real.
+
+| Prioridad | Nombre de archivo sugerido | Captura necesaria | Qué demuestra |
+|---|---|---|---|
+| Alta | 01-contador-devtools.png | DevTools Network en un perfil de prueba limpio: primer POST de visita, respuesta 204 y creación de la cookie; una recarga posterior donde el POST se omite. | El comportamiento de deduplicación del frontend y la llamada por Gateway. |
+| Alta | 02-contador-mysql.png | Resultado de consulta de solo lectura a fecha, cantidad y fecha_actualizacion en una base de prueba, luego de una única llamada controlada. | La persistencia agregada por día en productos.visitas_diarias. |
+| Alta | 03-redis-clave-ttl.png | Redis/Valkey de pruebas: clave del catálogo, TTL y señal de salud; no mostrar comandos de autenticación. | Que el listado se publica con el TTL configurado. |
+| Media | 04-salud-servicios.png | Estado de Gateway y msvc-producto en el monitor del entorno; salud interna de caché solo si ese modo está habilitado. | Separación entre salud de aplicación y disponibilidad opcional de Redis. |
+| Media | 05-panel-visitas-admin.png | Tarjeta administrativa con valores sintéticos de total y hoy, ocultando nombre, correo y cualquier dato de cuenta. | Dónde consulta el administrador las estadísticas protegidas. |
+
+## Reglas para tomar las evidencias
+
+- Usar entorno de prueba y datos sintéticos; no generar tráfico de prueba contra producción.
+- No mostrar tokens, cabeceras Authorization, contraseñas, cookies de sesión, IP privadas, nombres de cuentas técnicas ni datos personales.
+- Para Redis, capturar solo la clave y el TTL de la instancia de prueba; nunca incluir la contraseña ni el endpoint de administración.
+- Registrar fecha, ambiente y versión del sistema fuera de la imagen si no caben de forma clara.
+- Mantener las imágenes en la carpeta imagenes/ de este manual y usar nombres descriptivos.
+
+Puedo capturar las pantallas cuando la tienda y las herramientas de operación estén abiertas en un entorno de prueba accesible. Por ahora quedan como pendientes; no se deben reemplazar por imágenes simuladas.

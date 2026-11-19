@@ -1,0 +1,19 @@
+# Referencias y Trazabilidad {.unnumbered}
+
+## Repositorio y Trazabilidad de Fuentes
+
+- **Repositorio GitHub del proyecto:** <https://github.com/Vissjv12/TiendaVirtual-TrabajoTitulacion-equipo.git>
+- **Documento fuente consolidado:** `documentos-trabajo/RECOPILACION-INTEGRAL-PRUEBAS-EQUIPO.md`
+- **Entidad beneficiaria:** Gobierno Autónomo Descentralizado Municipal del Cantón Sigchos
+- **Autores y responsables de pruebas:**
+  - Jordy Viscaíno Anthony Tapia
+  - Alfonso Alejandro Arroyo Paredes
+  - Christian Mateo Bonifaz Vásquez
+- **Fecha de cierre del informe:** 18 de noviembre de 2026
+
+## Inventario de Registros y Evidencias Referenciadas
+
+- **Etapas 0–4 y Auditorías `P4`–`P7`:** `Documentos_Jordy/REGISTRO-ETAPA-1-A01-A06.md`, `REGISTRO-SEGURIDAD-A08-A10.md`, `REGISTRO-ETAPA-4-GATEWAY-A11-A14.md`, `P4-AUDITORIA-AUTORIDAD-COMPRA.md`, `P5-AUDITORIA-ENDURECIMIENTO.md`, `P6-LINEA-BASE-SIN-REDIS.md`, `CIERRE-ETAPA-P4-P7-Y-ENTREGA-BASE.md`.
+- **Piloto y Pruebas Redis (`A-15`–`A-18` y Producción):** `Documentos_Jordy/BASELINE-LOCAL-PRE-REDIS-CATALOGO.md`, `REDIS-VERIFICACION-CACHE-LOCAL-A17-A18.md`, `REDIS-RESULTADOS-A18.md`, `PLAN-CIERRE-REDIS-A17-A18.md`, `REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md` y carpeta `EVIDENCIA-REDIS-COMPARACION-2026-11-17/`.
+- **Paginación, Seguridad, Cierre de Auditoría y Contador de Visitas:** `Documentos_Jordy/A22-RESULTADOS-PAGINACION.md`, `A24-A25-SEGURIDAD-MSVC-VENTAS-Y-REGRESION.md`, `REGISTRO-DEUNA-CHECKOUT-Y-PERMISOS-EMPRENDEDOR.md`, `REGISTRO-PULIDO-PRE-INTEGRACION.md`, `REVISION-CODIGO-INTEGRACION-A15-A25-Y-PULIDO.md`, `REGISTRO-T07-OPTIMIZACION-Y-T01-RESPALDOS.md`, `REGISTRO-HARDENING-T07-T08-T09-GATEWAY.md`, `REGISTRO-CORRECCIONES-T07-T08-T09-REVISION.md`, `REGISTRO-T11-VINCULACION-EMPRENDEDOR-EMPRESA.md`, `IMPLEMENTACION-CONTADOR-VISITAS.md` y `PLAN-VERIFICACION-Y-RESTAURACION-RESPALDOS-LOCALES.md`.
+- **Evidencias y Reportes de Producción (`2026-11-16` / `2026-11-17`):** `documentos-trabajo/VERIFICACION-MYSQL-PRODUCCION.md`, `REPORTE-DESPLIEGUE-PRODUCCION-2026-11-16.md`, `GUIA-DESPLIEGUE-CONTADOR-VISITAS.md`, `GUIA-MIGRACION-PUERTO-444-A-443.md`, `pruebas-produccion-2026-11-17/00..07`, `Documentos_Jordy/REGISTRO-VALIDACION-GATEWAY-PRODUCCION.md`, `EVIDENCIA-PRUEBAS-AUTENTICADAS-PRODUCCION.md`, `EVIDENCIA-T11-PRUEBAS-PRODUCCION.md` e `INFORME-CONSOLIDADO-PRUEBAS-PRODUCCION.md`.

@@ -1,0 +1,27 @@
+# Propósito y alcance
+
+Este manual está dirigido al personal de tecnología que instala, configura, opera y diagnostica el Sistema Sigchos E-Commerce. Explica cómo se conectan sus componentes y cómo circulan las solicitudes y los datos en los flujos técnicos documentados.
+
+El manual complementa el [Manual de Usuario](Manual-Usuario/index.qmd), que describe las tareas desde las pantallas, y el [Informe Integral de Pruebas](Informe-Pruebas/index.qmd), que conserva resultados y evidencias de validación. No reemplaza el documento de requerimientos técnicos ni convierte resultados de pruebas en garantías de rendimiento.
+
+## Versión de referencia
+
+La documentación se contrastó con el código de la rama principal en el commit 3f8c53e, fechado el 18 de noviembre de 2026, y con las evidencias de producción descritas en el informe. La configuración real puede diferir entre desarrollo, pruebas y producción; antes de operar, se debe consultar el archivo de configuración del entorno correspondiente.
+
+::: {.callout-note}
+Este manual es una versión de trabajo. Los diagramas se generan desde Quarto; las capturas operativas señaladas en el capítulo de evidencias quedan pendientes porque no había una aplicación ni servicios locales abiertos durante su preparación.
+:::
+
+## A quién va dirigido
+
+- Administradores técnicos que despliegan el frontend, Nginx, microservicios y bases de datos.
+- Personal de soporte que revisa salud, rutas, logs y fallos de integración.
+- Desarrolladores que necesitan ubicar el código responsable de un flujo.
+
+## Cómo leerlo
+
+Cada capítulo diferencia configuración del repositorio, comportamiento observado en código y resultados registrados en pruebas. Los nombres de variables se documentan sin valores secretos. Los datos específicos de una instalación deben mantenerse fuera de esta guía pública.
+
+## Alcance funcional
+
+La guía pone atención en la arquitectura, la configuración, el contador de visitas, la caché de catálogo con Redis/Valkey, las rutas protegidas y las tareas de diagnóstico. Los pasos para comprar o administrar productos se conservan en el manual de usuario; aquí se explican las rutas y componentes que participan en esos flujos.

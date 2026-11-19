@@ -1,0 +1,39 @@
+/* Estilo de lectura técnica para HTML */
+$sigchos-green: #278c68;
+$sigchos-navy: #16324f;
+
+:root {
+  --bs-primary: #{$sigchos-green};
+  --bs-link-color: #{$sigchos-green};
+}
+
+body {
+  line-height: 1.65;
+}
+
+h1, h2, h3 {
+  color: $sigchos-navy;
+}
+
+h1 {
+  border-bottom: 2px solid #d5e8df;
+  padding-bottom: 0.25em;
+}
+
+table {
+  font-size: 0.94em;
+}
+
+pre {
+  border-left: 3px solid $sigchos-green;
+  background: #f5f8f7;
+}
+
+.callout-note {
+  border-left-color: $sigchos-green;
+}
+
+.mermaid {
+  margin: 1.25rem auto;
+  text-align: center;
+}
