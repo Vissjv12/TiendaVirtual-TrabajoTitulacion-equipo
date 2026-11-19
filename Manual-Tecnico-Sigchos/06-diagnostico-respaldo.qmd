@@ -30,6 +30,52 @@
 
 ## Respaldo y reversión
 
-El contador es aditivo: una reversión del artefacto de msvc-producto no requiere borrar la tabla visitas_diarias. No eliminar datos ni volúmenes Docker durante una reversión simple. Para los respaldos MySQL, usar el procedimiento del equipo, verificar checksum y practicar la restauración aislada antes de depender del respaldo.
+El contador es aditivo: una reversión del artefacto de msvc-producto no requiere borrar la tabla visitas_diarias. No eliminar datos ni volúmenes Docker durante una reversión simple.
 
-Las instrucciones concretas de backup, restauración y despliegue se mantienen en los documentos de operación referenciados al final; no ejecutar comandos sobre producción sin ventana, autorización y respaldo verificado.
+### Respaldo de la configuración
+
+Antes de cambiar banderas, guardar una copia protegida de `/etc/tienda-virtual/backend.env` con el comando del capítulo Redis/Valkey. El archivo contiene credenciales: mantener la copia bajo `/root`, no descargarla al equipo personal y no subirla al repositorio. Para una reversión se restaura esa copia, se vuelve a aplicar `restorecon` y se reinicia `msvc-producto`.
+
+### Respaldo de MySQL
+
+El repositorio incluye `scripts/prod/backup-db.sh`, el servicio `tienda-backup.service` y la prueba de restauración `tienda-restore-test.service`. El respaldo diario cubre `auth_service`, `productos`, `inventario` y `ventas`; genera archivos comprimidos, `SHA256SUMS` y un manifiesto. La configuración e instalación completa están en `scripts/prod/INSTALACION-RESPALDOS.md`.
+
+Antes de usar los comandos, confirmar que las unidades estén instaladas:
+
+```bash
+sudo systemctl list-timers --all | grep -E 'tienda-backup|tienda-restore-test'
+sudo systemctl status tienda-backup.service --no-pager
+```
+
+En la revisión del servidor del 19 de noviembre de 2026, `tienda-backup.service`, `tienda-backup.timer`, `tienda-restore-test.service` y `tienda-restore-test.timer` no estaban instalados. Por tanto, no se debe asumir que existe una copia automática en producción. La instalación requiere configurar primero los usuarios MySQL de privilegios mínimos y los archivos protegidos descritos en la guía referenciada.
+
+Después de instalar y verificar esa configuración, un operador puede iniciar un respaldo manual y revisar el resultado:
+
+```bash
+sudo systemctl start tienda-backup.service
+sudo journalctl -u tienda-backup.service -n 50 --no-pager
+sudo systemctl list-timers --all | grep -E 'tienda-backup|tienda-restore-test'
+```
+
+El log debe indicar que el respaldo terminó correctamente. Para revisar una carpeta de respaldo concreta:
+
+```bash
+cd /var/backups/tienda/<AAAAMMDD_HHMMSS>
+sha256sum -c --quiet SHA256SUMS
+for archivo in *.sql.gz; do gzip -t "$archivo" || exit 1; done
+```
+
+`sha256sum -c` y `gzip -t` deben finalizar sin errores. Para probar la restauración, usar solo el servicio aislado, que crea bases `restore_test_*`, valida tablas y las elimina:
+
+```bash
+sudo systemctl start tienda-restore-test.service
+sudo journalctl -u tienda-restore-test.service -n 80 --no-pager
+```
+
+No ejecutar una restauración sobre las bases reales como parte de una verificación rutinaria. La recuperación real corresponde a un procedimiento de incidente con aprobación, respaldo elegido y ventana de mantenimiento. Las copias con datos de clientes y ventas deben transferirse a almacenamiento externo cifrado; también se deben respaldar por separado facturas y archivos subidos.
+
+### Respaldo de Redis/Valkey
+
+La instancia documentada almacena caché reconstruible del catálogo; MySQL sigue siendo la fuente de verdad. No es necesario respaldar sus claves para conservar productos, categorías o inventario. En la revisión del 19 de noviembre de 2026 Valkey tenía persistencia RDB configurada y AOF desactivado, pero ese snapshot no sustituye el respaldo de MySQL ni debe usarse como respaldo comercial. No ejecutar `FLUSHDB` o `FLUSHALL` para desactivar la caché.
+
+Las instrucciones concretas de instalación y recuperación se mantienen en los documentos de operación referenciados al final; no ejecutar cambios sobre producción sin ventana, autorización y respaldo verificado.

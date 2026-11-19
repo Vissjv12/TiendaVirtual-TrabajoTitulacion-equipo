@@ -6,10 +6,10 @@ El manual complementa el [Manual de Usuario](Manual-Usuario/index.qmd), que desc
 
 ## Versión de referencia
 
-La documentación se contrastó con el código de la rama principal en el commit 3f8c53e, fechado el 18 de noviembre de 2026, y con las evidencias de producción descritas en el informe. La configuración real puede diferir entre desarrollo, pruebas y producción; antes de operar, se debe consultar el archivo de configuración del entorno correspondiente.
+La documentación del código se contrastó con el commit `0605376` de la rama principal, fechado el 18 de noviembre de 2026. El estado operativo del servidor descrito en este manual se verificó el 19 de noviembre de 2026. La configuración puede cambiar entre ambientes y con el tiempo; antes de operar, se debe consultar el entorno activo.
 
 ::: {.callout-note}
-Este manual es una versión de trabajo. Los diagramas se generan desde Quarto; las capturas operativas señaladas en el capítulo de evidencias quedan pendientes porque no había una aplicación ni servicios locales abiertos durante su preparación.
+Este manual es una versión de trabajo. Los diagramas se generan desde Quarto. El capítulo de evidencias distingue las verificaciones observadas en producción de las capturas de pantalla que aún deben guardarse en `imagenes/`.
 :::
 
 ## A quién va dirigido

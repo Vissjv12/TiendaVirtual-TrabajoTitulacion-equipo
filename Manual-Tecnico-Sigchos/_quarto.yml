@@ -10,7 +10,7 @@ book:
     - name: "Jordy Viscaíno Anthony Tapia"
     - name: "Alfonso Alejandro Arroyo Paredes"
     - name: "Christian Mateo Bonifaz Vásquez"
-  date: "2026-11-18"
+  date: "2026-11-19"
   date-format: "D MMMM YYYY"
   cover-image: "imagenes/sigchos1.png"
   chapters:

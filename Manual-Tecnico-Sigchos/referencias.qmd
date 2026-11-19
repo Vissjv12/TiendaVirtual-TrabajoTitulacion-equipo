@@ -6,6 +6,9 @@
 - Informe Integral de Pruebas: Informe-Pruebas/index.qmd y Informe-Pruebas/_book/Informe-Integral-de-Pruebas.pdf.
 - Guía de despliegue del contador: ../Documentos_Jordy/GUIA-DESPLIEGUE-CONTADOR-VISITAS.md.
 - Evidencia de comparación Redis ON/OFF: ../Documentos_Jordy/REDIS-EVIDENCIA-PRODUCCION-ON-OFF-2026-11-17.md.
+- Procedimiento de instalación y operación de respaldos MySQL: `../scripts/prod/INSTALACION-RESPALDOS.md`.
+- Implementación del respaldo y prueba de restauración aislada: `../scripts/prod/backup-db.sh` y `../scripts/prod/restore-test-db.sh`.
+- Diseño y reversión segura de la caché Redis/Valkey: archivo `REDIS-PRUEBA-INSTITUCIONAL-Y-ROLLBACK.md` en `Documentos_Jordy/`.
 
 ## Código de referencia
 

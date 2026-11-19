@@ -30,6 +30,8 @@ Las propiedades Spring leen estos valores desde variables de entorno. Los valore
 
 La caché de un recurso solo se activa si están habilitados el interruptor global y el interruptor específico del recurso. Cambiar estos valores en un servidor requiere el procedimiento de despliegue aprobado, una verificación posterior y un plan de reversión.
 
+En la instalación revisada, `msvc-producto` carga su `EnvironmentFile` desde `/etc/tienda-virtual/backend.env`. La revisión del 19 de noviembre de 2026 confirmó que el archivo tenía propietario `root:root` y permisos `600`. No imprimir ni copiar su contenido a tickets o repositorios: incluye secretos de varios servicios. El cambio de banderas de caché requiere reiniciar solo `msvc-producto`; el procedimiento está en el capítulo de caché Redis/Valkey.
+
 ## Diferencia entre despliegue local y producción
 
 ```{mermaid}

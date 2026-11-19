@@ -41,6 +41,101 @@ En el repositorio los tres interruptores están desactivados por defecto: CACHE_
 
 El microservicio expone métricas de caché mediante Micrometer y un grupo de salud llamado cache. En producción el Gateway bloquea Actuator desde el borde público, de modo que la verificación operativa debe hacerse desde el canal interno autorizado, no abriendo esas rutas a Internet.
 
+## Operar la caché Redis/Valkey
+
+Solo `msvc-producto` consume esta caché en la versión documentada. Las banderas se leen al iniciar el proceso; al cambiarlas se reinicia `msvc-producto`, no el servidor Valkey ni los otros microservicios. El catálogo sigue leyendo desde MySQL si la caché está desactivada o no está disponible.
+
+### Combinaciones de activación
+
+El interruptor global `CACHE_REDIS_ENABLED` controla todas las cachés. Con `false` quedan desactivadas. Con `true`, cada recurso sigue su propio interruptor:
+
+- Desactivar todo: `CACHE_REDIS_ENABLED=false`.
+- Cachear solo el listado: `CACHE_REDIS_ENABLED=true`, `CACHE_REDIS_PRODUCTOS_LISTADO_ENABLED=true` y `CACHE_REDIS_CATEGORIAS_ENABLED=false`.
+- Cachear solo categorías: `CACHE_REDIS_ENABLED=true`, `CACHE_REDIS_PRODUCTOS_LISTADO_ENABLED=false` y `CACHE_REDIS_CATEGORIAS_ENABLED=true`.
+- Cachear ambos recursos: `CACHE_REDIS_ENABLED=true`, `CACHE_REDIS_PRODUCTOS_LISTADO_ENABLED=true` y `CACHE_REDIS_CATEGORIAS_ENABLED=true`.
+
+Los TTL se configuran aparte con `CACHE_REDIS_TTL_PRODUCTOS` (`PT5M` por defecto) y `CACHE_REDIS_TTL_CATEGORIAS` (`PT15M` por defecto). Al cambiar un TTL, las entradas existentes conservan su expiración actual; el nuevo valor se aplica a las entradas que se publiquen después del reinicio.
+
+### Procedimiento de cambio y reversión
+
+Ejecutar estos pasos mediante una sesión autorizada y una ventana de cambio acordada:
+
+1. Confirmar qué archivo de entorno carga el servicio, sin mostrar su contenido:
+
+   ```bash
+   sudo systemctl show msvc-producto --property=EnvironmentFiles
+   ```
+
+2. Crear una copia protegida del archivo antes de editarlo. Esta copia contiene secretos y debe quedarse en un directorio accesible solo por `root`:
+
+   ```bash
+   sudo cp -a /etc/tienda-virtual/backend.env \
+     "/root/backend.env.pre-cache-$(date +%Y%m%d_%H%M%S)"
+   ```
+
+3. Editar el archivo con `sudoedit /etc/tienda-virtual/backend.env`. Cambiar las líneas existentes de `CACHE_REDIS_*`; no agregar líneas duplicadas. Usar la tabla anterior para elegir el modo y conservar los TTL que correspondan.
+
+4. Confirmar propietario, permisos y contexto SELinux:
+
+   ```bash
+   sudo chown root:root /etc/tienda-virtual/backend.env
+   sudo chmod 600 /etc/tienda-virtual/backend.env
+   sudo restorecon -v /etc/tienda-virtual/backend.env
+   sudo stat -c '%a %U:%G' /etc/tienda-virtual/backend.env
+   ```
+
+   El resultado esperado de `stat` es `600 root:root`. No ejecutar `cat` sobre el archivo para verificar las banderas.
+
+5. Reiniciar únicamente el consumidor y revisar su estado y sus logs recientes:
+
+   ```bash
+   sudo systemctl restart msvc-producto
+   sudo systemctl is-active msvc-producto
+   sudo journalctl -u msvc-producto --since '-5 minutes' --no-pager
+   ```
+
+   `systemctl is-active` debe devolver `active`. No se requiere `daemon-reload` al cambiar solo el archivo de entorno.
+
+6. Verificar únicamente las banderas de caché y la salud interna del servicio:
+
+   ```bash
+   sudo grep -E '^CACHE_REDIS_' /etc/tienda-virtual/backend.env
+   curl -fsS http://127.0.0.1:8081/actuator/health
+   curl -fsS http://127.0.0.1:8081/actuator/health/cache
+   ```
+
+   Actuator es interno. No publicar ni abrir sus rutas en Nginx para obtener una captura. La salud `UP` de caché confirma conectividad, no que ya hubo un hit.
+
+7. Para poblar y revisar el listado, enviar una lectura por el Gateway interno y revisar el código HTTP:
+
+   ```bash
+   curl -sS -o /dev/null -w 'HTTP=%{http_code}\n' \
+     -H 'Host: tienda.gadmsigchos.gob.ec' \
+     http://127.0.0.1:8080/api/productos/listado
+   valkey-cli -h 127.0.0.1 PING
+   valkey-cli -h 127.0.0.1 --scan \
+     --pattern 'feriadigital:v1:{catalogo}:productos:listado*'
+   key='feriadigital:v1:{catalogo}:productos:listado:g<generacion>'
+   valkey-cli -h 127.0.0.1 TTL "$key"
+   ```
+
+   Sustituir `<generacion>` por el sufijo que devolvió `--scan`. La lectura debe responder `HTTP=200`, Valkey debe responder `PONG` y el TTL debe ser mayor que cero. Para confirmar un hit, revisar la métrica `feriadigital.redis.cache.requests` con `resource=catalogo` y `result=hit` desde el acceso interno autorizado a métricas. La aplicación no renueva el TTL en cada hit.
+
+8. Si el servicio no inicia o la verificación falla, restaurar la copia seleccionada y reiniciar el mismo microservicio:
+
+   ```bash
+   sudo cp -a \
+     "/root/backend.env.pre-cache-AAAAMMDD_HHMMSS" \
+     /etc/tienda-virtual/backend.env
+   sudo restorecon -v /etc/tienda-virtual/backend.env
+   sudo systemctl restart msvc-producto
+   sudo systemctl is-active msvc-producto
+   ```
+
+   Sustituir `AAAAMMDD_HHMMSS` por la marca de tiempo creada en el paso 2. No borrar claves con `FLUSHDB` o `FLUSHALL`: las entradas son temporales y se regeneran desde MySQL. No probar la caída de Valkey deteniendo el servicio de producción; hacerlo solo en un entorno aislado.
+
+**Disponibilidad del cliente:** en la revisión del servidor del 19 de noviembre de 2026 no estaban instalados `valkey-cli` ni `redis-cli`. No exponer el puerto 6379 ni instalar herramientas directamente en producción para una captura. Solicitar al equipo administrador un cliente aprobado en el servidor o en un equipo de operación conectado por un canal privado.
+
 ## Lectura de la evidencia
 
 La comparación de producción del 17 de noviembre de 2026 confirma que el caché pobló y reutilizó claves y mantuvo las respuestas funcionales durante la carga registrada. El p95 promedio fue 100,88 ms con caché y 101,82 ms sin caché; esa diferencia pequeña no demuestra una mejora práctica perceptible de latencia. El informe integral conserva las condiciones, límites y resultados completos.
