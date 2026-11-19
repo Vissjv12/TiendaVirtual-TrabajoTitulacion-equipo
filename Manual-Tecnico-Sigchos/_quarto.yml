@@ -21,7 +21,6 @@ book:
     - 04-cache-redis.qmd
     - 05-api-seguridad.qmd
     - 06-diagnostico-respaldo.qmd
-    - 07-capturas-pendientes.qmd
     - referencias.qmd
 
 lang: es

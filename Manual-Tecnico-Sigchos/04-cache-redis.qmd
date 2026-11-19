@@ -104,7 +104,7 @@ Ejecutar estos pasos mediante una sesión autorizada y una ventana de cambio aco
    curl -fsS http://127.0.0.1:8081/actuator/health/cache
    ```
 
-   Actuator es interno. No publicar ni abrir sus rutas en Nginx para obtener una captura. La salud `UP` de caché confirma conectividad, no que ya hubo un hit.
+   Actuator es interno. No publicar ni abrir sus rutas en Nginx. La salud `UP` de caché confirma conectividad, no que ya hubo un hit.
 
 7. Para poblar y revisar el listado, enviar una lectura por el Gateway interno y revisar el código HTTP:
 
@@ -134,7 +134,7 @@ Ejecutar estos pasos mediante una sesión autorizada y una ventana de cambio aco
 
    Sustituir `AAAAMMDD_HHMMSS` por la marca de tiempo creada en el paso 2. No borrar claves con `FLUSHDB` o `FLUSHALL`: las entradas son temporales y se regeneran desde MySQL. No probar la caída de Valkey deteniendo el servicio de producción; hacerlo solo en un entorno aislado.
 
-**Disponibilidad del cliente:** en la revisión del servidor del 19 de noviembre de 2026 no estaban instalados `valkey-cli` ni `redis-cli`. No exponer el puerto 6379 ni instalar herramientas directamente en producción para una captura. Solicitar al equipo administrador un cliente aprobado en el servidor o en un equipo de operación conectado por un canal privado.
+**Disponibilidad del cliente:** en la revisión del servidor del 19 de noviembre de 2026 no estaban instalados `valkey-cli` ni `redis-cli`. No exponer el puerto 6379. Solicitar al equipo administrador un cliente aprobado en el servidor o en un equipo de operación conectado por un canal privado.
 
 ## Lectura de la evidencia
 
